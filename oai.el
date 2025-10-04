@@ -1,4 +1,4 @@
-;;; oai.el --- AI blocks for org-mode. -*- lexical-binding: t; -*-
+;;; oai.el --- AI-LLM blocks for org-mode. -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2023-2025 Robert Krahn
 ;; Copyright (C) 2025 github.com/Anoncheg1

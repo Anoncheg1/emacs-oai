@@ -55,22 +55,23 @@
   (condition-case nil
       (delete-process "my-http-server")
     (error nil))
-  (progn
   (oai-tests--create-http-service)
+  ;; (sleep-for 1)
   (let ((temp-buffer (generate-new-buffer " *temp*" t)))
-  ;; (let ((temp-buffer (get-buffer-create "tt" t)))
-  ;; (let ((temp-buffer (current-buffer)))
+    ;; (let ((temp-buffer (get-buffer-create "tt" t)))
+    ;; (let ((temp-buffer (current-buffer)))
     (with-current-buffer temp-buffer
-      (goto-char 1498)
+      ;; (goto-char 1498)
       (org-mode)
-
       (oai-test-setup-buffer "#+begin_ai :stream nil :service test :model none\nTest content\n#+end_ai")
+      ;; (print (point))
       (let ((oai-restapi-con-endpoint oai-restapi-con-endpoints)
             (oai-restapi-con-token "test"))
         (plist-put oai-restapi-con-endpoints :test "http://localhost:9239/v1/chat/completions")
                                         ; delete http service if error, but not suppress
         (condition-case err
-            (org-ctrl-c-ctrl-c)
+            (sleep-for 0.1) ; required
+             (org-ctrl-c-ctrl-c)
           (error
            (print "delete-process")
            (delete-process "my-http-server")   ; run your code
@@ -85,4 +86,4 @@
                                                 "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]: \n#+end_ai")
                                                ))
                          (delete-process "my-http-server"))
-                 temp-buffer))))
+                 temp-buffer)))
