@@ -86,7 +86,7 @@ and INFO-ALIST is the parameters from its header."
 
 ;;; - oai-block--let-params
 
-(ert-deftest oai-tests-block--let-params-all-from-info-test ()
+(ert-deftest oai-tests-block--let-params-all-from-info-test1 ()
   "Test when all parameters are provided in the block header (info alist)."
   (with-temp-buffer
     (org-mode)
@@ -114,6 +114,49 @@ and INFO-ALIST is the parameters from its header."
                              (should (= model2 0))
                              (should (string-equal model4 nil))
                              (should (string-equal model3 t))))))
+
+
+;; Test for `oai-block--let-params':
+(ert-deftest oai-tests-block--let-params-all-from-info-test2 ()
+  (cl-letf (((symbol-function 'org-entry-get-with-inheritance)
+             (lambda (_) nil)))
+    (let ((info '((:model))))
+      (oai-block--let-params info
+                             ((model nil :type string))
+                             (should (equal model nil))))))
+
+(ert-deftest oai-tests-block--let-params-all-from-info-test3 ()
+  (cl-letf (((symbol-function 'org-entry-get-with-inheritance)
+             (lambda (_) nil)))
+    (let ((info '((:model)
+                  (:model1 . "nil")
+                  (:stream1 . "nil")
+                  (:stream2 . t)
+                  ;; (:stream3)
+                  (:stream4)
+                  )))
+      (oai-block--let-params info
+                             ((model nil :type string)
+                              (model1 nil :type string)
+                              (model2 nil :type string)
+                              (stream nil :type bool)
+                              (stream1 nil :type bool)
+                              (stream2 nil :type bool)
+                              (stream3 t :type bool)
+                              (stream4 nil :type bool)
+                              )
+                             ;; (print (list "stream4" stream4)))))
+                             ;; (print (list "model1" model1)) => ("nil" "nil")
+                             ;; (print (list "model" model))
+                             (should (string-equal model nil))
+                             (should (equal model1 nil))
+                             (should (equal model2 nil))
+                             (should (equal stream nil))
+                             (should (string-equal stream1 nil))
+                             (should (equal stream2 t))
+                             (should (equal stream3 t))
+                             (should (equal stream4 t))
+                             ))))
 
 ;; (defun oai-block--oai-restapi-request-prepare (req-type content element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
 ;;   )

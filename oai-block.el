@@ -273,53 +273,6 @@ Parameters are sourced from:
 ;;         "nil"
 ;;       v2))
 
-;; Test for `oai-block--let-params':
-(cl-letf (((symbol-function 'org-entry-get-with-inheritance)
-           (lambda (_) nil)))
-  (let ((info '((:model))))
-    (oai-block--let-params info
-                           ((model nil :type string))
-                           (print (list "model" model)))))
-
-(cl-letf (((symbol-function 'org-entry-get-with-inheritance)
-           (lambda (_) nil)))
-  (let ((info '((:model)
-                (:model1 . "nil")
-                (:stream1 . "nil")
-                (:stream2 . t)
-                ;; (:stream3)
-                (:stream4)
-                )))
-    (oai-block--let-params info
-                           ((model nil :type string)
-                            (model1 nil :type string)
-                            (model2 nil :type string)
-                            (stream nil :type bool)
-                            (stream1 nil :type bool)
-                            (stream2 nil :type bool)
-                            (stream3 t :type bool)
-                            (stream4 nil :type bool)
-                            )
-                           ;; (print (list "stream4" stream4)))))
-                           ;; (print (list "model1" model1)) => ("nil" "nil")
-                           (if (not (string-equal model "nil"))
-                               (error "oai-block--let-params assert1"))
-                           (if (not (equal model1 nil))
-                               (error "oai-block--let-params assert2"))
-                           (if (not (equal model2 nil))
-                               (error "oai-block--let-params assert3"))
-                           (if (not (equal stream nil))
-                               (error "oai-block--let-params assert4"))
-                           (if (not (string-equal stream1 nil))
-                               (error "oai-block--let-params assert5"))
-                           (if (not (equal stream2 t))
-                               (error "oai-block--let-params assert6"))
-                           (if (not (equal stream3 t))
-                               (error "oai-block--let-params assert7"))
-                           (if (not (equal stream4 t))
-                               (error "oai-block--let-params assert8"))
-)))
-
 
 (defvar oai-block--roles-regex "\\[SYS\\]:\\|\\[ME\\]:\\|\\[ME:\\]\\|\\[AI\\]:\\|\\[AI_REASON\\]:")
 
