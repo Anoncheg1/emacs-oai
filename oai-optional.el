@@ -287,8 +287,8 @@ Ignoring code blocks that start with '```sometext' and end with '```'."
     (let ((element (oai-block-p)))
       (when (and element (string-equal "ai" (org-element-property :type element)))
         ;; Determine the boundaries of the content
-        (let ((beg (org-element-contents-begin element)) ; first line of content
-              (end (org-element-contents-end element))
+        (let ((beg (org-element-property :contents-begin element)) ; first line of content
+              (end ((org-element-property :contents-end element))
               block-start block-end)
           ;; Content exist?
           (if (or (not beg)
