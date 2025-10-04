@@ -41,14 +41,14 @@
 
 ;;; Code:
 
-(defun oai-test-setup-buffer (buf block-content &optional properties-alist)
-  "Create a temporary Org buffer with BLOCK-CONTENT and optional PROPERTIES-ALIST.
+(defun oai-test-setup-buffer (block-content &optional buf properties-alist)
+  "Create ai BLOCK-CONTENT and optional PROPERTIES-ALIST.
+In current buffer or in BUF.
 PROPERTIES-ALIST should be an alist like '((property-name . \"value\")).
+Set cursor at begining of buffer.
 Returns a list (ELEMENT INFO-ALIST), where ELEMENT is the parsed Oai block
-and INFO-ALIST is the parameters from its header.
-Argument BUF is buffer in which we insert block-contentn."
-  (with-current-buffer buf
-    (org-mode)
+and INFO-ALIST is the parameters from its header."
+  (with-current-buffer (or buf (current-buffer))
     (setq-local org-export-with-properties t) ; Ensure properties are considered
     (when properties-alist
       (dolist (prop properties-alist)
@@ -62,11 +62,12 @@ Argument BUF is buffer in which we insert block-contentn."
     (unless (search-forward "#+begin_ai" nil t)
       (error "Failed to find '#+begin_ai' in buffer"))
     (beginning-of-line) ; Ensure point is at the start of the block
-    (let* ((element (org-element-at-point)))
-      (unless (eq (org-element-type element) 'special-block)
-        (error "No valid Oai block found at point"))
-      element)) ; return
-  )
+    (when (derived-mode-p 'org-mode)
+      (let* ((element (org-element-at-point)))
+        (unless (eq (org-element-type element) 'special-block)
+          (error "No valid Oai block found at point"))
+        element)) ; return
+  ))
 
 
 ;; (oai-test-setup-buffer "#+begin_ai\nTest content\n#+end_ai")
@@ -77,8 +78,9 @@ Argument BUF is buffer in which we insert block-contentn."
 (ert-deftest oai-tests-block--setup-buffer-basic-test ()
   "Test that oai-test-setup-buffer sets up a buffer correctly."
   (with-temp-buffer
+    (org-mode)
     (let* ((block-content "#+begin_ai\nTest content\n#+end_ai")
-           (element (oai-test-setup-buffer (current-buffer) block-content)))
+           (element (oai-test-setup-buffer block-content)))
       (should (eq (org-element-type element) 'special-block))
       (should (equal (org-element-property :type element) "ai")))))
 
@@ -87,8 +89,9 @@ Argument BUF is buffer in which we insert block-contentn."
 (ert-deftest oai-tests-block--let-params-all-from-info-test ()
   "Test when all parameters are provided in the block header (info alist)."
   (with-temp-buffer
+    (org-mode)
     (let* ((test-block "#+begin_ai :stream t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\n#+end_ai\n")
-           (element (oai-test-setup-buffer (current-buffer) test-block))
+           (element (oai-test-setup-buffer test-block))
            (info (progn (goto-char (org-element-property :begin element)) (oai-block-get-info))))
       ;; (unwind-protect
       ;; Position point inside the block for correct context, though not strictly needed for info directly.

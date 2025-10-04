@@ -526,10 +526,10 @@ Use current buffer, current position to output error to result of block if two t
                     )))
 
               ;; - 4) Move to position of target - if we are here: No second target was found
-              (print (list "oai-block-tags--get-replacement-for-org-link found2" (point) target-pos type link-string)) ; `(ref)'
+              ;; (print (list "oai-block-tags--get-replacement-for-org-link found2" (point) target-pos type link-string)) ; `(ref)'
               (goto-char target-pos)
               ;; - 5) Get content for link - org-links or ol.el link
-              (print (list "vvvs" (require 'org-links nil 'noerror)  (string-equal type "fuzzy")))
+              ;; (print (list "vvvs" (require 'org-links nil 'noerror)  (string-equal type "fuzzy")))
               (if (and (require 'org-links nil 'noerror)
                        (string-equal type "fuzzy"))
                   ;; Type: org-links

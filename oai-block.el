@@ -220,10 +220,10 @@ Parameters are sourced from:
                           (key (intern (concat ":" (symbol-name sym))))
                           (prop-name (symbol-name sym))
                           (postprocessor (cl-case type
-                                       (number `(cond ((null val) (print (list "wtf1" val)) nil)
-                                                      ((and (stringp val) (string= val "nil")) (print "wtf2") nil)
-                                                      ((stringp val) (print "wtf3") (string-to-number val))
-                                                      ((numberp val) (print "wtf4") val)
+                                       (number `(cond ((null val) nil)
+                                                      ((and (stringp val) (string= val "nil")) nil)
+                                                      ((stringp val) (string-to-number val))
+                                                      ((numberp val) val)
                                                       (t val)))
                                        (bool `(cond ((null val) nil)
                                                     ((eq val t) t)
@@ -488,7 +488,6 @@ TODO: EXEC-TIME."
        (let* ((name (org-element-property :name context))
               (named-results (and name (org-babel-find-named-result name))))
          (goto-char (or named-results (org-element-property :end context)))
-         (print (list "name" name named-results))
          (cond
           ;; Existing results named after the current source.
           (named-results

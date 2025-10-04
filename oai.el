@@ -34,7 +34,7 @@
 ;;; Commentary:
 ;;
 ;; OAI extend Org mode with "ai block" that allows you to interact
-;; with the OpenAI-compatible REST APIs. Fork of "org-ai".
+;; with the OpenAI-compatible REST APIs.  Fork of "org-ai".
 ;;
 ;; It allows you to:
 ;; - Use #+begin_ai..#+end_ai blocks for org-mode
@@ -92,18 +92,12 @@
 ;; - TODO: implement expanders for variables like links and references
 ;; - TODO: implement contant-tags "Fix @problems then document the changes in @/CHANGELOG.md" @url, @file, @folder, @header? (Org)
 
-;;; Code
 ;;; -=-= Includes
 (require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'
 (require 'oai-block)
 (require 'oai-restapi)
-;; (require 'org-ai-openai-image)
-;; (require 'org-ai-useful)
-;; (require 'org-ai-on-project)
-;; (require 'org-ai-talk)
-;; (require 'org-ai-sd)
-;; (require 'org-ai-oobabooga)
 
+;;; Code:
 ;;; -=-= C-c C-c main interface
 
 (defcustom oai-agent-call-function #'oai-restapi-request-prepare ; oai-restapi.el
@@ -114,18 +108,15 @@ TODO: pass callback for writing."
   :group 'oai)
 
 (defun oai-ctrl-c-ctrl-c ()
-  "Main command for #+begin_ai. Org specification."
-  (when-let ((element (oai-block-p))) ; oai-block.el
-    (oai-call-block) ; here
+  "Main command for #+begin_ai.  Org specification."
+  (when (oai-block-p) ; oai-block.el
+    (oai-ctrl-c-ctrl-c-2) ; call here
     t))
-
-(oai-restapi--get-values oai-restapi-con-model "openai")
 
 (defun oai-parse-org-header ()
   ;; -- Org "Pre-parsing"
   (let* ((element (oai-block-p)) ; oai-block.el
          (info (oai-block-get-info element)) ; ((:max-tokens . 150) (:service . "together") (:model . "xxx")) ; oai-block.el
-         ;; (end-marker (oai-block--get-content-end-marker element))
          (req-type (oai-block--get-request-type info)) ; oai-block.el
          (sys-prompt-for-all-messages (or (not (eql 'x (alist-get :sys-everywhere info 'x)))
                                           (org-entry-get-with-inheritance "SYS-EVERYWHERE") ; org
@@ -134,6 +125,7 @@ TODO: pass callback for writing."
                          (oai-block--get-sys :info info ; oai-block.el
                                              :default oai-restapi-default-chat-system-prompt)))) ; oai-restapi.el variable
     ;; - Process Org params and call agent
+    (print (list "here31" info))
     (oai-block--let-params info
                            ;; format: (variable optional-default type)
                            ((service oai-restapi-con-service string) ; oai-restapi.el
@@ -148,54 +140,38 @@ TODO: pass callback for writing."
                             (temperature nil :type number)
                             (frequency-penalty nil :type number)
                             (presence-penalty nil :type number)
-                            (stream t :type bool)
-                            )
-                           (print (list "model" model))
-                           (print (list "stream1" stream))
-                           (print (list "service" service (type-of service)))
+                            (stream t :type bool))
                            ;; - body with some Org "Post-parsing":
-                           ;; (print (list "SERVICE" service (stringp service) (org-ai--read-service-name service)))
                            (let (
                                  (service (or service
                                               oai-restapi-con-service)) ; default in oai-restapi.el
-                                 ;; (stream (if (not (oai-restapi--stream-supported service model))
-                                 ;;             nil
-                                 ;;           ;; else
-                                 ;;           stream
-                                 ;;           ))
                                  (model (if (and (stringp model)
                                                  (string-equal model "nil"))
                                             nil
                                           ;; else
-                                          model
-                                          )))
-                             (print (list "stream2" stream))
-                             ;; - main call
-                             (condition-case err ; for `oai-block-tags-replace'
+                                          model)))
                                  ;; return
+                                 (print "here3")
                                  (list req-type element sys-prompt sys-prompt-for-all-messages ; message
                                           model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
                                           )
-                               (user-error
-                                (funcall oai-restapi-show-error-function (error-message-string err)
-                                         (oai-block-get-header-marker element))))))))
+                                 ))))
 
-;; (oai-restapi--get-values oai-restapi-con-model "local")
-;; (let ((m nil))
-;;   (unless m
-;;                                          (user-error "Model not specified.")))
 
-(defun oai-call-block ()
-  "Read Org parameters and send the text content to next step."
+(defun oai-ctrl-c-ctrl-c-2 ()
+  "Remove result and parse ai block header parameters."
   (interactive)
-  ;; -- remove result block
-  (oai-block-remove-result)
-
-  (apply oai-agent-call-function (oai-parse-org-header)))
+  (print "here")
+  (oai-block-remove-result) ; remove result block
+  (print "here2")
+  ;; (condition-case err ; for `oai-block-tags-replace'
+  (apply oai-agent-call-function (oai-parse-org-header))) ; call
+    ;; (user-error
+    ;;  (funcall oai-restapi-show-error-function (error-message-string err)
+    ;;           (oai-block-get-header-marker (oai-block-p))))))
 
 ;;; -=-= key M-x: oai-expand-block
 (defun oai-expand-block-deep ()
-  (print "oai-expand-block-deep")
   (seq-let (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream) (oai-parse-org-header)
     (let* (
          (content (string-trim (oai-block-get-content element))) ; string - is block content
@@ -220,10 +196,7 @@ TODO: pass callback for writing."
 			     :frequency-penalty frequency-penalty
 			     :presence-penalty presence-penalty
 			     :service service
-			     :stream stream)))
-
-    ;; (print (list req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream))
-  ))
+			     :stream stream)))))
 
 ;;;###autoload
 (defun oai-expand-block (arg)
@@ -244,15 +217,14 @@ Set `help-window-select' variable to get focus."
                              (apply #'mapconcat #'identity (mapcar (lambda (x) (string-replace "\n" "\\n" (prin1-to-string x)))  expanded) '("\n"))
                            (oai-restapi--stringify-chat-messages expanded)))
                (headers (if arg
-                                (oai-expand-block-deep)))
+                            (oai-expand-block-deep)))
                )
-          (print "oai-expand-block 1")
           (if (called-interactively-p 'any)
               (let ((buf (get-buffer-create "*OAi Preview*")))
                 (with-help-window buf (with-current-buffer buf
                                         (if arg
                                             (insert (pp-to-string headers))
-                                           (insert expanded))
+                                          (insert expanded))
                                         ))
                 (switch-to-buffer buf))
             expanded))
@@ -346,7 +318,7 @@ It's designed to \"do the right thing\":
   (define-key map (kbd "C-c <backspace>") #'oai-kill-region-at-point) ; oai-block.el
   ;; (define-key map (kbd (string-join (list "C-c" " r"))) 'org-ai-talk-capture-in-org) ; org-ai-talk.el
   (define-key map (kbd "M-h")		#'oai-block-tags-mark-md-block-body) ; oai-block.el
-  (define-key map (kbd "C-c C-?")	#'oai-open-request-buffer) ; oai-restapi.el
+  (define-key map (kbd "C-c C-/")	#'oai-open-request-buffer) ; oai-restapi.el
   (define-key map (kbd "C-c ?")	#'oai-expand-block))
 
 

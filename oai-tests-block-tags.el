@@ -26,20 +26,18 @@
 ;; Licensed under the GNU Affero General Public License, version 3 (AGPLv3)
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
-;;; Code:
-
-;;; - Help functions ------------------------------------------------
+;;; - includes
 
 (require 'oai-block-tags)
 (require 'ert)
-
+; org-links - is optional dependency
 
 ;; (eval-buffer) or (load-file "path/to/async-tests.el")
 ;; Running Tests: Load the test file and run:
 ;; (eval-buffer)
 ;; (ert t)
 ;; to execute all tests. Individual tests can be run with (ert 'test-name).
-
+;;; Code:
 ;;; - Tests --------------------------------------------------------
 
 (ert-deftest oai-block-tags--read-file-to-string-safe--read-ok ()
@@ -170,7 +168,7 @@ asdas
       (set-buffer-modified-p nil))))
 
 
-(when (featurep 'org-links)
+(when (require 'org-links nil 'noerror)
   (ert-deftest oai-block-tags--replace-org-links-nn-header ()
     (let ((kill-buffer-query-functions)
           ;; (org-link-file-path-type 'absolute)

@@ -82,8 +82,7 @@
 ;; `oai-timers--interrupt-current-request' we remove buffer from
 ;; saved and call (oai-restapi--interrupt-url-request url-buffer).
 
-;;; Code:
-;;; -=-= Constants, variables
+;;; -=-= includes
 (require 'org)
 (require 'org-element)
 (require 'url)
@@ -97,6 +96,8 @@
 (require 'oai-timers)
 (require 'oai-async1) ; for `oai-async1-plist-get'
 
+;;; Code:
+;;; -=-= Constants, variables
 (defcustom oai-restapi-jump-to-end-of-block t
   "If non-nil, jump to the end of the block after inserting the completion."
   :type 'boolean
@@ -158,7 +159,8 @@ machine openai--1 password <your token>"
                  (const :tag "Use auth-source." nil))
   :group 'oai)
 
-(defcustom oai-restapi-con-model '(:openai "gpt-4o-mini")
+(defcustom oai-restapi-con-model '(:openai "gpt-4o-mini"
+                                   :github "openai/gpt-4.1")
   "The default model to use.
 See https://platform.openai.com/docs/models for other options.
 If mode is not chat but completion, appropriate model should be set."
@@ -1112,9 +1114,9 @@ For not stream url return event and hook after-change-functions
     ;; - regex check
     (if model
         (oai-restapi--check-model model endpoint)) ; not empty and if "api.openai.com" or "openai.azure.com"
-    (oai--debug "oai-restapi-request endpoint:" service (type-of service))
-    (oai--debug "oai-restapi-request endpoint:" endpoint (type-of endpoint))
-    (oai--debug "oai-restapi-request headers:" url-request-extra-headers)
+    (oai--debug "oai-restapi-request service and (type-of service): %s %s" service (type-of service))
+    (oai--debug "oai-restapi-request endpoint and (type-of endpoint): %s %s" endpoint (type-of endpoint))
+    (oai--debug "oai-restapi-request headers: %s" url-request-extra-headers)
     (oai--debug "oai-restapi-request request-data:" (oai-debug--prettify-json-string url-request-data))
 
 
