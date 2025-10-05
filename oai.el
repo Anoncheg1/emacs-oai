@@ -132,7 +132,7 @@ With respect to specified default values here."
                            ((service oai-restapi-con-service string) ; oai-restapi.el
                             (model (let ((m (oai-restapi--get-values oai-restapi-con-model service)))
                                        (if (not m)
-                                         (user-error "Model not specified."))
+                                         (user-error "Model not specified.?"))
                                        ;; else
                                        (car m))
                                    :type string) ; oai-restapi.el
@@ -342,8 +342,7 @@ It's designed to \"do the right thing\":
 
 ;;;###autoload
 (defun oai-open-request-buffer ()
-  "Opens the url request buffer for ai block at current position.
-Call original \"C-c ?\" key if not at ai block."
+  "Opens the url request buffer for ai block at current position."
   (interactive)
   (if-let ((element (oai-block-p)))
       (if-let* ((url-buffer (car (oai-restapi-get-buffers-for-element element)))
@@ -363,7 +362,7 @@ Call original \"C-c ?\" key if not at ai block."
             (with-current-buffer url-buffer
               (local-set-key (kbd "C-c ?") 'delete-window)))
         ;; else
-        (message "No url buffer found."))
+        (message "No url buffer found"))
   ;; - else - no element - call original Org key
   (call-interactively (lookup-key org-mode-map (kbd "C-c ?")))))
 
@@ -371,7 +370,7 @@ Call original \"C-c ?\" key if not at ai block."
 (defvar oai-mode-line-string "")
 
 (defun oai-update-mode-line (count)
-  "Used in ora-timers.el to show count of active requests."
+  "Used in ora-timers.el to show COUNT of active requests."
   (if (and count (> count 0))
       (setq oai-mode-line-string (format " org-ai[%d]" count))
     ;; else

@@ -42,7 +42,7 @@ jobs:
          emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block-tags.el -l oai-block.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el -l oai-tests-restapi.el -f ert-run-tests-batch-and-exit
       - name: Tests integration
         run: |
-         emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l oai-tests-block.el -l oai-block-tags.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el -l oai-tests-integration.el -f ert-run-tests-batch-and-exit
+         emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l oai-tests-block.el -l oai-block-tags.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el -l oai.el -l oai-tests-integration.el -f ert-run-tests-batch-and-exit
       - name: Run
         env:
           LOCAL_REPO: ${{ github.workspace }}
