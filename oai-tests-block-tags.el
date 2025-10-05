@@ -176,7 +176,7 @@ asdas
           )
       (with-temp-buffer
         (org-mode)
-        (add-hook 'org-execute-file-search-functions #'org-links-additional-formats)
+        (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
         (setq buffer-file-name "/mock/org.org")
         (insert "* headline\nasdas\n** sub-headline\n asd")
         (let (target)
@@ -202,7 +202,7 @@ asdas
     (let ((kill-buffer-query-functions))
       (with-temp-buffer
         (org-mode)
-        (add-hook 'org-execute-file-search-functions #'org-links-additional-formats)
+        (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
         (setq buffer-file-name "/mock/org.org")
         (insert "* headline\nasdas\n** sub-headline\n asd")
         (let (target)

@@ -44,7 +44,7 @@
 (defun oai-test-setup-buffer (block-content &optional buf properties-alist)
   "Create ai BLOCK-CONTENT and optional PROPERTIES-ALIST.
 In current buffer or in BUF.
-PROPERTIES-ALIST should be an alist like '((property-name . \"value\")).
+PROPERTIES-ALIST should be an alist like \'((property-name . \"value\")).
 Set cursor at begining of buffer.
 Returns a list (ELEMENT INFO-ALIST), where ELEMENT is the parsed Oai block
 and INFO-ALIST is the parameters from its header."
@@ -76,7 +76,7 @@ and INFO-ALIST is the parameters from its header."
 ;;; - test for test
 
 (ert-deftest oai-tests-block--setup-buffer-basic-test ()
-  "Test that oai-test-setup-buffer sets up a buffer correctly."
+  "Test that `oai-test-setup-buffer' sets up a buffer correctly."
   (with-temp-buffer
     (org-mode)
     (let* ((block-content "#+begin_ai\nTest content\n#+end_ai")

@@ -247,9 +247,9 @@ messages."
                  )
   :group 'oai)
 
-(make-obsolete-variable 'oai-restapi-default-inject-sys-prompt-for-all-messages
-                        "With newer ChatGPT versions this is no longer necessary."
-                        "2023-12-26")
+;; (make-obsolete-variable 'oai-restapi-default-inject-sys-prompt-for-all-messages
+;;                         "With newer ChatGPT versions this is no longer necessary."
+;;                         "2023-12-26")
 
 
 ;; Azure-Openai specific variables
@@ -587,6 +587,7 @@ not found in tokens."
 (defun oai-restapi--get-endpoint (messages &optional service)
   "Determine the correct endpoint based on the service and
 whether messages are provided."
+  (print (list "oai-restapi--get-endpoint" messages service))
   (let* ((service (or (if service
                           (oai-restapi--openai-service-clear-dashes service))
                       (oai-restapi-con-service)))
@@ -597,7 +598,7 @@ whether messages are provided."
       (format "%s/openai/deployments/%s%s/completions?api-version=%s"
               oai-restapi-azure-openai-api-base oai-restapi-azure-openai-deployment
               (if messages "/chat" "") oai-restapi-azure-openai-api-version))
-     ((messages)
+     (messages
       (car (oai-restapi--get-values oai-restapi-con-endpoints :openai)))
      (t
       (car (oai-restapi--get-values oai-restapi-con-endpoints :openai-completion))))))

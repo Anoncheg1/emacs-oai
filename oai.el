@@ -125,7 +125,7 @@ TODO: pass callback for writing."
                          (oai-block--get-sys :info info ; oai-block.el
                                              :default oai-restapi-default-chat-system-prompt)))) ; oai-restapi.el variable
     ;; - Process Org params and call agent
-    (print (list "here31" info))
+    ;; (print (list "here31" info))
     (oai-block--let-params info
                            ;; format: (variable optional-default type)
                            ((service oai-restapi-con-service string) ; oai-restapi.el
@@ -151,19 +151,15 @@ TODO: pass callback for writing."
                                           ;; else
                                           model)))
                                  ;; return
-                                 (print "here3")
                                  (list req-type element sys-prompt sys-prompt-for-all-messages ; message
                                           model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
-                                          )
-                                 ))))
+                                          )))))
 
 
 (defun oai-ctrl-c-ctrl-c-2 ()
   "Remove result and parse ai block header parameters."
   (interactive)
-  (print "here")
   (oai-block-remove-result) ; remove result block
-  (print "here2")
   ;; (condition-case err ; for `oai-block-tags-replace'
   (apply oai-agent-call-function (oai-parse-org-header))) ; call
     ;; (user-error

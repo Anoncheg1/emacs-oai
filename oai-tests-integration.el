@@ -11,6 +11,7 @@
 
 (defun oai-tests--my-http-server-handler (proc string)
   ;; (message "in my-http-server-handler: %s" string)
+  (setq string string) ; noqa Unused lexical argument
   (process-send-string
    proc
    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"choices\":[{\"finish_reason\":\"length\",\"message\":{\"role\":\"assistant\",\"content\":\"Your question needs clarification.\"}}]}\n")
@@ -65,15 +66,16 @@
       (org-mode)
       (oai-test-setup-buffer "#+begin_ai :stream nil :service test :model none\nTest content\n#+end_ai")
       ;; (print (point))
-      (let ((oai-restapi-con-endpoint oai-restapi-con-endpoints)
+      (let ((oai-restapi-con-endpoints (list :test "http://localhost:9239/v1/chat/completions"))
             (oai-restapi-con-token "test"))
-        (plist-put oai-restapi-con-endpoints :test "http://localhost:9239/v1/chat/completions")
+        ;; (plist-put oai-restapi-con-endpoints :test "http://localhost:9239/v1/chat/completions")
                                         ; delete http service if error, but not suppress
         (condition-case err
-            (sleep-for 0.1) ; required
-             (org-ctrl-c-ctrl-c)
+            (progn
+              (sleep-for 0.1) ; required
+              (org-ctrl-c-ctrl-c))
           (error
-           (print "delete-process")
+           (print "error! delete-process")
            (delete-process "my-http-server")   ; run your code
            (signal (car err) (cdr err)))) ; re-signal error (does not suppress)
         ))
@@ -81,6 +83,9 @@
                                        ;; (print "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]:\n#+end_ai")
                                        ;; (print (list "wtf" (buffer-substring-no-properties (point-min) (point-max) )
                                        ;; (message "A:%S\nB:%S"
+                                       ;; (print (list "oai-restapi-after-chat-insertion-hook" oai-restapi-after-chat-insertion-hook))
+                                       ;; (message "A:%S\nB:%S" (buffer-substring-no-properties (point-min) (point-max) )
+                                       ;;          "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]: \n#+end_ai")
                                        (should (string-equal
                                                 (buffer-substring-no-properties (point-min) (point-max) )
                                                 "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]: \n#+end_ai")
