@@ -64,6 +64,7 @@
     (with-current-buffer temp-buffer
       ;; (goto-char 1498)
       (org-mode)
+      (oai-mode)
       (oai-test-setup-buffer "#+begin_ai :stream nil :service test :model none\nTest content\n#+end_ai")
       ;; (print (point))
       (let ((oai-restapi-con-endpoints (list :test "http://localhost:9239/v1/chat/completions"))
@@ -72,10 +73,10 @@
                                         ; delete http service if error, but not suppress
         (condition-case err
             (progn
-              (sleep-for 0.1) ; required
+              (sleep-for 0.5) ; required
               (org-ctrl-c-ctrl-c))
           (error
-           (print "error! delete-process")
+           ;; (print (list "error! delete-process" (buffer-substring-no-properties (line-beginning-position) (line-end-position) )))
            (delete-process "my-http-server")   ; run your code
            (signal (car err) (cdr err)))) ; re-signal error (does not suppress)
         ))

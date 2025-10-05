@@ -169,7 +169,7 @@ With respect to specified default values here."
 
 ;;; -=-= key M-x: oai-expand-block
 (defun oai-expand-block-deep ()
-  ""
+  "Output almost RAW information about request with headers and messages."
   (seq-let (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream) (oai-parse-org-header)
     (let* (
          (content (string-trim (oai-block-get-content element))) ; string - is block content
@@ -202,7 +202,9 @@ With respect to specified default values here."
 If there is ai block at current position in current buffer.
 This is what will be sent to the api.  ELEMENT is the ai block.
 Like `org-babel-expand-src-block'.
-Set `help-window-select' variable to get focus."
+Set `help-window-select' variable to get focus.
+When universal  ARG specifide  output more  raw information  splitted by
+messages."
   (interactive "P")
   (let  ((element (oai-block-p))) ; oai-block.el
     (condition-case err
