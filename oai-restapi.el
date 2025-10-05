@@ -131,8 +131,8 @@
     :github		"https://models.github.ai/inference/chat/completions"
     )
   "Endpoints for services.
-  This is a not ordered list of key-value pairs in format of List of
-  lists: (SYMBOL VALUE-STRING). Used for POST HTTP request to service.
+This is a not ordered list of key-value pairs in format of List of
+  lists: (SYMBOL VALUE-STRING).  Used for POST HTTP request to service.
 To add service use: (plist-put oai-restapi-con-endpoints :myservice \"http\")."
   :type '(plist :key-type symbol :value-type string
                 :tag "Plist with Service as a symbol key and Endpoint URL as a string value")
@@ -230,14 +230,12 @@ you can override it with: '[SYS]: <your prompt>'."
   :group 'oai)
 
 (defcustom oai-restapi-default-inject-sys-prompt-for-all-messages nil
-  "Wether to add the `oai-restapi-default-chat-system-prompt' before all user messages.
-
+  "Wether to add the system prompt before every user message.
 By default the system prompt is only added before the first
 message.
-
+Get prompt from `oai-restapi-default-chat-system-prompt'.
 You can set this to true for a single block using the
 :sys-everywhere option on the #+begin_ai block.
-
 This can be useful to enforce the behavior specified by this
 messages."
   :type '(choice (const :tag "Before every message" all)
@@ -391,9 +389,11 @@ Or provide your own function."
 ;;   :group 'oai)
 
 
-(defun oai-restapi--show-error (error-message &rest args) ; header-marker ignored
+(defun oai-restapi--show-error (error-message &optional header-marker)
   "Show an error message in a buffer.
-`ERROR-MESSAGE' is the error message to show."
+`ERROR-MESSAGE' is the error message to show.
+Argument HEADER-MARKER not used."
+  (setq header-marker header-marker) ; noqa: not used.
   (condition-case nil
       (let ((buf (get-buffer-create "*oai error*")))
         (with-current-buffer buf
@@ -415,7 +415,7 @@ Or provide your own function."
   "Check if the model name is somehow mistyped.
 `MODEL' is the model name.  `ENDPOINT' is the API endpoint."
   (unless model
-    (error "No oai model specified."))
+    (error "No oai model specified"))
 
   (when (or (string-match-p "api.openai.com" endpoint)
             (string-match-p "openai.azure.com" endpoint))
@@ -428,6 +428,8 @@ Or provide your own function."
       (message "Model '%s' is not in the list of available models. Maybe this is because of a typo or maybe we haven't yet added it to the list. To disable this message add (add-to-list 'oai-restapi-openai-known-chat-models \"%s\") to your init file." model model))))
 
 (defun oai-restapi--split-dash-number (str)
+  "Split STR and return list of main string and number after dashes.
+Used to for simple numbering of instances in config."
   (pcase-let ((`(,a ,b) (split-string str "--")))
     (and b (string-match-p "\\`[0-9]+\\'" b)
          (cons a (string-to-number b)))))
@@ -502,8 +504,9 @@ Return:
 ;; (oai-restapi--get-values oai-restapi-con-token "github")
 
 (defun oai-restapi--get-values-enhanced (keeper key)
-  "key may have postfix --N.
-Return nil if key not found, else list with value if found."
+  "KEY string may have postfix --N.
+Return nil if key not found, else list with value if found.
+Argument KEEPER is a variable with list of key-values."
   (if (and (stringp keeper) (string-empty-p keeper))
       nil
     ;; else
@@ -538,15 +541,15 @@ not found in tokens."
     (if token
         (prog1 (setq token (car token)) ; nil or value
           (when (and token (not (stringp token))) ; check that token is string, not number
-            (user-error "Token in `oai-restapi-con-token' is not string but something other, please check.")))
+            (user-error "Token in `oai-restapi-con-token' is not string but something other, please check")))
       ;; else - nil not found or `oai-restapi-con-token' is not defined
       (prog1 (setq token (oai-restapi--get-token-auth-source service))
         (if (not token)
             ;; else - not found in auth-sources and not found or `oai-restapi-con-token' is not defined
             (if (plistp oai-restapi-con-token)
-                (user-error "Token not found in defined plist `oai-restapi-con-token' and in auth sources.")
+                (user-error "Token not found in defined plist `oai-restapi-con-token' and in auth sources")
               ;; else no `oai-restapi-con-token'
-              (user-error "Please set `oai-restapi-con-token' to your OpenAI API token or setup auth-source (see oai readme).")))))))
+              (user-error "Please set `oai-restapi-con-token' to your OpenAI API token or setup auth-source (see oai readme)")))))))
 
 
 ;; (oai-restapi--get-token "github") => first token from list
@@ -585,8 +588,8 @@ not found in tokens."
 
 
 (defun oai-restapi--get-endpoint (messages &optional service)
-  "Determine the correct endpoint based on the service and
-whether messages are provided."
+  "Correct endpoint based on the SERVICE and type of requst.
+Ff MESSAGES are provided, type of request is chat, otherwise completion."
   (print (list "oai-restapi--get-endpoint" messages service))
   (let* ((service (or (if service
                           (oai-restapi--openai-service-clear-dashes service))
@@ -604,7 +607,7 @@ whether messages are provided."
       (car (oai-restapi--get-values oai-restapi-con-endpoints :openai-completion))))))
 
 (defun oai-restapi--get-headers (service)
-  "Determine the correct headers based on the service."
+  "Determine the correct headers based on the SERVICE."
   (let ((serv (if service
                   (oai-restapi--openai-service-clear-dashes service)
               oai-restapi-con-service))
@@ -626,14 +629,15 @@ whether messages are provided."
 ;; (oai-restapi--get-headers "local")
 
 (defun oai-restapi--get-lenght-recommendation (max-tokens)
-  "Recomendation to limit yourself.
+  "Recomendation to limit yourself if MAX-TOKENS is lower 1000.
 Useful for small max-tokens.
 - words = tokens * 0.75
 - tokens = words * 1.33333
 - token = 4 characters
 - word - 5 characters
 - sentence - 15-25 words = 20 words = 26 tokens (tech/academ larger)
-- paragraph - 6 sentences, 500-750 characters, 150-300 words = 150 words = 200 tokens
+- paragraph - 6 sentences, 500-750 characters,
+              150-300 words = 150 words = 200 tokens
 - page - around 3-4 paragraphs, 500 words = 600 tokens."
   (when max-tokens
     (cond ((< max-tokens 75)
@@ -652,19 +656,23 @@ Useful for small max-tokens.
   "Compose API request from data and start a server-sent event stream.
 Call `oai-restapi-request' function as a next step.
 Called from `oai-call-block' in main file.
-`REQ-TYPE' symbol - is completion or chat mostly. Set `oai-block--get-request-type'.
+`REQ-TYPE' symbol - is completion or chat mostly.  Set
+  `oai-block--get-request-type'.
 `ELEMENT' org-element - is ai block, should be converted to market at once.
 `SYS-PROMPT' string - first system instruction as a string.
-`SYS-PROMPT-FOR-ALL-MESSAGES' from `oai-restapi-default-inject-sys-prompt-for-all-messages' variable.
+`SYS-PROMPT-FOR-ALL-MESSAGES' from
+  `oai-restapi-default-inject-sys-prompt-for-all-messages' variable.
 `MODEL' string - is the model to use.
 `MAX-TOKENS' integer - is the maximum number of tokens to generate.
 `TEMPERATURE' integer - 0-2 lower - low 0.3 high-probability tokens
-producing predictable outputs. 1.5 diversity by flattening the
-probability distribution.
-`TOP-P' integer - 0-1 lower - chooses tokens whose cumulative probability exceeds this threshold, adapting to context.
+  producing predictable outputs.  1.5 diversity by flattening the
+  probability distribution.
+`TOP-P' integer - 0-1 lower - chooses tokens whose cumulative
+  probability exceeds this threshold, adapting to context.
 `FREQUENCY-PENALTY' integer - -2-2, lower less repeat words.
 `PRESENCE-PENALTY' integer - -2-2, lower less repeat concepts.
-`SERVICE' symbol or string - is the AI cloud service such as openai or azure-openai.
+`SERVICE' symbol or string - is the AI cloud service such as openai or
+  azure-openai.
 `STREAM' string - as bool, indicates whether to stream the response."
   (oai--debug "oai-restapi-request-prepare")
   (let* (
@@ -714,7 +722,7 @@ probability distribution.
 ;;             message (role "assistant" content " The answer is simple: live a long time. But how do you do that? Well, itâs not as simple as it sounds." tool_calls []))] usage (prompt_tokens 5 completion_tokens 150 total_tokens 155 cached_tokens 0))
 
 (defun oai-restapi--get-single-response-text (&optional response)
-  "Return text from response or nil and signal error if it have \"error\" field.
+  "Return text from RESPONSE or nil and signal error if it have \"error\" field.
 For Completion LLM mode. Used as callback for `oai-restapi-request'."
   ;; (oai--debug "oai-restapi--get-single-response-text response:" response)
   (when response
@@ -745,10 +753,11 @@ Should be used in two steps: 1) for insertion of text 2) with TEXT equal
 to nil, for finalizing by setting pointer to the end and insertion of me
 role.
 Here used for completion mode in `oai-restapi-request'.
-END-MARKER is where to put result,
-TEXT is string from the response of OpenAI API extracted with `oai-restapi--get-single-response-text'.
-END-MARKER is a buffer and position at the end of block.
-FINAL wherer to finalize, also applied if no text provided."
+- END-MARKER is where to put result,
+- TEXT  is  string  from  the  response of  OpenAI  API  extracted  with
+  `oai-restapi--get-single-response-text'.
+- END-MARKER is a buffer and position at the end of block.
+- FINAL wherer to finalize, also applied if no text provided."
   (oai--debug "oai-restapi--insert-single-response end-marker, text:" end-marker
                                                  text "")
 
@@ -831,7 +840,7 @@ FINAL wherer to finalize, also applied if no text provided."
 ;;              finish_reason "stop"
 ;;              index 0)]))
 (defun oai-restapi--normalize-response (response)
-  "This function normalizes JSON data received from OpenAI-style, Anthropic, and Perplexity endpoints.
+  "This function normalizes JSON data in OpenAI-style but with some differences.
 `RESPONSE' is one JSON message of the stream response."
   ;; (oai--debug "response:" response)
 
@@ -942,7 +951,9 @@ Save variables:
 `oai-restapi--currently-inside-code-markers'
 `oai-restapi--currently-chat-got-first-response'
 `oai-restapi--current-chat-role' in current buffer.
-Called within url-buffer."
+Called within url-buffer.
+Argument INSERT-ROLE provided just in case we will need to insert with
+specific role."
 
   (oai--debug "oai-restapi--insert-stream-response")
   (let ((normalized (oai-restapi--normalize-response response)) ; list of messages
@@ -1063,30 +1074,31 @@ Called within url-buffer."
   "Use API to LLM to request and get response.
 Executed by `oai-restapi-request-prepare'
 `PROMPT' is the query for completions `MESSAGES' is the query for
-chatgpt. `CALLBACK' is the callback function. `MODEL' is the
-model to use. `MAX-TOKENS' is the maximum number of tokens to
-generate. `TEMPERATURE' is the temperature of the distribution.
-`TOP-P' is the top-p value. `FREQUENCY-PENALTY' is the frequency
-penalty. `PRESENCE-PENALTY' is the presence penalty.
+chatgpt.  `CALLBACK' is the callback function.  `MODEL' is the
+model to use.  `MAX-TOKENS' is the maximum number of tokens to
+generate.  `TEMPERATURE' is the temperature of the distribution.
+`TOP-P' is the top-p value.  `FREQUENCY-PENALTY' is the frequency
+penalty.  `PRESENCE-PENALTY' is the presence penalty.
 Variables used to save state:
 not buffer local:
 
 buffer local and nil by default:
-`oai-restapi--current-insert-position-marker' - in url callback to track where we insert.
-`oai-restapi--currently-chat-got-first-response' - for Stream, bool.
-`oai-restapi--currently-inside-code-markers' - code block received, bool.
-`oai-restapi--current-request-is-streamed'
-`oai-restapi--current-url-request-callback'.
+- `oai-restapi--current-insert-position-marker' - in url callback to
+  track where we insert.
+- `oai-restapi--currently-chat-got-first-response' - for Stream, bool.
+- `oai-restapi--currently-inside-code-markers' - code block received, bool.
+- `oai-restapi--current-request-is-streamed'
+- `oai-restapi--current-url-request-callback'.
 
 Parallel requests require to keep `url-request-buffer'
-to be able  to kill it. We  solve this by creating timer  in buffer with
+to be able  to kill it.  We  solve this by creating timer  in buffer with
 name of url-request-buffer +1.
 We count running ones in global integer only.
 
-For not stream url return event and hook after-change-functions
+For not stream url return event and hook `after-change-functions'
  triggered only after url buffer already kill, that is why we don't use
  this hook.
-"
+Use argument SERVICE to find endpoint, MODEL as parameter to request."
 
 
   ;; (setq org-ai--debug-data nil)
@@ -1167,7 +1179,16 @@ For not stream url return event and hook after-change-functions
 (cl-defun oai-restapi-request-llm (service model callback &optional &key prompt messages max-tokens temperature top-p frequency-penalty presence-penalty)
   "Simplified version of `oai-restapi-request' without stream support.
 Used for building agents or chain of requests.
-Call callback with nil or result of `oai-restapi--normalize-response' of response."
+Call callback with nil or result of `oai-restapi--normalize-response' of
+response.
+Use argument SERVICE to find endpoint, MODEL as parameter to request.
+Call CALLBACK at receive.
+One of argument PROMPT and MESSAGES used as main payload.
+Optional argument MAX-TOKENS - OpenAI parameter.
+Optional argument TEMPERATURE - OpenAI parameter
+Optional argument TOP-P - OpenAI parameter
+Optional argument FREQUENCY-PENALTY - OpenAI parameter
+Optional argument PRESENCE-PENALTY - OpenAI parameter."
   (let ((url-request-extra-headers (oai-restapi--get-headers service))
         (url-request-method "POST")
         (endpoint (oai-restapi--get-endpoint messages service))
@@ -1264,7 +1285,8 @@ Call callback with nil or result of `oai-restapi--normalize-response' of respons
 Timer function restart requst and restart timer with attempts-1.
 In callback we add cancel timer function.
 We save and cancel time only in callback.
-TIMER is time to wait for one request."
+TIMER is time to wait for one request.
+Use argument SERVICE to find endpoint, MODEL as parameter to request."
   (oai--debug "oai-restapi-request-llm-retries1 timeout %s" timeout)
   (let ((cb (current-buffer))
         ;; apply tags
@@ -1406,12 +1428,13 @@ Return t if error happen, otherwise nil"
 (cl-defun oai-restapi--payload (&optional &key service model prompt messages max-tokens temperature top-p frequency-penalty presence-penalty stream)
   "Create the payload for the OpenAI API.
 `PROMPT' is the query for completions `MESSAGES' is the query for
-chatgpt. `MODEL' is the model to use. `MAX-TOKENS' is the
-maximum number of tokens to generate. `TEMPERATURE' is the
-temperature of the distribution. `TOP-P' is the top-p value.
-`FREQUENCY-PENALTY' is the frequency penalty. `PRESENCE-PENALTY'
+chatgpt.  `MODEL' is the model to use.  `MAX-TOKENS' is the
+maximum number of tokens to generate.  `TEMPERATURE' is the
+temperature of the distribution.  `TOP-P' is the top-p value.
+`FREQUENCY-PENALTY' is the frequency penalty.  `PRESENCE-PENALTY'
 is the presence penalty.
-`STREAM' is a boolean indicating whether to stream the response."
+`STREAM' is a boolean indicating whether to stream the response.
+Use argument SERVICE to find endpoint, MODEL as parameter to request."
   (let ((extra-system-prompt)
         (max-completion-tokens))
 
@@ -1463,7 +1486,7 @@ Call `oai-restapi--current-url-request-callback' with data.
 After processing call `oai-restapi--current-url-request-callback' with nil.
 This  callback  here  is `oai-restapi--insert-stream-response'  for  chat  or
 `oai-restapi--insert-single-response' for completion.
-Called within url-retrieve buffer."
+Called within `url-retrieve' buffer."
   ;; (oai--debug "oai-restapi--url-request-on-change-function: %s %s %s %s" _beg _end _len (current-buffer))
   ;; (with-current-buffer org-ai--last-url-request-buffer
   (when (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
@@ -1602,7 +1625,7 @@ Called within url-retrieve buffer."
 ;; - `oai-timers--current-progress-timer-remaining-ticks'."
 
 (defun oai-restapi--interrupt-url-request (url-buffer)
-  "Remove on-update hook and kill buffer.
+  "Remove on-update hook and kill URL-BUFFER.
 Called from `oai-restapi-stop-url-request',
 `oai-restapi-stop-all-url-requests'."
   ;; (oai--debug "oai-restapi--interrupt-url-request"
@@ -1622,8 +1645,8 @@ Called from `oai-restapi-stop-url-request',
           (kill-buffer url-buffer))))))
 
 (defun oai-restapi--stop-tracking-url-request (url-buffer)
-  "Remove on-update hook and not kill buffer.
-  Called from `oai-restapi-stop-url-request',
+  "Remove on-update hook and not kill URL-BUFFER.
+Called from `oai-restapi-stop-url-request',
 `oai-restapi-stop-all-url-requests'."
   (oai--debug "oai-restapi--stop-tracking-url-request"
                  (eq (current-buffer) url-buffer)
@@ -1635,7 +1658,7 @@ Called from `oai-restapi-stop-url-request',
       (with-current-buffer url-buffer
         (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t)))))
 
-(cl-defun oai-restapi-stop-url-request (&optional &key element url-buffer failed)
+(cl-defun oai-restapi-stop-url-request (&optional &key element url-buffer)
   "Interrupt the request for ELEMENT or URL-BUFFER.
 If  no ELEMENT  or URL-BUFFER  provided we  use in  current ai  block at
 current position at current buffer.
@@ -1659,16 +1682,15 @@ Called from `oai-timers--progress-reporter-run'."
     ;; ;; else - called not at from some block, but from elsewhere
     ;; (oai--debug "oai-restapi-stop-url-request all %s" (oai-timers--get-keys-for-variable (oai-block-get-header-marker element)))
     (oai-restapi-stop-all-url-requests) ; kill all
-
-    ;; else
-    )
-
-  )
+    ;; else - nil
+    ))
 
 ;;;###autoload
 (cl-defun oai-restapi-stop-all-url-requests (&optional &key failed)
-  "Called from `oai-restapi-stop-url-request' when not at some block,
-  Return t if buffer was found."
+  "Called from `oai-restapi-stop-url-request' when not at some block.
+Return t if buffer was found, nil otherwise.
+Optional FAILED flag used to signal of failure to user, that timer is
+over."
   (interactive)
   (oai-timers--interrupt-all-requests #'oai-restapi--interrupt-url-request failed))
 
@@ -1677,9 +1699,9 @@ Called from `oai-timers--progress-reporter-run'."
 ;;; -=-= chat-messages collect/stringify
 
 (defun oai-restapi--collect-chat-messages (content-string &optional default-system-prompt persistant-sys-prompts max-token-recommendation)
-  "Takes `CONTENT-STRING' and splits it by [SYS]:, [ME]:, [AI]: and [AI_REASON]: markers.
+  "Split `CONTENT-STRING' to [SYS]:, [ME]:, [AI]:, [AI_REASON]: markers.
 If `PERSISTANT-SYS-PROMPTS' is non-nil, [SYS] prompts are
-intercalated. The [SYS] prompt used is either
+intercalated.  The [SYS] prompt used is either
 `DEFAULT-SYSTEM-PROMPT', may be nil to disable, or the first [SYS]
 prompt found in `CONTENT-STRING'."
   (if max-token-recommendation
@@ -1803,7 +1825,7 @@ prompt found in `CONTENT-STRING'."
     (:role user :content "user")]))
 
 ;; merge messages with same role
-(cl-assert
+(cl-avssert
  (equal
   (let ((test-string "[ME]: hello [ME]: world")) (oai-restapi--collect-chat-messages test-string))
   '[(:role user :content "hello\nworld")]))
@@ -1833,11 +1855,11 @@ prompt found in `CONTENT-STRING'."
                                                     (system-prefix "[SYS]: ")
                                                     (user-prefix "[ME]: ")
                                                     (assistant-prefix "[AI]: "))
-  "Converts a chat message to a string.
-`MESSAGES' is a vector of (:role :content) pairs. :role can be
-'system, 'user or 'assistant. If `DEFAULT-SYSTEM-PROMPT' is
+  "Convert a chat message to a string.
+`MESSAGES' is a vector of (:role :content) pairs.  :role can be
+'system, 'user or 'assistant.  If `DEFAULT-SYSTEM-PROMPT' is
 non-nil, a [SYS] prompt is prepended if the first message is not
-a system message. `SYSTEM-PREFIX', `USER-PREFIX' and
+a system message.  `SYSTEM-PREFIX', `USER-PREFIX' and
 `ASSISTANT-PREFIX' are the prefixes for the respective roles
 inside the assembled prompt string."
   (let ((messages (if (and default-system-prompt
@@ -1912,8 +1934,11 @@ inside the assembled prompt string."
 
 
 (defun oai-restapi--modify-last-user-content (vec new-content)
-  "Return new vector based on VEC, replacing last 'user :content with NEW-CONTENT
-(string or function of old content). Uses `oai-restapi--find-last-user-index`."
+  "Replacing last 'user :content with NEW-CONTENT in VEC.
+NEW-CONTENT is either \(string or function of old content).
+Uses `oai-restapi--find-last-user-index`.
+Return new vector based on VEC.
+Used in `oai-restapi-request-prepare' to send history of conversation."
   (let ((idx (oai-restapi--find-last-user-index vec))
         (newvec (copy-sequence vec)))
     (when idx
@@ -1965,6 +1990,8 @@ inside the assembled prompt string."
 
 
 (defun oai-restapi-get-buffers-for-element (&optional element)
+  "Simplify getting url buffers associated with ai block ELEMENT.
+Used in `oai-open-request-buffer'."
   (if-let ((element (or element (oai-block-p))))
       (oai-timers--get-keys-for-variable (oai-block-get-header-marker element))
     nil))

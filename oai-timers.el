@@ -233,7 +233,7 @@ Called from
 ;;   (oai-timers--update-global-progress-reporter failed))
 
 ;;; - Timers Local
-(defun oai-timers--interrupt-current-request (url-buffer &optional interrupt-request-func failed)
+(defun oai-timers--interrupt-current-request (url-buffer &optional interrupt-request-func)
   "Stop waiting for request, remove buffer from list, update global timer.
 URL-BUFFER one or several buffers.
 Should be called in target buffer with global timer.
@@ -245,8 +245,7 @@ Called from
   (oai--debug "oai-timers--interrupt-current-request"
                  url-buffer
                  interrupt-request-func
-                 (buffer-live-p url-buffer)
-                 failed)
+                 (buffer-live-p url-buffer))
 
   (if (sequencep url-buffer) ;; if several
       (mapc (lambda (b)
