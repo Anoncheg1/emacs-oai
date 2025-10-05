@@ -434,13 +434,6 @@ Used to for simple numbering of instances in config."
     (and b (string-match-p "\\`[0-9]+\\'" b)
          (cons a (string-to-number b)))))
 
-;; (oai-restapi--split-dash-number nil)         ;; error
-;; (oai-restapi--split-dash-number "foo")       ;; nil
-;; (oai-restapi--split-dash-number "foo--")     ;; nil
-;; (oai-restapi--split-dash-number "foo--23")   ;; ("foo" . 23)
-;; (oai-restapi--split-dash-number "--1")       ;; ("" . 1)
-;; (oai-restapi--split-dash-number "a--b")      ;; nil
-;; (oai-restapi--split-dash-number "foo--2.4")  ;; nil
 
 (defun oai-restapi--openai-service-clear-dashes (service)
   "Remove --N part from SERVICE if it have such.
@@ -488,20 +481,6 @@ Return:
           (t
            (list nil))))))
 
-(cl-assert (equal (oai-async1-plist-get '(:zaza :foo 1 :bar nil) :zaza) nil))
-
-(cl-assert (equal (oai-restapi--get-values '(:foo 1 :bar nil) :foo)	'(1)))
-(cl-assert (equal (oai-restapi--get-values '(:foo 1 :bar nil) :bar)	'(nil))) ; value is nil
-(cl-assert (equal (oai-restapi--get-values '(:foo 1 :bar nil) :baz)	nil)) ; not exist
-(cl-assert (equal (oai-restapi--get-values '(:foo 1 :bar nil) :zaza)	nil)) ; not exist
-(cl-assert (equal (oai-restapi--get-values '(:only) :only)		'(nil)))  ; no value
-(cl-assert (equal (oai-restapi--get-values "something" "vvv")		'("something")))
-(cl-assert (equal (oai-restapi--get-values '(:foo (1 2) :bar nil) :foo)	'(1 2))) ; list of values
-(cl-assert (equal (oai-restapi--get-values nil "vvv")		nil))
-(cl-assert (equal (oai-restapi--get-values '(:zaza :foo 1 :bar nil) :zaza)	'(nil))) ; value is null
-;; (oai-restapi--get-values oai-restapi-con-model "github")
-;; (oai-restapi--get-values oai-restapi-con-model "github")
-;; (oai-restapi--get-values oai-restapi-con-token "github")
 
 (defun oai-restapi--get-values-enhanced (keeper key)
   "KEY string may have postfix --N.
@@ -522,13 +501,6 @@ Argument KEEPER is a variable with list of key-values."
             (list (nth key-number values))) ; list with one value
         ;; else
         values))))
-
-(cl-assert (equal
-            (let ((oai-restapi-con-token '(:local1
-                                           :github ("token1" "token2" "token3")
-                                           :some "vv"
-                                           :local2 nil)))
-              (oai-restapi--get-values-enhanced oai-restapi-con-token "github--3")) nil))
 
 
 (defun oai-restapi--get-token (service)
@@ -1825,7 +1797,7 @@ prompt found in `CONTENT-STRING'."
     (:role user :content "user")]))
 
 ;; merge messages with same role
-(cl-avssert
+(cl-assert
  (equal
   (let ((test-string "[ME]: hello [ME]: world")) (oai-restapi--collect-chat-messages test-string))
   '[(:role user :content "hello\nworld")]))

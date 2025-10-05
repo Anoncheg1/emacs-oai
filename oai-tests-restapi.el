@@ -1,3 +1,5 @@
+;;; oai-tests-restapi.el --- Tests. -*- lexical-binding: t; -*-
+
 ;; -*- lexical-binding: t; -*-
 
 (require 'ert)
@@ -143,6 +145,11 @@ Stop it with `oai-restapi-stop-url-request'.
     (should-error (oai-restapi--get-token "foo")
                   :type 'error)))
 
+
+(ert-deftest oai-restapi--get-token/plist-bad-config ()
+
+  )
+
 ;; (ert-deftest oai-restapi--get-token/missing-errors ()
 ;;   "Neither string, plist nor auth-source: signals error."
 ;;   (let ((oai-restapi-con-token nil))
@@ -212,45 +219,68 @@ Stop it with `oai-restapi-stop-url-request'.
 ;;              (info-alist (org-element-property :parameters element)))
 ;;         element))))
 ;;; others
-(defun test-oai-restapi--strip-api-url ()
+(ert-deftest test-oai-restapi--strip-api-url-test ()
   "Runs tests for `oai-restapi--strip-api-url` explicitly for each case,
    without using a loop or an explicit assert function."
 
-  (unless (string= (oai-restapi--strip-api-url "https://api.perplexity.ai/chat/completions") "api.perplexity.ai")
-    (error "Test 1 Failed: https://api.perplexity.ai/chat/completions"))
+  (should (string= (oai-restapi--strip-api-url "https://api.perplexity.ai/chat/completions") "api.perplexity.ai"))
 
-  (unless (string= (oai-restapi--strip-api-url "http://www.example.com/path/to/file") "www.example.com")
-    (error "Test 2 Failed: http://www.example.com/path/to/file"))
+  (should (string= (oai-restapi--strip-api-url "http://www.example.com/path/to/file") "www.example.com"))
 
-  ;; (unless (string= (oai-restapi--strip-api-url "ftp://some.server.org") "some.server.org")
+  ;; (should (string= (oai-restapi--strip-api-url "ftp://some.server.org") "some.server.org")
   ;;   (error "Test 3 Failed: ftp://some.server.org"))
 
-  (unless (string= (oai-restapi--strip-api-url "no-protocol.com/stuff") "no-protocol.com")
-    (error "Test 4 Failed: no-protocol.com/stuff"))
+  (should (string= (oai-restapi--strip-api-url "no-protocol.com/stuff") "no-protocol.com"))
 
-  (unless (string= (oai-restapi--strip-api-url "http://www.google.com/search?q=elisp") "www.google.com")
-    (error "Test 5 Failed: http://www.google.com/search?q=elisp"))
+  (should (string= (oai-restapi--strip-api-url "http://www.google.com/search?q=elisp") "www.google.com"))
 
-  (unless (string= (oai-restapi--strip-api-url "localhost:8080/app") "localhost:8080")
-    (error "Test 6 Failed: localhost:8080/app"))
+  (should (string= (oai-restapi--strip-api-url "localhost:8080/app") "localhost:8080"))
 
-  (unless (string= (oai-restapi--strip-api-url "example.com") "example.com")
-    (error "Test 7 Failed: example.com"))
+  (should (string= (oai-restapi--strip-api-url "example.com") "example.com"))
 
-  (unless (string= (oai-restapi--strip-api-url "https://sub.domain.co.uk") "sub.domain.co.uk")
-    (error "Test 8 Failed: https://sub.domain.co.uk"))
+  (should (string= (oai-restapi--strip-api-url "https://sub.domain.co.uk") "sub.domain.co.uk"))
 
-  (unless (string= (oai-restapi--strip-api-url "domain.com/") "domain.com")
-    (error "Test 9 Failed: domain.com/"))
+  (should (string= (oai-restapi--strip-api-url "domain.com/") "domain.com"))
 
-  (unless (string= (oai-restapi--strip-api-url "localhost") "localhost")
-    (error "Test 10 Failed: localhost"))
+  (should (string= (oai-restapi--strip-api-url "localhost") "localhost"))
 
-  ;; (unless (string= (oai-restapi--strip-api-url "") "")
+  ;; (should (string= (oai-restapi--strip-api-url "") "")
   ;;   (error "Test 11 Failed: empty string"))
 
   ;; (message "All individual tests passed for oai-restapi--strip-api-url!")
   t) ; Return t for success
 
-(ert-deftest test-oai-restapi--strip-api-url-test ()
-  (should (test-oai-restapi--strip-api-url)))
+
+(ert-deftest oai-tests-restapi-get-set-test ()
+  (should (equal (oai-async1-plist-get '(:zaza :foo 1 :bar nil) :zaza) nil))
+  (should (equal (oai-restapi--get-values '(:foo 1 :bar nil) :foo)	'(1)))
+  (should (equal (oai-restapi--get-values '(:foo 1 :bar nil) :bar)	'(nil))) ; value is nil
+  (should (equal (oai-restapi--get-values '(:foo 1 :bar nil) :baz)	nil)) ; not exist
+  (should (equal (oai-restapi--get-values '(:foo 1 :bar nil) :zaza)	nil)) ; not exist
+  (should (equal (oai-restapi--get-values '(:only) :only)		'(nil)))  ; no value
+  (should (equal (oai-restapi--get-values "something" "vvv")		'("something")))
+  (should (equal (oai-restapi--get-values '(:foo (1 2) :bar nil) :foo)	'(1 2))) ; list of values
+  (should (equal (oai-restapi--get-values nil "vvv")		nil))
+  (should (equal (oai-restapi--get-values '(:zaza :foo 1 :bar nil) :zaza)	'(nil))) ; value is null
+  (should (equal
+            (let ((oai-restapi-con-token '(:local1
+                                           :github ("token1" "token2" "token3")
+                                           :some "vv"
+                                           :local2 nil)))
+              (oai-restapi--get-values-enhanced oai-restapi-con-token "github--3")) nil))
+  )
+
+(ert-deftest oai-tests-restapi-split-dash-number-test ()
+  (should-error (oai-restapi--split-dash-number nil))
+  (should (equal (oai-restapi--split-dash-number "foo")
+                                                 nil))
+  (should (equal (oai-restapi--split-dash-number "foo--")
+                                                 nil))
+  (should (equal (oai-restapi--split-dash-number "foo--23")
+                                                 '("foo" . 23)))
+  (should (equal (oai-restapi--split-dash-number "--1")
+                                                 '("" . 1)))
+  (should (equal (oai-restapi--split-dash-number "a--b")
+                                                 nil))
+  (should (equal (oai-restapi--split-dash-number "foo--2.4")
+                                                 nil)))
