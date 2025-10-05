@@ -114,7 +114,8 @@ TODO: pass callback for writing."
     t))
 
 (defun oai-parse-org-header ()
-  ;; -- Org "Pre-parsing"
+  "Parsing ai block header and parameters.
+With respect to specified default values here."
   (let* ((element (oai-block-p)) ; oai-block.el
          (info (oai-block-get-info element)) ; ((:max-tokens . 150) (:service . "together") (:model . "xxx")) ; oai-block.el
          (req-type (oai-block--get-request-type info)) ; oai-block.el
@@ -168,6 +169,7 @@ TODO: pass callback for writing."
 
 ;;; -=-= key M-x: oai-expand-block
 (defun oai-expand-block-deep ()
+  ""
   (seq-let (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream) (oai-parse-org-header)
     (let* (
          (content (string-trim (oai-block-get-content element))) ; string - is block content

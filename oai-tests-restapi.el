@@ -135,7 +135,7 @@ Stop it with `oai-restapi-stop-url-request'.
   (let ((oai-restapi-con-token '(:foo "tokfoo")))
     (let ((err (cadr
                 (should-error (oai-restapi--get-token "bar") :type 'error))))
-      (print err)
+      ;; (print err)
       (should (eql 0 (string-match "Token not found" err))))))
 
 
@@ -146,15 +146,11 @@ Stop it with `oai-restapi-stop-url-request'.
                   :type 'error)))
 
 
-(ert-deftest oai-restapi--get-token/plist-bad-config ()
-
-  )
-
-;; (ert-deftest oai-restapi--get-token/missing-errors ()
-;;   "Neither string, plist nor auth-source: signals error."
-;;   (let ((oai-restapi-con-token nil))
-;;     (should-error (oai-restapi--get-token "foo")
-;;                   :type 'error)))
+(ert-deftest oai-restapi--get-token/missing-errors ()
+  "Neither string, plist nor auth-source: signals error."
+  (let ((oai-restapi-con-token nil))
+    (should-error (oai-restapi--get-token "foo")
+                  :type 'user-error)))
 
 
 ;;; - For `oai-restapi--get-headers'
