@@ -141,8 +141,9 @@ To add service use: (plist-put oai-restapi-con-endpoints :myservice \"http\")."
 
 (defcustom oai-restapi-con-token nil
   "This is your OpenAI API token.
-If not-nil, store  token as a string  or may be as a list of key-value:
-'(:openai \"token\").
+If not-nil, store token as a string or may be as a list of key-value:
+'(:openai token).
+
 You can retrieve it at
 https://platform.openai.com/account/api-keys.
 If  nil, `auth-sources'  file  (with encryption  support)  used to  read
@@ -297,11 +298,12 @@ that is why defined as lambda with marker.")
 (defvar oai-restapi-after-chat-insertion-hook nil
   "Hook that is called when a chat response is inserted.
 Note this is called for every stream response so it will typically only
-contain fragments.  First argument is
-`TYPE' - simbol 'role, 'text or'end,
-second - text or role name,
-third - position before text insertion
-fourth - target buffer with ai block for third position.")
+contain fragments.
+Arguments: type, role-text, pos, buffer
+- type - simbol 'role, 'text or'end,
+- role-text - text or role name,
+- pos - position before text insertion
+- buffer - target buffer with ai block for third position.")
 
 (defvar oai-restapi--current-insert-position-marker nil
   "Where to insert the result.")
@@ -330,10 +332,16 @@ Used for hook only.")
 (cl-deftype oai-restapi--response-type ()
   '(member role text stop error))
 
-(cl-defstruct oai-restapi--response
-  (type (:type oai-restapi--response-type))
-  payload)
+(cl-defstruct oai-restapi--response ; :type is not enforced now
+  (type (user-error "no default value") :type oai-restapi--response-type)
+  (payload (user-error "no default value") :type string))
 
+;; (make-oai-restapi--response :type 'role :payload "user") ; #s(oai-restapi--response role "user")
+;; (make-oai-restapi--response :type 'role) ; error
+;; (make-oai-restapi--response :payload "role") ; error
+;; (make-oai-restapi--response :type nil :payload "role") ; #s(oai-restapi--response nil "role")
+;; (make-oai-restapi--response :type 'role :payload nil) ; #s(oai-restapi--response role nil)
+;;; -=-= org-ai--debug-data (obsolate)
 ;; (defvar org-ai--debug-data nil)
 ;; (defvar org-ai--debug-data-raw nil)
 
