@@ -452,11 +452,11 @@ TODO: EXEC-TIME."
           ;; No possible anonymous results at the very end of
           ;; buffer or outside CONTEXT parent.
           ((eq (point)
-               (or (pcase (org-element-type (org-element-parent context))
+               (or (pcase (org-element-type (org-element-property :parent context))
                      ((or `section `org-data)
-                      (org-element-property :end (org-element-parent context)))
+                      (org-element-property :end (org-element-property :parent context)))
                      (_ (org-element-contents-end
-                         (org-element-parent context))))
+                         (org-element-property :parent context))))
                    (point-max))))
           ;; Check if next element is an anonymous result below
           ;; the current block.
