@@ -48,12 +48,13 @@
 ;; - `line-number-at-pos'
 ;; - `oai-block-tags--position-at-line-beginning'
 ;;
-;;; Code
-;;; -=-= variables
+;;; -=-= includes
 (require 'org)
 (require 'ol)
 (require 'oai-debug)
 
+;;; Code:
+;;; -=-= variables
 ;; (defvar oai-block-tags--regexes '(
 ;;                                ;; :backtrace "@Backtrace`?\\([^a-zA-Z]\\|$\\)"
 ;;                                ;; :backtrace "\\(`?@Backtrace`?\\)\\([^a-zA-Z\"']\\|$\\)"
@@ -124,7 +125,7 @@ Used to set `org-link-search-must-match-exact-headline' before
 
 (defun oai-block-tags--take-n-lines (string n)
   "Return a string with the first N lines from STRING.
-If N exceeds the number of lines, return all lines. If N <= 0, return an empty string."
+If N exceeds the number of lines, return all lines.  If N <= 0, return an empty string."
   (let* ((lines (split-string string "\n"))
          (lines-to-keep (cl-subseq lines 0 (min (max 0 n) (length lines)))))
     (mapconcat #'identity lines-to-keep "\n")))
@@ -559,6 +560,15 @@ Use current buffer, current position to output error to result of block if two t
 (defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
 (defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")
 
+(defvar oai-block--org-link-any-re (cl-letf (((symbol-function 'org-link-types)
+                                              (lambda () (list "file"))))
+                                     (let (org-link-any-re ; ret
+                                           org-link-types-re org-link-angle-re org-link-plain-re org-link-bracket-re
+                                           (org-link-make-regexps))
+                                       (org-link-make-regexps) ; constructor of org-link-types-re, org-link-angle-re, org-link-plain-re, org-link-bracket-re
+                                       org-link-any-re
+                                       ))
+  "`org-link-any-re' but with one type \"file\" in `org-link-types' " )
 
 (defun oai-block-tags--markdown-fenced-code-body-get-range (&optional limit-begin limit-end)
   "Return (begin end) if point is inside a Markdown fenced block.
@@ -830,18 +840,18 @@ And return modified string or the same string."
   ;; more exist we skip the first  one that found. if no other
   ;; exist we replace it.
   ;; *Dont Wrap in markdown*
-  (when (string-match org-link-any-re string) ; exist in text?
-    (if-let* ((link (oai-block-tags--replace-last-regex-smart string org-link-any-re)) ; find the last
+  (when (string-match oai-block--org-link-any-re string) ; exist in text?
+    (if-let* ((link (oai-block-tags--replace-last-regex-smart string oai-block--org-link-any-re)) ; find the last
 
               (replacement (concat "\n" (oai-block-tags--get-replacement-for-org-link link) "\n" )) ; add empty line after it.
               (new-string (oai-block-tags--replace-last-regex-smart string
-                                                                    org-link-any-re
+                                                                    oai-block--org-link-any-re
                                                                     replacement)))
         (setq string new-string)))
   ;; old
-  ;; (when (not (string-match org-link-any-re string)) ; exist in text?
+  ;; (when (not (string-match oai-block--org-link-any-re string)) ; exist in text?
   ;;   (let ((new-string string) ; ai block content
-  ;;         (path-string (oai-block-tags--replace-last-regex-smart string org-link-any-re))
+  ;;         (path-string (oai-block-tags--replace-last-regex-smart string oai-block--org-link-any-re))
   ;;         (replaced nil)
   ;;         (pos-end 0)
   ;;         (pos-beg 0)
@@ -850,7 +860,7 @@ And return modified string or the same string."
   ;;     (print (list "oai-block-tags-replace 0" path-string))
   ;;     ;; 1) find link
   ;;     (while (or (= pos-end 0) ; skip first
-  ;;                (string-match org-link-any-re new-string pos-end)) ; loop over links in text
+  ;;                (string-match oai-block--org-link-any-re new-string pos-end)) ; loop over links in text
   ;;       (print "found link")
   ;;       (setq pos-beg (match-beginning 0))
   ;;       (setq pos-end (match-end 0))
@@ -882,7 +892,7 @@ And return modified string or the same string."
   ;;       (setq string new-string))))
 
 
-  ;; (if-let* ((path-string (oai-block-tags--replace-last-regex-smart string org-link-any-re)))
+  ;; (if-let* ((path-string (oai-block-tags--replace-last-regex-smart string oai-block--org-link-any-re)))
   ;;     (progn
   ;;       (print (list "link" path-string))
   ;;       string))
@@ -967,7 +977,7 @@ This is special fontify function, that return t when match found.
                   ;; - [[link][]]
                   (progn
                     (goto-char beg)
-                    (while (re-search-forward org-link-any-re end t)
+                    (while (re-search-forward oai-block--org-link-any-re end t)
                       (goto-char (match-beginning 0))
                       (setq ret (org-activate-links end))
                       ))

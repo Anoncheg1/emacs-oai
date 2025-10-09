@@ -2,9 +2,10 @@
 
 ;; Copyright (C) 2023-2025 Robert Krahn
 ;; Copyright (C) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
+
 ;; SPDX-License-Identifier: AGPL-3.0-or-later
 ;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
-;; Keywords: org, ai, llm, url, http
+;; Keywords: org, comm, url, link
 ;; URL: https://github.com/Anoncheg1/oai
 ;; Version: 0.1
 ;;  Fork from orig. version: 0.5.6 (commit cc4a4eb778e4689573ebd2d472b8164f4477e8b8)
@@ -216,7 +217,7 @@ messages."
                (expanded (oai-restapi--collect-chat-messages expanded))
                (expanded (oai-restapi--modify-last-user-content expanded #'oai-block-tags-replace))
                (expanded (if arg
-                             (apply #'mapconcat #'identity (mapcar (lambda (x) (string-replace "\n" "\\n" (prin1-to-string x)))  expanded) '("\n"))
+                             (apply #'mapconcat #'identity (mapcar (lambda (x) (replace-regexp-in-string "\n" "\\\\n" (prin1-to-string x)))  expanded) '("\n"))
                            (oai-restapi--stringify-chat-messages expanded)))
                (headers (if arg
                             (oai-expand-block-deep)))
