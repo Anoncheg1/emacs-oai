@@ -333,8 +333,8 @@ Used for hook only.")
   '(member role text stop error))
 
 (cl-defstruct oai-restapi--response ; :type is not enforced now
-  (type (user-error "no default value") :type oai-restapi--response-type)
-  (payload (user-error "no default value") :type string))
+  (type (user-error "No default value") :type oai-restapi--response-type)
+  (payload (user-error "No default value") :type string))
 
 ;; (make-oai-restapi--response :type 'role :payload "user") ; #s(oai-restapi--response role "user")
 ;; (make-oai-restapi--response :type 'role) ; error

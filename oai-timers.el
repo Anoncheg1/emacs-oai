@@ -168,6 +168,9 @@ Called in
     (setq oai-timers--global-progress-timer-remaining-ticks 0)
     (oai--debug "oai-timers--stop-global-progress-reporter" oai-timers--global-progress-timer-remaining-ticks)))
 
+(defvar oai-timers--oai-update-mode-line (intern "oai-update-mode-line")
+  "dependency injection from in oai.el")
+
 (defun oai-timers--update-global-progress-reporter ()
   "Count url-buffers and stop reporter if it is empty.
 Called from
@@ -179,7 +182,10 @@ Called from
          (count-live (length (delq nil (mapcar #'buffer-live-p buffers)))))
     (oai--debug "oai-timers--update-global-progress-reporter count: %s count-live: %s" count count-live)
     (let ((count (length (oai-timers--get-all-keys))))
-      (oai-update-mode-line count)
+      (unless oai-timers--oai-update-mode-line
+        (error "oai.el should be loaded to use oai-timers--update-global-progress-reporter function"))
+      (funcall oai-timers--oai-update-mode-line count)
+      ;; (oai-update-mode-line count)
       (when (eql count 0)
         (oai-timers--stop-global-progress-reporter)))))
 

@@ -7,7 +7,7 @@
 ;; URL: https://github.com/Anoncheg1/emacs-async1
 ;; Version: 0.1
 ;; Created: 25 Aug 2025
-;; Package-Requires: ((emacs "24.1") (compat "30.1"))
+;; Package-Requires: ((emacs "24.1"))
 
 ;;; License
 

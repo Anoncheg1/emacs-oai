@@ -8,7 +8,7 @@
 ;; URL: https://github.com/Anoncheg1/oai
 ;; Version: 0.1,  Fork from orig. version: 0.5.6 (commit cc4a4eb778e4689573ebd2d472b8164f4477e8b8)
 ;; Created: 20 Aug 2025
-;; Package-Requires: ((emacs "27.1") (compat "30.1"))
+;; Package-Requires: ((emacs "27.1"))
 
 ;;; License
 
