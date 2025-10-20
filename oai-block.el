@@ -76,7 +76,7 @@
 
 (defun oai-block-p ()
   "Are we inside a #+begin_ai...#+end_ai block?
-Like `org-in-src-block-p'. Return element."
+Like `org-in-src-block-p'.  Return element."
   (oai-block--org-element-with-disabled-cache ;; with cache enabled we get weird Cached element is incorrect warnings
     (cl-loop with context = (org-element-context)
              while (and context
@@ -86,6 +86,8 @@ Like `org-in-src-block-p'. Return element."
              finally return context)))
 
 (defun oai-block-element-by-marker (marker)
+  "Get ai block at MARKER position at marker buffer.
+Used in prompt engineering only: oai-prompt.el."
   (with-current-buffer (marker-buffer marker)
     (save-excursion
       (goto-char marker)
@@ -93,12 +95,14 @@ Like `org-in-src-block-p'. Return element."
 
 (defun oai-block-get-info (&optional element no-eval)
   "Parse the header of #+begin_ai...#+end_ai block.
-`ELEMENT' is the element of the special block. Return an alist of
-key-value pairs.
+`ELEMENT' is the element of the special block.
 Like `org-babel-get-src-block-info' but instead of list return only
 arguments.
 To get value use: (alist-get :value (oai-block-get-info))
-Use ELEMENT only in current moment."
+Use ELEMENT only in current moment.
+When optional argument NO-EVAL is non-nil, do not evaluate Lisp
+in parameters.
+Return an alist of key-value pairs."
   (org-babel-parse-header-arguments
    (org-element-property
     :parameters
@@ -106,7 +110,7 @@ Use ELEMENT only in current moment."
 
 (defun oai-block--string-equal-ignore-case (string1 string2)
   "Helper for backwards compat.
-STRING1 and STRING2 are strings. Return t if they are equal
+STRING1 and STRING2 are strings.  Return t if they are equal
 ignoring case."
   (eq 't (compare-strings string1 0 nil string2 0 nil t)))
 
@@ -136,7 +140,7 @@ ELEMENT."
 
 (defun oai-block--get-request-type (info)
   "Look at the header of the #+begin_ai...#+end_ai block.
-returns the type of request. `INFO' is the alist of key-value
+returns the type of request.  `INFO' is the alist of key-value
 pairs from `oai-block-get-info'."
   (cond
    ((not (eql 'x (alist-get :chat info 'x))) 'chat)
@@ -149,7 +153,10 @@ pairs from `oai-block-get-info'."
 
 (cl-defun oai-block--get-sys (&key info default)
   "Check if :sys exist in #+begin_ai parameters.
-If exist return nil or string, if not exist  return `default'."
+If exist return nil or string, if not exist  return `default'.
+Argument INFO is the alist of key-value
+pairs from `oai-block-get-info'.
+DEFAULT is a string with default system prompt for LLM."
   (let ((sys-raw  (alist-get :sys info 'x)))
     ;; if 'x - not resent
     (if (eql 'x sys-raw)
@@ -204,12 +211,12 @@ DEFINITIONS is a list of (VARIABLE &optional DEFAULT-FORM &key TYPE).
 TYPE can be 'number, 'bool, 'string, or 'identity (no conversion).
 Return one of:
 - t symbol, if value for key not specified, if specied, return string.
-- for number type, string-to-number used, that return 0 if number not
+- for number type, `string-to-number' used, that return 0 if number not
   recognized.
 - for number if specified without value return t.
 - Processed value of parameter (e.g., t/nil for bool).
 Parameters are sourced from:
-1. From Oai block header `info' alist. (e.g., :model \"gpt-4\")
+1. From Oai block header `INFO' alist.  (e.g., :model \"gpt-4\")
 2. Org inherited property. (e.g., #+PROPERTY: model gpt-4)
 3. DEFAULT-FORM."
   `(let* ,(cl-loop for def-item in definitions
@@ -277,7 +284,7 @@ Parameters are sourced from:
 (defvar oai-block--roles-regex "\\[SYS\\]:\\|\\[ME\\]:\\|\\[ME:\\]\\|\\[AI\\]:\\|\\[AI_REASON\\]:")
 
 (defun oai-block--chat-role-regions ()
-  "Splits the special block by role prompts.
+  "Splits the special block by role prompt.
 Return line begining positions of first line of content, roles, #+end_ai
 line."
   (if-let* ((element (oai-block-p))
@@ -299,12 +306,12 @@ line."
 ;;; -=-= Interactive
 
 (defcustom oai-block-fontify-markdown t
-  "fontinfy ```lang blocks."
+  "Fontinfy ```lang blocks."
   :type 'boolean
   :group 'oai)
 
 (defun oai-mark-last-region ()
-  "Marks the last prompt in an oai block."
+  "Mark the last prompt in an oai block."
   (interactive)
   (when-let* ((regions (reverse (oai-block--chat-role-regions)))
               (last-region-end (pop regions))
@@ -313,7 +320,7 @@ line."
         (push-mark last-region-start t t)))
 
 (defun oai-mark-region-at-point ()
-  "Marks the prompt at point: [ME:], [AI:]."
+  "Mark the prompt at point: [ME:], [AI:]."
   (interactive)
   (when-let* ((regions (oai-block--chat-role-regions))
               (start (cl-find-if (lambda (x) (>= (point) x)) (reverse regions)))
@@ -356,7 +363,7 @@ A negative argument ARG = -N means move backward."
             (goto-char (cl-find-if (lambda (x) (>= (1- start) x)) (reverse regions)))))))))
 
 (defun oai-kill-region-at-point (&optional arg)
-  "Kills the prompt at point.
+  "Kill the prompt at point.
 The numeric `ARG' can be used for killing the last n."
   (interactive "P")
   (cl-loop repeat (or arg 1)

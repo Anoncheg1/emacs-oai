@@ -1657,7 +1657,7 @@ Called from `oai-timers--progress-reporter-run'."
         (oai--debug "oai-restapi-stop-url-request, element %s, url-buffers %s"
                        element
                        url-buffers)
-        (oai-timers--interrupt-current-request url-buffers #'oai-restapi--interrupt-url-request failed)
+        (oai-timers--interrupt-current-request url-buffers #'oai-restapi--interrupt-url-request)
         t)
     ;; ;; else - called not at from some block, but from elsewhere
     ;; (oai--debug "oai-restapi-stop-url-request all %s" (oai-timers--get-keys-for-variable (oai-block-get-header-marker element)))

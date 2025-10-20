@@ -23,9 +23,9 @@
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 ;;; Commentary:
 ;; How this works?
-;; We appply `oai-block-tags-replace' to text of last user request.
-;; Used in oai.el: (oai-restapi--modify-last-user-content expanded #'oai-block-tags-replace)
-;; To check result use
+;; We appply `oai-block-tags-replace' to text of last user request, this way:
+;; in oai.el: (oai-restapi--modify-last-user-content expanded #'oai-block-tags-replace)
+;;
 ;;
 ;; We support @links:
 ;; - @Backtrace
@@ -384,7 +384,7 @@ Move pointer to the end of block."
         (print (list "!!!!!!!!!" (reverse replacement-list)))
         (apply 'concat (reverse replacement-list))
         ))
-     ;; - (2) case - Markdown block - TODO
+     ;; - (2) case - Markdown block
      ((oai-block-tags--get-m-block))
      ;; (oai-block-tags--markdown-block-range
      ;; - (3) case -  Org block (or ai block)
@@ -450,15 +450,27 @@ LINK is string in format is what inside [[...]] or Plain link."
        (and (equal type "fuzzy")
 	    (+ 2 (org-element-property :begin link)))))))
 
+
+(defun oai-block-tags--get-replacement-for-org-file-link-in-other-file (path option link-string)
+  (oai--debug "oai-block-tags--get-replacement-for-org-file-link-in-other-file %s %s %s" path option link-string)
+  ;; Code from org-open-file -> find-file-other-window was used:
+  (let ((value (find-file-noselect path nil nil nil))) ; buf name
+    (when (listp value)
+      (setq value (car value)))
+    (with-current-buffer value
+      (oai-block-tags--get-replacement-for-org-link link-string)))) ; recurse but with current buffer to get local links
+
 (defun oai-block-tags--get-replacement-for-org-link (link-string)
   "Return string for LLM for LINK-STRING string or nil.
 Supported targets:
 - Org block in current buffer \"file:\"
+- file: - targets in other files
 - file & directory `oai-block-tags--compose-block-for-path-full'
-- local link.
-Use current buffer, current position to output error to result of block if two targets found."
+- local link. Use current buffer to find target of link.
+Use current buffer, current position to output error to result of block if two targets found.
+Return replacement string."
+  ;; Some code was taken from:
   ;; `org-link-open' for type and opening,  `org-link-search' for search in current buffer.
-
   ;; from `org-link-open-from-string'
   ;; - - 1) convert string to Org element
   (let ((link-el (with-temp-buffer
@@ -480,7 +492,6 @@ Use current buffer, current position to output error to result of block if two t
          (let* ((option (org-element-property :search-option link-el))) ;; nil if no ::, may be "" if after :: there is empty last part
            ;; (print (list "option" option))
            ;; (print (list "check" (oai-block-tags--path-references-current-buffer-p path)))
-
            (if (and option
                     (not (string-empty-p option)))
                ;; case 1) path to current file with option
@@ -488,7 +499,8 @@ Use current buffer, current position to output error to result of block if two t
                    ;; recursion without path, to find target in current buffer
                    (oai-block-tags--get-replacement-for-org-link (concat "[[" option "]]")) ; recursive call
                  ;; - else  case 2) path to other file with option
-                 (user-error "Links to targets in other files not supported for now")  ;; TODO
+                 (oai-block-tags--get-replacement-for-org-file-link-in-other-file path option link-string)
+                 ;; (user-error "Links to targets in other files not supported for now")
                  )
              ;; else - no ::, only path
              (oai-block-tags--compose-block-for-path-full path))
@@ -807,8 +819,11 @@ If REPLACEMENT not provided return found string for regexp."
 
 (defun oai-block-tags-replace (string)
   "Replace links in STRING with their targets.
-And return modified string or the same string."
-  (print (list "vv" string))
+Check every type of links if it exist in text, find replacement for the
+fist link and replace link substring with
+`oai-block-tags--replace-last-regex-smart' once.
+Return modified string or the same string."
+  (oai--debug "oai-block-tags-replace: \"%s\"" string)
   ;; - "@Backtrace" substring exist - replace the last one only
   ;; *Wrap in markdown*
   (when (string-match oai-block-tags--regexes-backtrace string)

@@ -240,6 +240,24 @@ asdas
 
 
 
+;;; - Test: get-replacement-for-org-file-link-in-other-file
+(ert-deftest oai-tests-block-tags--get-replacement-for-org-file-link-in-other-file ()
+  (let ((kill-buffer-query-functions)
+        target)
+    (with-temp-buffer
+      (org-mode)
+      (insert "* headline\nasdas\n** sub-headline\n asd\nss2")
+      (read-only-mode)
+      (setq buffer-file-name "/mock/org.org")
+      (setq target (oai-block-tags--get-replacement-for-org-file-link-in-other-file
+       "/mock/org.org" "2-3" "[[file:/mock/org.org::2-3]]"))
+      (should (string-equal target
+"```auto
+asdas
+** sub-headline
+```"))
+      (set-buffer-modified-p nil)
+       )))
 ;;; - tags tests
 (ert-deftest oai-block-tags-replace-test ()
     (let* ((temp-file (make-temp-file "mytest"))
@@ -259,6 +277,7 @@ asdas
       (should (string-equal "Hello, world test!" (nth 3 res)))
       (should (string-equal "```" (nth 4 res)))
       (should (string-equal "bb." (nth 5 res)))))
+
 
 
 ;;; provide
