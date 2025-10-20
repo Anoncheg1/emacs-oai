@@ -12,7 +12,7 @@
 ;; Created: 20 Aug 2025
 ;; Package-Requires: ((emacs "27.1"))
 ;;    (compat "30.2")
-;; Optional Package-Requires dependency: ((org-links "0.2"))
+;; Optional dependency: ((org-links "0.2"))
 
 ;;; License
 
@@ -211,7 +211,7 @@ messages."
   (interactive "P")
   (let  ((element (oai-block-p))) ; oai-block.el
     (condition-case err
-        (let*( (expanded (string-trim
+        (let* ((expanded (string-trim
                           (oai-block-get-content element) ; oai-block.el
                           ))
                (expanded (oai-restapi--collect-chat-messages expanded))
@@ -220,15 +220,13 @@ messages."
                              (apply #'mapconcat #'identity (mapcar (lambda (x) (replace-regexp-in-string "\n" "\\\\n" (prin1-to-string x)))  expanded) '("\n"))
                            (oai-restapi--stringify-chat-messages expanded)))
                (headers (if arg
-                            (oai-expand-block-deep)))
-               )
+                            (oai-expand-block-deep))))
           (if (called-interactively-p 'any)
               (let ((buf (get-buffer-create "*OAi Preview*")))
                 (with-help-window buf (with-current-buffer buf
                                         (if arg
                                             (insert (pp-to-string headers))
-                                          (insert expanded))
-                                        ))
+                                          (insert expanded))))
                 (switch-to-buffer buf))
             expanded))
       (user-error
@@ -336,8 +334,7 @@ It's designed to \"do the right thing\":
       (progn
         (add-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c nil 'local)
         (advice-add 'keyboard-quit :before #'oai-keyboard-quit)
-        (add-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords)
-        )
+        (add-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords))
     ;; else - off
     (remove-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c 'local)
     (advice-remove 'keyboard-quit #'oai-keyboard-quit)

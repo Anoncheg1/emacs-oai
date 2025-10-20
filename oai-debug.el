@@ -59,11 +59,16 @@ Heavy to execute."
 (defun oai--debug (&rest args)
   "If firt argument of ARGS is a stringwith %s than behave like format.
 Otherwise format every to string and concatenate."
-  (when (and oai-debug-buffer args)
+  ;; (print (list "oai--debug --------vvvvvvvvvvvvvv1" (bound-and-true-p ert-enabled)))
+  (when (and (or oai-debug-buffer
+                 (bound-and-true-p ert-enabled))
+             args)
 
     (save-excursion
-      (let* ((buf-exist (get-buffer oai-debug-buffer))
-             (bu (or buf-exist (get-buffer-create oai-debug-buffer)))
+      (let* ((buf-exist (and oai-debug-buffer (get-buffer oai-debug-buffer)))
+             (bu (or buf-exist
+                     (and (bound-and-true-p ert-enabled) (current-buffer))
+                     (get-buffer-create oai-debug-buffer)))
              (current-window (selected-window))
              (bu-window (or (get-buffer-window bu)
                             (if (>= (count-windows) 2)
@@ -115,12 +120,14 @@ Otherwise format every to string and concatenate."
                                                   (concat (prin1-to-string arg) "\n"))
                                                 ) args)))
               )
-            (if oai--debug-filter
-                (when (string-match-p (regexp-quote oai--debug-filter) result-string)
-                    (insert result-string))
-              ;; else
-              (insert result-string))
-
+            (when (and oai--debug-filter
+                       (not (string-match-p (regexp-quote oai--debug-filter) result-string)))
+                    (setq result-string nil))
+            (when result-string
+              (if (bound-and-true-p ert-enabled)
+                  (print result-string)
+                ;; else
+                (insert result-string)))
             ))))))
 
 

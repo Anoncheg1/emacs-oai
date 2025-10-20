@@ -29,7 +29,9 @@
 ;;; - includes
 
 (require 'oai-block-tags)
+;; (print (list "vvvvvvvvvvvvvvvvvvvvvv1" (bound-and-true-p debug)))
 (require 'ert)
+(defvar ert-enabled t)
 ; org-links - is optional dependency
 
 ;; (eval-buffer) or (load-file "path/to/async-tests.el")
@@ -38,8 +40,8 @@
 ;; (ert t)
 ;; to execute all tests. Individual tests can be run with (ert 'test-name).
 ;;; Code:
+;; (setopt oai-debug-buffer "*debug-oai*")
 ;;; - Tests --------------------------------------------------------
-
 (ert-deftest oai-tests-block-tags--read-file-to-string-safe--read-ok ()
   "Should read a regular readable file and return its contents."
   (let ((tmpfile (make-temp-file "oai-test")))
@@ -144,27 +146,26 @@ text after"))
              ))))
 ;;; - Test: oai-block-tags-replace
 (ert-deftest oai-tests-block-tags--replace-org-links-norm-header ()
-  (let ((kill-buffer-query-functions))
+  (let ((kill-buffer-query-functions)
+        res1 res2
+        target)
     (with-temp-buffer
       (org-mode)
       (setq buffer-file-name "/mock/org.org")
       (insert "* headline\nasdas\n** sub-headline\n asd")
-      (let (target)
-        (setq target "11
+      (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::* headline]]4444"))
+      (setq target
+            "11
+
 # headline
 asdas
 
 ## sub-headline
  asd
-
 4444")
-        (should (string-equal (oai-block-tags-replace  "11[[file:/mock/org.org::* headline]]4444")
-                              target))
-
-
-        (should (string-equal (oai-block-tags-replace  "11[[* headline]]4444")
-                              target)))
-
+      (should (string-equal res1 target))
+      (setq res2 (oai-block-tags-replace  "11[[* headline]]4444"))
+      (should (string-equal res2 target))
       (set-buffer-modified-p nil))))
 
 
@@ -173,48 +174,57 @@ asdas
     (let ((kill-buffer-query-functions)
           ;; (org-link-file-path-type 'absolute)
           ;; (org-link-search-must-match-exact-headline nil)
+          target
+          res1 res2
+          org-execute-file-search-functions
           )
       (with-temp-buffer
         (org-mode)
         (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
+
         (setq buffer-file-name "/mock/org.org")
         (insert "* headline\nasdas\n** sub-headline\n asd")
-        (let (target)
           (setq target "11
+
 # headline
 asdas
 
 ## sub-headline
  asd
-
 4444")
-          (should (string-equal (oai-block-tags-replace  "11[[file:/mock/org.org::1::* headline]]4444")
-                                target))
+          (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::1::* headline]]4444"))
+          (should (string-equal target res1))
 
-          (should (string-equal (oai-block-tags-replace  "11[[1::* headline]]4444")
-                                target))
+          (setq res2 (oai-block-tags-replace  "11[[1::* headline]]4444"))
+          (should (string-equal target res2))
           )
+        (advice-remove 'org-open-file #'org-links-org-open-file-advice)
+
         ;; (insert "[[file:/mock/org.org::1::* headline]]")
 
-        (set-buffer-modified-p nil))))
+        (set-buffer-modified-p nil)))
 
   (ert-deftest oai-tests-block-tags--replace-org-links-num-num ()
-    (let ((kill-buffer-query-functions))
+    (let ((kill-buffer-query-functions)
+          org-execute-file-search-functions
+          res1
+          target)
       (with-temp-buffer
         (org-mode)
         (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
         (setq buffer-file-name "/mock/org.org")
         (insert "* headline\nasdas\n** sub-headline\n asd")
-        (let (target)
-          (setq target "11
+
+        (setq target "11
 ```auto
 * headline
 asdas
 ```
 4444")
-          (should (string-equal (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444")
-                                target))
-          )
+        (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444"))
+        (should (string-equal (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444")
+                              target))
+        (advice-remove 'org-open-file #'org-links-org-open-file-advice)
         (set-buffer-modified-p nil)))))
 
 ;; (ert-deftest oai-block-tags--replace-org-links-num-num ()
@@ -241,23 +251,40 @@ asdas
 
 
 ;;; - Test: get-replacement-for-org-file-link-in-other-file
-(ert-deftest oai-tests-block-tags--get-replacement-for-org-file-link-in-other-file ()
-  (let ((kill-buffer-query-functions)
-        target)
-    (with-temp-buffer
-      (org-mode)
-      (insert "* headline\nasdas\n** sub-headline\n asd\nss2")
-      (read-only-mode)
-      (setq buffer-file-name "/mock/org.org")
-      (setq target (oai-block-tags--get-replacement-for-org-file-link-in-other-file
-       "/mock/org.org" "2-3" "[[file:/mock/org.org::2-3]]"))
-      (should (string-equal target
-"```auto
+(when (require 'org-links nil 'noerror)
+  (ert-deftest oai-tests-block-tags--get-replacement-for-org-file-link-in-other-file ()
+    (let ((kill-buffer-query-functions)
+          target
+          res1 res2
+          org-execute-file-search-functions)
+      (with-temp-buffer
+        (org-mode)
+        (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
+        (insert "* headline\nasdas\n** sub-headline\n asd\nss2")
+        (setq buffer-file-name "/mock/org.org")
+        (read-only-mode)
+        (setq res1 (oai-block-tags--get-replacement-for-org-file-link-in-other-file
+                      "/mock/org.org" "2-3" "[[file:/mock/org.org::2-3]]"))
+
+        (setq target
+              "```auto
 asdas
 ** sub-headline
-```"))
-      (set-buffer-modified-p nil)
-       )))
+```")
+        (should (string-equal target res1))
+        (setq target
+              "
+## sub-headline
+ asd
+ss2
+")
+        (setq res1 (oai-block-tags--get-replacement-for-org-file-link-in-other-file
+                      "/mock/org.org" "*sub-headline" "[[file:/mock/org.org::*sub-headline]]"))
+
+        (advice-remove 'org-open-file #'org-links-org-open-file-advice)
+        (set-buffer-modified-p nil)
+        ))))
+
 ;;; - tags tests
 (ert-deftest oai-tests-block-tags--replace-test ()
     (let* ((temp-file (make-temp-file "mytest"))

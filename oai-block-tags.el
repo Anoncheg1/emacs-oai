@@ -120,7 +120,9 @@ Used to set `org-link-search-must-match-exact-headline' before
 
 (defvar oai-block-tags-org-blocks-types '(comment-block center-block dynamic-block example-block
                                                         export-block quote-block special-block
-                                                        src-block verse-block))
+                                                        src-block verse-block)
+  "Org block types that we wrap to markdown and may get by the first line."
+  )
 ;;; -=-= @Backtrace
 
 (defun oai-block-tags--take-n-lines (string n)
@@ -189,7 +191,7 @@ If N exceeds the number of lines, return all lines.  If N <= 0, return an empty 
 (defun oai-block-tags--compose-block-for-path (path-string content)
   "Return file/directory content in mardown block without last ```."
   (concat
-   "\nHere " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder" "") ":\n"
+   "Here " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder" "") ":\n"
    ;; prefix
    (if (file-directory-p path-string)
        (plist-get oai-block-tags--markdown-prefixes :path-directory)
@@ -204,14 +206,14 @@ If N exceeds the number of lines, return all lines.  If N <= 0, return an empty 
      (concat (plist-get oai-block-tags--markdown-prefixes :path-file) mode)))
    "\n"
    content
-   "\n```\n"))
+   "\n```"))
 
 (cl-assert
  (string-equal (oai-block-tags--compose-block-for-path "a.el" "ss")
-"\nHere a.el:
+"Here a.el:
 ```emacs-lisp
 ss
-```\n"))
+```"))
 
 (defun oai-block-tags--compose-block-for-path-full (path-string)
   "Return file or directory in prepared mardown block."
@@ -248,20 +250,20 @@ Steps: find max, min region of special-block/src-block/buffer
 
     ;; Compose result block
     ;; (goto-char end) ; for return
-    (print "oai-block-tags--get-org-content-m-block")
+    ;; (print "oai-block-tags--get-org-content-m-block")
     (concat
      ;; - 0 - Name
      (when-let ((name (org-element-property :name element))) ; nil or string
        (concat "\nBlock name: " name))
      ;; - 1 - Header ```
      (if (eq (org-element-type element) 'src-block)
-         (concat "\n```"  (org-element-property :language element) "\n")
+         (concat "\n```"  (org-element-property :language element) "")
        ;; else
        "\n```text\n")
      ;; - 2 - Body
      (string-trim (buffer-substring-no-properties beg end))
      ;; - 3 - Footer ```
-     "\n```\n")
+     "\n```")
     ))
 
 (defun oai-block-tags--get-m-block ()
@@ -362,7 +364,7 @@ Move pointer to the end of block."
                  ;; 1. Sub: Headline
                  ((eq type 'headline)
                   ;; make string: #*level + title
-                  (prog1 (concat (make-string (org-element-property :level el) ?#) " " (org-element-property :raw-value el) "\n")
+                  (prog1 (concat "\n" (make-string (org-element-property :level el) ?#) " " (org-element-property :raw-value el) "\n")
                     (forward-line))) ; MOVE!
                  ;; 1. Sub: Block
                  ((member type  oai-block-tags-org-blocks-types)
@@ -374,14 +376,14 @@ Move pointer to the end of block."
                     ))
                  (t ; others
                   (prog1
-                      (concat (buffer-substring-no-properties (line-beginning-position) (org-element-property :end el) ) "\n")
+                      (buffer-substring-no-properties (line-beginning-position) (org-element-property :end el) )
                     ;; (condition-case nil
                     (org-forward-element)
                     ;; (org-next-item)
                     ;; (error nil))
                     ))) replacement-list)
           ) ; while
-        (print (list "!!!!!!!!!" (reverse replacement-list)))
+        ;; (print (list "!!!!!!!!!" (reverse replacement-list)))
         (apply 'concat (reverse replacement-list))
         ))
      ;; - (2) case - Markdown block
@@ -437,7 +439,7 @@ LINK is string in format is what inside [[...]] or Plain link."
       (org-link--search-radio-target path)
     ;; else - fuzzy, custom-di, coderef
     (let ((org-link-search-must-match-exact-headline oai-block-tags-error-on-missing-link)) ;; should found?
-      (print (list "oai-block-tags--org-search-local" org-link-search-must-match-exact-headline))
+      ;; (print (list "oai-block-tags--org-search-local" org-link-search-must-match-exact-headline))
       ;; Not working: :-(
       ;; (save-excursion
       ;;   (with-restriction (point-min) (point-max)
@@ -485,7 +487,7 @@ Return replacement string."
     ;; - - 2) extract path and type
     (let ((type (org-element-property :type link-el))
           (path (org-element-property :path link-el)))
-      (print (list "type?" type path link-el))
+      ;; (print (list "type?" type path link-el))
       ;; - - 3) process link depending on type
       (pcase type
         ("file" ; org-link-search
@@ -517,7 +519,7 @@ Return replacement string."
                   target-pos)
               ;; - 2) move pointer to search result
               (setq target-pos (point))
-              (print (list "oai-block-tags--get-replacement-for-org-link found" found (point)))
+              ;; (print (list "oai-block-tags--get-replacement-for-org-link found" found (point)))
               ;; 2.1) several targets with same name exist? = error
               (when (and oai-block-tags--check-double-targets-found
                          (eq found 'dedicated)
@@ -843,7 +845,7 @@ Return modified string or the same string."
               (path-string (if (> (length path-string) 0)
                                (substring path-string 1)
                              ""))
-              (replacement (oai-block-tags--compose-block-for-path-full path-string))
+              (replacement (concat "\n" (oai-block-tags--compose-block-for-path-full path-string) "\n"))
               (new-string (oai-block-tags--replace-last-regex-smart string
                                                                     oai-block-tags--regexes-path
                                                                     replacement)))
@@ -944,16 +946,23 @@ Return modified string or the same string."
         (insert "(defun aa() )"))
       (with-temp-file file3
         (insert "import os"))
-      (print (oai-block-tags-replace (format "ssvv `@%s` bbb" temp-dir)))
-      (if (not (string-match (regexp-quote "```text") (print (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))))
-          (error "ss"))
-      ;; (print (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
-      (if (not (string-match (regexp-quote "```emacs-lisp") (print (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)))))
-          (error "ss2"))
-      (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
-
-  ;; Return list of paths for later use
-  ;; (list temp-dir file1 file2))
+      ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
+      ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)) "\n" ) "\\n"))
+      (if (not (string-equal "ssvv \nHere file1.txt:\n```text\nContents for file1\n```\n bbb"
+                    (oai-block-tags-replace (format "ssvv `@%s` bbb" file1))))
+          (error "error in loading of oai-block-tags.el 1"))
+      ;; ;; (print (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
+      ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)) "\n" ) "\\n"))
+      (if (not (string-equal "ssvv \nHere file2.el:\n```emacs-lisp\n(defun aa() )\n```\n bbb"
+                             (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
+          (error "error in loading of oai-block-tags.el 2"))
+      ;; (string-join (string-split (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)) "\n" ) "\\n"))
+      ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
+;; "ssvv \\nssssss\\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
+;;                           "ssvv \n\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
+      (if (not (string-equal "ssvv \nHere file3.py:\n```python\nimport os\n```\n bbb"
+                             (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3))))
+          (error "error in loading of oai-block-tags.el 3")))
 
 ;; get folder content
 (let ((path "/tmp/tttt1"))
