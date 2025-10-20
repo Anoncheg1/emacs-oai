@@ -40,7 +40,7 @@
 ;;; Code:
 ;;; - Tests --------------------------------------------------------
 
-(ert-deftest oai-block-tags--read-file-to-string-safe--read-ok ()
+(ert-deftest oai-tests-block-tags--read-file-to-string-safe--read-ok ()
   "Should read a regular readable file and return its contents."
   (let ((tmpfile (make-temp-file "oai-test")))
     (unwind-protect
@@ -50,12 +50,12 @@
                          "Hello, test!")))
       (delete-file tmpfile))))
 
-(ert-deftest oai-block-tags--read-file-to-string-safe--file-missing ()
+(ert-deftest oai-tests-block-tags--read-file-to-string-safe--file-missing ()
   "Should signal user-error if the file does not exist."
   (should-error (oai-block-tags--read-file-to-string-safe "/no/such/file")
                 :type 'user-error))
 
-(ert-deftest oai-block-tags--read-file-to-string-safe--nonregular ()
+(ert-deftest oai-tests-block-tagss--read-file-to-string-safe--nonregular ()
   "Should signal user-error if path is not a regular file."
   (let ((tmpdir (make-temp-file "oai-test-dir" t)))
     (unwind-protect
@@ -63,7 +63,7 @@
                       :type 'user-error)
       (delete-directory tmpdir))))
 
-(ert-deftest oai-block-tags--read-file-to-string-safe--unreadable ()
+(ert-deftest oai-tests-block-tags--read-file-to-string-safe--unreadable ()
   "Should signal user-error if the file is not readable."
   (let ((tmpfile (make-temp-file "oai-test-unreadable")))
     (unwind-protect
@@ -76,7 +76,7 @@
       (set-file-modes tmpfile #o600)
       (delete-file tmpfile))))
 
-(ert-deftest oai-block-tags--read-file-to-string-safe--with-coding ()
+(ert-deftest oai-tests-block-tags--read-file-to-string-safe--with-coding ()
   "Should honor the coding argument; reading ASCII content as UTF-8 should work."
   (let ((tmpfile (make-temp-file "oai-test-coding")))
     (unwind-protect
@@ -88,7 +88,7 @@
       (delete-file tmpfile))))
 
 ;;; - Tests: oai-block-tags--markdown-fenced-code-body-get-range
-(ert-deftest oai-test-block-markdown-mark-fenced-code-body-get-range1 ()
+(ert-deftest oai-tests-block-tags--markdown-mark-fenced-code-body-get-range1 ()
   "Test fenced code detection."
   (let ((payload "text before
 ```elisp
@@ -110,7 +110,7 @@ text after"))
         (should (equal range (list 22 39))))))
   )
 
-(ert-deftest oai-test-block-markdown-mark-fenced-code-body-get-range2 ()
+(ert-deftest oai-tests-block-tags--markdown-mark-fenced-code-body-get-range2 ()
   "Test fenced code detection."
 (let ((payload "text before
 ```elisp
@@ -133,7 +133,7 @@ text after"))
 )
 
 ;;; - Test: oai-block-tags--get-replacement-for-org-link - dir
-(ert-deftest oai-test-oai-block-tags--get-replacement-for-org-link-dir ()
+(ert-deftest oai-tests-block-tags--get-replacement-for-org-link-dir ()
   ""
   (should (let ((oai-block-tags-use-simple-directory-content t))
             (and
@@ -143,7 +143,7 @@ text after"))
              (string-match "oai-block-tags.el" (oai-block-tags--get-replacement-for-org-link "[[file:.]]"))
              ))))
 ;;; - Test: oai-block-tags-replace
-(ert-deftest oai-block-tags--replace-org-links-norm-header ()
+(ert-deftest oai-tests-block-tags--replace-org-links-norm-header ()
   (let ((kill-buffer-query-functions))
     (with-temp-buffer
       (org-mode)
@@ -169,7 +169,7 @@ asdas
 
 
 (when (require 'org-links nil 'noerror)
-  (ert-deftest oai-block-tags--replace-org-links-nn-header ()
+  (ert-deftest oai-tests-block-tags--replace-org-links-nn-header ()
     (let ((kill-buffer-query-functions)
           ;; (org-link-file-path-type 'absolute)
           ;; (org-link-search-must-match-exact-headline nil)
@@ -198,7 +198,7 @@ asdas
 
         (set-buffer-modified-p nil))))
 
-  (ert-deftest oai-block-tags--replace-org-links-num-num ()
+  (ert-deftest oai-tests-block-tags--replace-org-links-num-num ()
     (let ((kill-buffer-query-functions))
       (with-temp-buffer
         (org-mode)
@@ -259,7 +259,7 @@ asdas
       (set-buffer-modified-p nil)
        )))
 ;;; - tags tests
-(ert-deftest oai-block-tags-replace-test ()
+(ert-deftest oai-tests-block-tags--replace-test ()
     (let* ((temp-file (make-temp-file "mytest"))
            (res
             ;; (unwind-protect
