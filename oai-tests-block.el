@@ -65,7 +65,7 @@
 (defun oai-test-setup-buffer (block-content &optional buf properties-alist)
   "Create ai BLOCK-CONTENT and optional PROPERTIES-ALIST.
 In current buffer or in BUF.
-PROPERTIES-ALIST should be an alist like \'((property-name . \"value\")).
+PROPERTIES-ALIST should be an alist like ((property-name . \"value\")).
 Set cursor at begining of buffer.
 Returns a list (ELEMENT INFO-ALIST), where ELEMENT is the parsed Oai block
 and INFO-ALIST is the parameters from its header."

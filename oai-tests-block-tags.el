@@ -276,10 +276,10 @@ asdas
               "
 ## sub-headline
  asd
-ss2
-")
-        (setq res1 (oai-block-tags--get-replacement-for-org-file-link-in-other-file
+ss2")
+        (setq res2 (oai-block-tags--get-replacement-for-org-file-link-in-other-file
                       "/mock/org.org" "*sub-headline" "[[file:/mock/org.org::*sub-headline]]"))
+        (should (string-equal target res2))
 
         (advice-remove 'org-open-file #'org-links-org-open-file-advice)
         (set-buffer-modified-p nil)

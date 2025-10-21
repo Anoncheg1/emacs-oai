@@ -92,7 +92,7 @@ Stop it with `oai-restapi-stop-url-request'."
          (orig-fn (symbol-function 'oai-restapi--get-token-auth-source)))
     (unwind-protect
         (progn
-          (fset 'oai-restapi--get-token-auth-source (lambda (service) "auth-token-123"))
+          (fset 'oai-restapi--get-token-auth-source (lambda (service) (setq service service) "auth-token-123"))
           (should (equal (oai-restapi--get-token 'openai) "auth-token-123")))
       (fset 'oai-restapi--get-token-auth-source orig-fn))))
 
@@ -116,7 +116,7 @@ Stop it with `oai-restapi-stop-url-request'."
         (orig-fn (symbol-function 'oai-restapi--get-token-auth-source)))
     (unwind-protect
         (progn
-          (fset 'oai-restapi--get-token-auth-source (lambda (service) nil))
+          (fset 'oai-restapi--get-token-auth-source (lambda (service) (setq service service) nil))
           (let ((err (cadr
                       (should-error (oai-restapi--get-token :openai) :type 'error))))
             (should (eql 0 (string-match "Please set" err)))))
@@ -147,7 +147,7 @@ Stop it with `oai-restapi-stop-url-request'."
 
 (ert-deftest oai-restapi--get-token/plist-list-by-index ()
   "Plist with key and list of strings, access by index."
-  (cl-labels ((oai-restapi--split-dash-number (s) (cons "foo" 1))) ;; fake service splitting
+  (cl-labels ((oai-restapi--split-dash-number (s) (setq s s) (cons "foo" 1))) ;; fake service splitting
     (let ((oai-restapi-con-token '(:foo ("tok0" "tok1"))))
       (should (equal (oai-restapi--get-token "foo--1") "tok1")))))
 
