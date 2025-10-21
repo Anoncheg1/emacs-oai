@@ -7,7 +7,8 @@
 
 ;; (eval-buffer)
 ;; (ert t)
-
+;; emacs -Q --batch -l ert.el -l oai-debug.el -l ../emacs-org-links/org-links.el -l oai-block-tags.el -l oai-tests-block-tags.el -f ert-run-tests-batch-and-exit
+;;
 ;;; License
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -57,7 +58,7 @@
   (should-error (oai-block-tags--read-file-to-string-safe "/no/such/file")
                 :type 'user-error))
 
-(ert-deftest oai-tests-block-tagss--read-file-to-string-safe--nonregular ()
+(ert-deftest oai-tests-block-tags--read-file-to-string-safe--nonregular ()
   "Should signal user-error if path is not a regular file."
   (let ((tmpdir (make-temp-file "oai-test-dir" t)))
     (unwind-protect
@@ -198,7 +199,7 @@ asdas
           (setq res2 (oai-block-tags-replace  "11[[1::* headline]]4444"))
           (should (string-equal target res2))
           )
-        (advice-remove 'org-open-file #'org-links-org-open-file-advice)
+        ;; (advice-remove 'org-open-file (intern "org-links-org-open-file-advice"))
 
         ;; (insert "[[file:/mock/org.org::1::* headline]]")
 
@@ -224,7 +225,7 @@ asdas
         (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444"))
         (should (string-equal (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444")
                               target))
-        (advice-remove 'org-open-file #'org-links-org-open-file-advice)
+        ;; (advice-remove 'org-open-file (intern "org-links-org-open-file-advice"))
         (set-buffer-modified-p nil)))))
 
 ;; (ert-deftest oai-block-tags--replace-org-links-num-num ()
@@ -281,7 +282,7 @@ ss2")
                       "/mock/org.org" "*sub-headline" "[[file:/mock/org.org::*sub-headline]]"))
         (should (string-equal target res2))
 
-        (advice-remove 'org-open-file #'org-links-org-open-file-advice)
+        ;; (advice-remove 'org-open-file (intern "org-links-org-open-file-advice"))
         (set-buffer-modified-p nil)
         ))))
 
@@ -305,6 +306,30 @@ ss2")
       (should (string-equal "```" (nth 4 res)))
       (should (string-equal "bb." (nth 5 res)))))
 
+
+
+;;; - Test: oai-block-tags-replace - for directory
+(defmacro with-temp-files (filenames &rest body)
+  "Create a temporary directory, populate it with FILENAMES (as empty files),
+run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
+  (declare (indent 1))
+  `(let* ((temp-dir (file-name-concat (temporary-file-directory)
+                                      (make-temp-name "test1")))
+          (temp-files (mapcar (lambda (name) (expand-file-name name temp-dir)) ,filenames)))
+     (make-directory temp-dir)
+     (dolist (f temp-files)
+       (write-region "" nil f nil 'quiet))
+     (unwind-protect
+         (progn
+           ;; Provide temp-dir and temp-files inside BODY
+           ,@body)
+       ;; Cleanup
+       (delete-directory temp-dir t nil))))
+
+(with-temp-files '("file1.txt" "file2.txt")
+  (let ((res (oai-block-tags-replace (format "ssvv `@%s` bbb" temp-dir)))
+        (regex-pattern "ssvv \nHere test[^ ]+ folder:\n```ls-output\n  /tmp/test[^ ]+:\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file1.txt\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file2.txt\n\n```\n bbb"))
+    (string-match regex-pattern res)))
 
 
 ;;; provide

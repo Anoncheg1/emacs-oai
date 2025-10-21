@@ -964,21 +964,6 @@ Return modified string or the same string."
                              (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3))))
           (error "error in loading of oai-block-tags.el 3")))
 
-;; get folder content
-(let ((path "/tmp/tttt1"))
-                (if (not (file-exists-p path))
-                    (make-directory path)
-                  )
-                ;; (temporary-file-directory
-                (oai-block-tags-replace (format "ssvv `@%s` bbb" path)))
-;; "ssvv
-;; Here tttt1 folder:
-;; ```ls-output
-;;   /tmp/tttt1:
-
-;; ```
-;;  bbb")
-
 
 ;;; -=-= Fontify @Backtrace & @path & [[links]]
 
