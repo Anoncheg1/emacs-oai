@@ -142,7 +142,7 @@ To add service use: (plist-put oai-restapi-con-endpoints :myservice \"http\")."
 (defcustom oai-restapi-con-token nil
   "This is your OpenAI API token.
 If not-nil, store token as a string or may be as a list of key-value:
-'(:openai token).
+\'(:openai token).
 
 You can retrieve it at
 https://platform.openai.com/account/api-keys.
@@ -155,7 +155,7 @@ machine openai--1 password <your token>"
   :type '(choice (string :tag "String value")
                  (plist :key-type symbol
                         :value-type (choice (string :tag "token string")
-                                            (list :value-type string
+                                            (list :type string
                                                   :tag "or list of token strings")))
                  (const :tag "Use auth-source." nil))
   :group 'oai)
@@ -300,7 +300,7 @@ that is why defined as lambda with marker.")
 Note this is called for every stream response so it will typically only
 contain fragments.
 Arguments: type, role-text, pos, buffer
-- type - simbol 'role, 'text or'end,
+- type - simbol \'role, \'text or'end,
 - role-text - text or role name,
 - pos - position before text insertion
 - buffer - target buffer with ai block for third position.")
@@ -472,7 +472,7 @@ SERVICE is a string."
   "KEY can be a keyword or string.
 Return:
 - list with its value (even if nil) - If KEY exists in PLIST.
-- '(nil) - If KEY exists with nil or without value.
+- \'(nil) - If KEY exists with nil or without value.
 - nil - If KEY does NOT exist."
   (if (stringp plist)
       (list plist)
@@ -1119,6 +1119,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
             endpoint
             (lambda (_events) ; called with url-request-buffer as current buffer
               "url-request-buffer event"
+              ;; (setq _events _events) ; noqa left unused
               ;; called at error or at the end after `after-change-functions' hooks
               (oai--debug "url-retrieve callback:" _events)
 
@@ -1127,7 +1128,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
               ;; Called for not stream, call `oai-restapi--current-url-request-callback'
               (oai-restapi--url-request-on-change-function nil nil nil)
 
-              (oai-restapi--maybe-show-openai-request-error) ; TODO: change to RESULT by global customizable option
+              (oai-restapi--maybe-show-openai-request-error) ; TODO: change to RESULT by global customizable option ; maybe use _events: (:error (error http 400)
               ;; finally stop track buffer, error or not
               ;; (oai--debug "Main request lambda" _events)
               (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request)
@@ -1268,7 +1269,7 @@ We save and cancel time only in callback.
 TIMER is time to wait for one request.
 Use argument SERVICE to find endpoint, MODEL as parameter to request."
   (oai--debug "oai-restapi-request-llm-retries1 timeout %s" timeout)
-  (let ((cb (current-buffer))
+  (let (
         ;; apply tags
         (messages (with-current-buffer (marker-buffer header-marker)
                     (oai-restapi--modify-last-user-content
@@ -1837,7 +1838,7 @@ prompt found in `CONTENT-STRING'."
                                                     (assistant-prefix "[AI]: "))
   "Convert a chat message to a string.
 `MESSAGES' is a vector of (:role :content) pairs.  :role can be
-'system, 'user or 'assistant.  If `DEFAULT-SYSTEM-PROMPT' is
+\'system, \'user or 'assistant.  If `DEFAULT-SYSTEM-PROMPT' is
 non-nil, a [SYS] prompt is prepended if the first message is not
 a system message.  `SYSTEM-PREFIX', `USER-PREFIX' and
 `ASSISTANT-PREFIX' are the prefixes for the respective roles
@@ -1901,7 +1902,7 @@ inside the assembled prompt string."
 ;;; -=-= Last user message
 
 (defun oai-restapi--find-last-user-index (vec)
-  "Return the index of the last element in VEC whose :role is 'user, or nil."
+  "Return the index of the last element in VEC whose :role is \'user, or nil."
   (let ((i (1- (length vec)))
         idx)
     (while (and (>= i 0) (not idx))
@@ -1914,7 +1915,7 @@ inside the assembled prompt string."
 
 
 (defun oai-restapi--modify-last-user-content (vec new-content)
-  "Replacing last 'user :content with NEW-CONTENT in VEC.
+  "Replacing last \'user :content with NEW-CONTENT in VEC.
 NEW-CONTENT is either \(string or function of old content).
 Uses `oai-restapi--find-last-user-index`.
 Return new vector based on VEC.

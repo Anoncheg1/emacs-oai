@@ -138,7 +138,7 @@ answers except of the first one are already in block-content."
             (list :role 'assistant :content "IDK.")))))
 
 
-(alist-get :my '((:my . nil)) 'x)
+;; (alist-get :my '((:my . nil)) 'x)
 
 
 
@@ -159,6 +159,10 @@ Aspects:
 1) start and stop reporter at begining and at the end (final callback).
 2) error handling: kill reporter, kill tmp buffer, kill timers"
   (oai--debug "oai-prompt-agent-request-prepare1 service, model: %s %s" service model)
+  ;; noqa Unused lexical argument
+  (setq req-type req-type
+        sys-prompt-for-all-messages sys-prompt-for-all-messages
+        stream stream)
 
   ;; (if (not (eql 'x (alist-get :chain (oai-block-get-info element) 'x))) ; check if :my exist
   ;; - My request
@@ -167,7 +171,7 @@ Aspects:
         (header-marker (oai-block-get-header-marker element))
         ;; (gap-between-requests 3) ; TODO
         (buffer-key (get-buffer-create "*oai--chain-tmp*" t)) ; use one buffer as for updating global notification timer
-        (step (alist-get :step (oai-block-get-info element))) ; Works? not tested
+        (step (alist-get :step (oai-block-get-info element))) ; Works? not tested TODO
         )
 
     (let (
@@ -178,6 +182,7 @@ Aspects:
                           (run-at-time 0 nil callback data)
                           (oai-timers--progress-reporter-run #'oai-restapi--stop-tracking-url-request))))
           (calbafin (lambda (data callback)
+                      (setq callback callback) ; noqa unused
                       (when data ; if not data it is fail
                         (oai--debug "calbafin")
                         (oai-restapi--insert-single-response end-marker (concat "[AI]: " data))

@@ -223,7 +223,7 @@ asdas
 ```
 4444")
         (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444"))
-        (should (string-equal (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444")
+        (should (string-equal res1
                               target))
         ;; (advice-remove 'org-open-file (intern "org-links-org-open-file-advice"))
         (set-buffer-modified-p nil)))))

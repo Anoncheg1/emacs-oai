@@ -127,7 +127,8 @@ Used to set `org-link-search-must-match-exact-headline' before
 
 (defun oai-block-tags--take-n-lines (string n)
   "Return a string with the first N lines from STRING.
-If N exceeds the number of lines, return all lines.  If N <= 0, return an empty string."
+If N exceeds the number of lines, return all lines.  If N <= 0, return
+an empty string."
   (let* ((lines (split-string string "\n"))
          (lines-to-keep (cl-subseq lines 0 (min (max 0 n) (length lines)))))
     (mapconcat #'identity lines-to-keep "\n")))
@@ -143,7 +144,8 @@ If N exceeds the number of lines, return all lines.  If N <= 0, return an empty 
 
 
 (defun oai-block-tags--get-backtrace-buffer-string ()
-  "Return the contents of the *Backtrace* buffer as a string, or nil if it does not exist."
+  "Return the contents of the *Backtrace* buffer as a string, or nil.
+Nil if buffer does not exist."
   (let ((buf (get-buffer "*Backtrace*")))
     (when buf
       (with-current-buffer buf
