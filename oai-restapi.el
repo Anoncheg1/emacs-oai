@@ -142,7 +142,7 @@ To add service use: (plist-put oai-restapi-con-endpoints :myservice \"http\")."
 (defcustom oai-restapi-con-token nil
   "This is your OpenAI API token.
 If not-nil, store token as a string or may be as a list of key-value:
-\'(:openai token).
+\='(:openai token).
 
 You can retrieve it at
 https://platform.openai.com/account/api-keys.
@@ -153,10 +153,10 @@ or
 machine openai--0 password <your token>
 machine openai--1 password <your token>"
   :type '(choice (string :tag "String value")
-                 (plist :key-type symbol
+                 (plist :tag "Property list (symbol => token string or list of token strings)"
+                        :key-type symbol
                         :value-type (choice (string :tag "token string")
-                                            (list :type string
-                                                  :tag "or list of token strings")))
+                                            (repeat :tag "or list of token strings" string )))
                  (const :tag "Use auth-source." nil))
   :group 'oai)
 
@@ -573,7 +573,8 @@ Ff MESSAGES are provided, type of request is chat, otherwise completion."
   (print (list "oai-restapi--get-endpoint" messages service))
   (let* ((service (or (if service
                           (oai-restapi--openai-service-clear-dashes service))
-                      (oai-restapi-con-service)))
+                      ;; else
+                      oai-restapi-con-service))
          (endpoint (car (oai-restapi--get-values oai-restapi-con-endpoints service))))
     (cond
      (endpoint endpoint)
@@ -590,21 +591,22 @@ Ff MESSAGES are provided, type of request is chat, otherwise completion."
   "Determine the correct headers based on the SERVICE."
   (let ((serv (if service
                   (oai-restapi--openai-service-clear-dashes service)
-              oai-restapi-con-service))
+                ;; else
+                oai-restapi-con-service))
         (token (oai-restapi--get-token service)))
     `(("Content-Type" . "application/json")
       ;; authentication
       ,@(cond
-        ((eq serv 'azure-openai)
-         `(("api-key" . ,token)))
-        ((eq serv 'anthropic)
-         `(("x-api-key" . ,token)
-           ("anthropic-version" . ,oai-restapi-anthropic-api-version)))
-        ((eq serv 'google)
-         `(("Accept-Encoding" . "identity")
-           ("Authorization" . ,(encode-coding-string (string-join `("Bearer" ,token) " ") 'utf-8))))
-        (token
-         `(("Authorization" . ,(encode-coding-string (string-join `("Bearer" ,token) " ") 'utf-8))))))))
+         ((eq serv 'azure-openai)
+          `(("api-key" . ,token)))
+         ((eq serv 'anthropic)
+          `(("x-api-key" . ,token)
+            ("anthropic-version" . ,oai-restapi-anthropic-api-version)))
+         ((eq serv 'google)
+          `(("Accept-Encoding" . "identity")
+            ("Authorization" . ,(encode-coding-string (string-join `("Bearer" ,token) " ") 'utf-8))))
+         (token
+          `(("Authorization" . ,(encode-coding-string (string-join `("Bearer" ,token) " ") 'utf-8))))))))
 
 ;; (oai-restapi--get-headers "local")
 
@@ -825,7 +827,7 @@ Here used for completion mode in `oai-restapi-request'.
   ;; (oai--debug "response:" response)
 
   (if-let ((error-message (plist-get response 'error)))
-      (list (make-oai-restapi--response :type 'error :payload (or (plist-get error 'message) error-message)))
+      (list (make-oai-restapi--response :type 'error :payload (or (plist-get response 'message) error-message)))
 
     (let ((response-type (plist-get response 'type)))
 
@@ -1838,7 +1840,7 @@ prompt found in `CONTENT-STRING'."
                                                     (assistant-prefix "[AI]: "))
   "Convert a chat message to a string.
 `MESSAGES' is a vector of (:role :content) pairs.  :role can be
-\'system, \'user or 'assistant.  If `DEFAULT-SYSTEM-PROMPT' is
+\='system, \='user or 'assistant.  If `DEFAULT-SYSTEM-PROMPT' is
 non-nil, a [SYS] prompt is prepended if the first message is not
 a system message.  `SYSTEM-PREFIX', `USER-PREFIX' and
 `ASSISTANT-PREFIX' are the prefixes for the respective roles
@@ -1902,7 +1904,7 @@ inside the assembled prompt string."
 ;;; -=-= Last user message
 
 (defun oai-restapi--find-last-user-index (vec)
-  "Return the index of the last element in VEC whose :role is \'user, or nil."
+  "Return the index of the last element in VEC whose :role is \='user, or nil."
   (let ((i (1- (length vec)))
         idx)
     (while (and (>= i 0) (not idx))
@@ -1915,8 +1917,8 @@ inside the assembled prompt string."
 
 
 (defun oai-restapi--modify-last-user-content (vec new-content)
-  "Replacing last \'user :content with NEW-CONTENT in VEC.
-NEW-CONTENT is either \(string or function of old content).
+  "Replacing last \='user :content with NEW-CONTENT in VEC.
+NEW-CONTENT is either (string or function of old content).
 Uses `oai-restapi--find-last-user-index`.
 Return new vector based on VEC.
 Used in `oai-restapi-request-prepare' to send history of conversation."

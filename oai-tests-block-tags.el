@@ -294,14 +294,15 @@ ss2")
                 (progn
                   (with-temp-file temp-file
                     (insert "Hello, world test!"))
-                  (print temp-file)
 
                   (prog1 (oai-block-tags-replace (format "aas `@%s`bb." temp-file))
                     ;; (should (string= (oai-block-tags-replace temp-file) "Expected result")))
                     (delete-file temp-file))))
-           (res (split-string res "\n")))
+           (res (split-string res "\n"))
+           )
+      ;; res)
       (should (string-equal "aas " (nth 0 res)))
-      (should (string-equal "```" (nth 2 res)))
+      (should (string-equal "```auto" (nth 2 res)))
       (should (string-equal "Hello, world test!" (nth 3 res)))
       (should (string-equal "```" (nth 4 res)))
       (should (string-equal "bb." (nth 5 res)))))

@@ -118,8 +118,8 @@ ignoring case."
   "Extracts the text content of the #+begin_ai...#+end_ai block.
 `ELEMENT' is the element of the special block.
 
-Will expand noweb templates if an 'oai-noweb' property or
-'noweb' header arg is \"yes\".
+Will expand noweb templates if an `oai-noweb' property or
+`noweb' header arg is \"yes\".
 Use ELEMENT only in current moment, if buffer modified you will need new
 ELEMENT."
   (let* ((element (or element (oai-block-p)))
@@ -208,7 +208,7 @@ DEFAULT is a string with default system prompt for LLM."
 (defmacro oai-block--let-params (info definitions &rest body)
   "A specialized `let*' macro for Oai parameters.
 DEFINITIONS is a list of (VARIABLE &optional DEFAULT-FORM &key TYPE).
-TYPE can be 'number, 'bool, 'string, or 'identity (no conversion).
+TYPE can be \='number, \='bool, \='string, or \='identity (no conversion).
 Return one of:
 - t symbol, if value for key not specified, if specied, return string.
 - for number type, `string-to-number' used, that return 0 if number not
@@ -418,25 +418,25 @@ TODO: EXEC-TIME."
                                (buffer-narrowed-p)
                                (or (> visible-beg existing-result)
                                    (<= visible-end existing-result))))
-           beg end indent)
-      (unwind-protect
-          (progn
-            (when outside-scope (widen)) ;; ---- WIDDEN
-            (goto-char existing-result) ;; must be true
-            (setq indent (current-indentation))
-            (forward-line 1)
-            (setq beg (point))
-            (cond
-             ((member "replace" result-params)
-              (delete-region (point) (org-babel-result-end)))
-             ((member "append" result-params)
-              (goto-char (org-babel-result-end)) (setq beg (point-marker))))
-            (goto-char beg) (insert (concat result "\n"))
-            (setq end (copy-marker (point) t))
-            (org-babel-examplify-region beg end "")
-            ;; finally
-            (when outside-scope (narrow-to-region visible-beg visible-end)) ;; ---- NARROW
-            ))))
+           beg end
+           ;; indent
+           )
+      (when outside-scope (widen)) ;; ---- WIDDEN
+      (goto-char existing-result) ;; must be true
+      ;; (setq indent (current-indentation))
+      (forward-line 1)
+      (setq beg (point))
+      (cond
+       ((member "replace" result-params)
+        (delete-region (point) (org-babel-result-end)))
+       ((member "append" result-params)
+        (goto-char (org-babel-result-end)) (setq beg (point-marker))))
+      (goto-char beg) (insert (concat result "\n"))
+      (setq end (copy-marker (point) t))
+      (org-babel-examplify-region beg end "")
+      ;; finally
+      (when outside-scope (narrow-to-region visible-beg visible-end)) ;; ---- NARROW
+      ))
   t)
 
 (defun oai-block-where-is-result (&optional insert _info hash)

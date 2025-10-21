@@ -185,35 +185,53 @@ Nil if buffer does not exist."
   "For path-string return Org babel source block language name."
   (let* ((mode-symbol (assoc-default path-string auto-mode-alist 'string-match))
         (mode-string (apply #'mapconcat #'identity (butlast (string-split (symbol-name mode-symbol) "-")) '("-"))))
-    (car (rassq (intern mode-string) org-src-lang-modes))))
+    (or (car (rassq (intern mode-string) org-src-lang-modes))
+        (and (not (string-empty-p mode-string))
+             mode-string)
+        "auto")))
 
 (cl-assert
  (string-equal (oai-block-tags--filepath-to-language "/tmp/a.el") "elisp"))
+(cl-assert
+ (string-equal (oai-block-tags--filepath-to-language "/tmp/a.py") "python"))
+(cl-assert
+ (string-equal (oai-block-tags--filepath-to-language "/tmp/a.elfff") "auto")) ;unknwon
+(cl-assert
+ (string-equal (oai-block-tags--filepath-to-language "/tmp/txt") "auto")) ;unknwon
+(cl-assert
+ (string-equal (oai-block-tags--filepath-to-language "/tmp/a.org") "org"))
+(cl-assert
+ (string-equal (oai-block-tags--filepath-to-language "a.txt") "text"))
 
 (defun oai-block-tags--compose-block-for-path (path-string content)
-  "Return file/directory content in mardown block without last ```."
+  "Return file/directory content in mardown block."
   (concat
    "Here " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder" "") ":\n"
    ;; prefix
    (if (file-directory-p path-string)
        (plist-get oai-block-tags--markdown-prefixes :path-directory)
      ;; else - not derectory
-     (let* ((mode-symbol (assoc-default path-string auto-mode-alist 'string-match))
-            (mode (if mode-symbol
-                      (progn
-                        (car (rassq mode-symbol org-src-lang-modes)) ; string to symbol, get string
-                        (apply #'mapconcat #'identity (butlast (string-split (symbol-name mode-symbol) "-")) '("-"))) ;; emacs-elisp from emacs-elisp
-                    ;; else
-                    "")))
-     (concat (plist-get oai-block-tags--markdown-prefixes :path-file) mode)))
+     (concat
+      (plist-get oai-block-tags--markdown-prefixes :path-file) ; "```"
+      (oai-block-tags--filepath-to-language path-string))) ; "elisp"
    "\n"
    content
    "\n```"))
 
 (cl-assert
+ (string-equal
+  (file-name-nondirectory (directory-file-name "/tmp/asd")) "asd"))
+(cl-assert
+ (string-equal
+  (file-name-nondirectory (directory-file-name "/tmp/")) "tmp"))
+(cl-assert
+ (string-equal
+  (file-name-nondirectory (directory-file-name "/tmp")) "tmp"))
+
+(cl-assert
  (string-equal (oai-block-tags--compose-block-for-path "a.el" "ss")
 "Here a.el:
-```emacs-lisp
+```elisp
 ss
 ```"))
 
@@ -402,7 +420,7 @@ Support for `org-links' package with additional links types.
 Headlines not wrapped in markdown blocks.
 LINK is string in format is what inside [[...]] or Plain link."
       (require 'org-links)
-      (oai--debug "oai-block-tags--get-org-links-content1 %s %s" link (string-match org-links-num-num-regexp link))
+      (oai--debug "oai-block-tags--get-org-links-content1 %s " link)
       (if-let ((nums (org-links--local-get-target-position-for-link link)))
           (let ((num1 (car nums))
                 (num2 (cadr nums))) ; may be nil
@@ -471,7 +489,8 @@ Supported targets:
 - file: - targets in other files
 - file & directory `oai-block-tags--compose-block-for-path-full'
 - local link. Use current buffer to find target of link.
-Use current buffer, current position to output error to result of block if two targets found.
+Use current buffer, current position to output error to result of block
+if two targets found.
 Return replacement string."
   ;; Some code was taken from:
   ;; `org-link-open' for type and opening,  `org-link-search' for search in current buffer.
@@ -578,11 +597,15 @@ Return replacement string."
 
 (defvar oai-block--org-link-any-re (cl-letf (((symbol-function 'org-link-types)
                                               (lambda () (list "file"))))
-                                     (let (org-link-any-re ; ret
-                                           org-link-types-re org-link-angle-re org-link-plain-re org-link-bracket-re
-                                           (org-link-make-regexps))
+                                     (let (
+                                           org-link-types-re ; ret
+                                           ;; org-link-any-re
+                                           org-link-types-re
+                                           org-link-angle-re org-link-plain-re ;; org-link-bracket-re
+                                           ;; (org-link-make-regexps)
+                                           )
                                        (org-link-make-regexps) ; constructor of org-link-types-re, org-link-angle-re, org-link-plain-re, org-link-bracket-re
-                                       org-link-any-re
+                                       ;; org-link-types-re
                                        ))
   "`org-link-any-re' but with one type \"file\" in `org-link-types' " )
 
@@ -955,7 +978,8 @@ Return modified string or the same string."
           (error "error in loading of oai-block-tags.el 1"))
       ;; ;; (print (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
       ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)) "\n" ) "\\n"))
-      (if (not (string-equal "ssvv \nHere file2.el:\n```emacs-lisp\n(defun aa() )\n```\n bbb"
+      ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)))
+      (if (not (string-equal "ssvv \nHere file2.el:\n```elisp\n(defun aa() )\n```\n bbb"
                              (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
           (error "error in loading of oai-block-tags.el 2"))
       ;; (string-join (string-split (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)) "\n" ) "\\n"))
