@@ -1,18 +1,17 @@
 ;;; oai.el --- AI-LLM blocks for org-mode -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2023-2025 Robert Krahn
-;; Copyright (C) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
-
-;; SPDX-License-Identifier: AGPL-3.0-or-later
 ;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
 ;; Keywords: org, comm, url, link
-;; URL: https://github.com/Anoncheg1/oai
+;; URL: https://github.com/Anoncheg1/emacs-oai
 ;; Version: 0.1
 ;;  Fork from orig. version: 0.5.6 (commit cc4a4eb778e4689573ebd2d472b8164f4477e8b8)
 ;; Created: 20 Aug 2025
 ;; Package-Requires: ((emacs "27.1"))
-;;    (compat "30.2")
+;;    (compat "30.")
 ;; Optional dependency: ((org-links "0.2"))
+;; SPDX-License-Identifier: AGPL-3.0-or-later
+;; Copyright (C) 2023-2025 Robert Krahn
+;; Copyright (C) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
 
 ;;; License
 
@@ -174,17 +173,14 @@ With respect to specified default values here."
 (defun oai-expand-block-deep ()
   "Output almost RAW information about request with headers and messages."
   (seq-let (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream) (oai-parse-org-header)
-    (let* (
-         (content (string-trim (oai-block-get-content element))) ; string - is block content
-         (messages (unless (eql req-type 'completion)
-                     ;; - split content to messages
-                     (oai-restapi--collect-chat-messages content
+    (let* ((content (string-trim (oai-block-get-content element))) ; string - is block content
+           (messages (unless (eql req-type 'completion)
+                       ;; - split content to messages
+                       (oai-restapi--collect-chat-messages content
                                                            sys-prompt
                                                            sys-prompt-for-all-messages
                                                            (if oai-restapi-add-max-tokens-recommendation
-                                                               (oai-restapi--get-lenght-recommendation max-tokens)
-                                                             )))) ; oai-block.el
-         )
+                                                               (oai-restapi--get-lenght-recommendation max-tokens))))))
       (list
        (oai-restapi--get-endpoint messages service)
        (oai-restapi--get-headers service)

@@ -1,4 +1,4 @@
-;;; oai-timers.el --- Request Timers and notifications for oai. -*- lexical-binding: t; -*-
+;;; oai-timers.el --- Request Timers and notifications for oai -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 github.com/Anoncheg1
 

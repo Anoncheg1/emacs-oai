@@ -256,14 +256,14 @@ Same logic as in `oai-block-tags--get-org-block-region'."
     element))
 
 
-(defun oai-block-tags--get-org-content-m-block ()
+(defun oai-block-tags--get-org-content-m-block (&optional element)
   "Return markdown block for LLM for current element at current position.
 Move pointer to the end of block.
 Steps: find max, min region of special-block/src-block/buffer
 `org-babel-read-element' from ob-core.el"
   ;; (org-element-property :name (oai-block-p))
   ;; 1) enshure that we are inside some Org block
-  (when-let* ((element (oai-block-tags--get-org-block-element))
+  (when-let* ((element (or element (oai-block-tags--get-org-block-element)))
               (region (oai-block-tags--get-org-block-region element))
               (beg (car region))
               (end (cadr region)))
