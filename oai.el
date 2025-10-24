@@ -66,18 +66,17 @@
 ;;
 ;; - Inside org-mode / #+begin_ai..#+end_ai blocks:
 ;;     - C-c C-c to send the text to the OpenAI API and insert a response (org-ai.el)
-;;     - Press C-c <backspace> (oai-kill-region-at-point) to remove the chat part under point.  (oai-block.el)
+;;     - Press C-c <backspace> (oai-kill-region-at-point) to remove the chat
+;;       part under point.  (oai-block.el)
 ;;     - oai-mark-region-at-point will mark the region at point.  (oai-block.el)
 ;;     - oai-mark-last-region will mark the last chat part.  (oai-block.el)
 
 ;; Architecture:
-;;   (raw info) Interface -> (structured Org info + raw Org body) Agent -> API to LLM + Callback (may be part of Agent or API)
+;;   (raw info) Interface -> (structured Org info + raw Org body) Agent ->
+;;   API to LLM + Callback (may be part of Agent or API)
 
 ;; Callback write result to ORG
 
-;; Execution chain:
-;;
-;;
 
 ;;; Changes:
 

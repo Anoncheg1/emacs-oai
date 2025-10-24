@@ -1,5 +1,15 @@
 ;;; oai-tests-restapi.el --- Tests. -*- lexical-binding: t; -*-
 
+;; Copyright (c) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
+;; SPDX-License-Identifier: AGPL-3.0-or-later
+;; Author: github.com/Anoncheg1,codeberg.org/Anoncheg
+;; Keywords: tools, async, callback
+;; URL: https://github.com/Anoncheg1/emacs-async1
+;; Version: 0.1
+;; Created: 25 Aug 2025
+;; Package-Requires: ((emacs "24.1"))
+
+
 ;;; License
 
 ;; This file is not part of GNU Emacs.
@@ -19,9 +29,6 @@
 
 ;; Licensed under the GNU Affero General Public License, version 3 (AGPLv3)
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
-
-
-;; -*- lexical-binding: t; -*-
 
 
 ;;; Commentary:
