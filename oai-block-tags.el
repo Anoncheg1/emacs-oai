@@ -996,8 +996,8 @@ Return modified string or the same string."
 (defun oai-block-tags--font-lock-fontify-links (limit)
   "Fontify Org links in #+begin_ai ... #+end_ai blocks, up to LIMIT.
 This is special fontify function, that return t when match found.
-1) search for ai block begin and then end, 2) call fontify on range that goto to the begining firstly
-`org-activate-links'."
+1) search for ai block begin and then end, 2) call fontify on range that
+goto to the begining firstly `org-activate-links'."
   (if oai-block-fontify-markdown
       (let ((case-fold-search t)
             (ret))

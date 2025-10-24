@@ -7,7 +7,7 @@
 ;;  Fork from orig. version: 0.5.6 (commit cc4a4eb778e4689573ebd2d472b8164f4477e8b8)
 ;; Created: 20 Aug 2025
 ;; Package-Requires: ((emacs "27.1"))
-;;    (compat "30.")
+;;  :  (compat "30.")
 ;; Optional dependency: ((org-links "0.2"))
 ;; SPDX-License-Identifier: AGPL-3.0-or-later
 ;; Copyright (C) 2023-2025 Robert Krahn
