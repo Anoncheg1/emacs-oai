@@ -61,7 +61,7 @@
 ;;                                :backtrace "\\(`?@\\(Backtrace\\|Bt\\)`?\\)\\([^a-zA-Z\"']\\|$\\)"
 ;;                                :path "`?@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*`?"
 ;;                                           ))
-(defvar oai-block-tags--regexes-backtrace "\\(`?@\\(Backtrace\\|Bt\\)`?\\)\\([^a-zA-Z\"']\\|$\\)")
+(defvar oai-block-tags--regexes-backtrace "\\(`?@\\(Backtrace\\|B\\)`?\\)\\([^a-zA-Z\"']\\|$\\)")
 (defvar oai-block-tags--regexes-path "`?@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*`?")
 
 (defvar oai-block-tags--markdown-prefixes '(:backtrace "```elisp-backtrace"
@@ -798,8 +798,8 @@ If REPLACEMENT not provided return found string for regexp."
 
   (equal (let ((regex oai-block-tags--regexes-backtrace))
            (oai-block-tags--replace-last-regex-smart
-            "foo `@Backtrace` bar `@Backtrace `@Bt`X"
-            regex)) "@Bt")
+            "foo `@Backtrace` bar `@Backtrace `@B`X"
+            regex)) "@B")
   ))
 
 (cl-assert
@@ -821,7 +821,7 @@ If REPLACEMENT not provided return found string for regexp."
 (cl-assert
  (equal (let ((regex oai-block-tags--regexes-backtrace))
           (oai-block-tags--replace-last-regex-smart
-           "foo `@Backtrace` bar `@Bt `@BacktraceX"
+           "foo `@Backtrace` bar `@B `@BacktraceX"
            regex
            "REPLACED"))
         "foo `@Backtrace` bar REPLACED`@BacktraceX"))

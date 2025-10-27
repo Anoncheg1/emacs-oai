@@ -94,6 +94,7 @@
 ;; - TODO: implement contant-tags "Fix @problems then document the changes in @/CHANGELOG.md" @url, @file, @folder, @header? (Org)
 
 ;;; -=-= Includes
+(require 'oai-debug)
 (require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'
 (require 'oai-block)
 (require 'oai-restapi)
@@ -233,39 +234,39 @@ messages."
 ;; (defvar org-ai-talk--reading-process)
 (defun oai-keyboard-quit ()
   "Keyboard quit advice.
-It's designed to \"do the right thing\":
-- If there is an active region, do nothing (normal \\<mapvar> & \\[keyboard-quit] will deactivate it).
-- If there is speech recorded or played, stop it.
-- If there is currently a running openai request, stop it."
+- If there is an active region at current position in current buffer, do
+  nothing (normal \\<mapvar> & \\[keyboard-quit] will deactivate it).
+- in debug-buffer - kill all requests."
   (interactive)
-  ;; - if ai mode active in current buffer
-  (if (and (bound-and-true-p oai-mode)
-           (not (minibufferp (window-buffer (selected-window))))) ; not in minubuffer
-      ;; - stop current request
-      (if (bound-and-true-p oai-debug-buffer)
-          ;; - show all errors in debug mode
-          (cond
-           ((region-active-p) nil)
-           (t (call-interactively #'oai-restapi-stop-url-request))) ; oai-restapi.el
-        ;; else - suppress error in normal mode
-        (condition-case _
-            (cond
-             ((region-active-p) nil)
-             ;; ((and (boundp 'org-ai-talk--reading-process) ; org-ai-talk.el
-             ;;       (fboundp 'org-ai-talk-stop) ; org-ai-talk.el
-             ;;       org-ai-talk--reading-process ; org-ai-talk.el
-             ;;       (process-live-p org-ai-talk--reading-process)) ; org-ai-talk
-             ;;  (org-ai-talk-stop)) ; org-ai-talk
-             ;; (org-ai-oobabooga--current-request ; org-ai-oobabooga
-             ;;  (org-ai-oobabooga-stop)) ; org-ai-oobabooga
-             ;; (org-ai--current-request-buffer-for-stream ; oai-restapi.el
-             ;;  (org-ai-interrupt-current-request)) ; oai-restapi.el
+  (when (not (region-active-p))
+    ;; - if ai mode active in current buffer
+    (if (string-equal (buffer-name (current-buffer)) oai-debug-buffer) ; in debug-buffer - kill all
+        (oai-restapi-stop-all-url-requests)
+      ;; - else
+      (when (or (and (bound-and-true-p oai-mode)
+                     (not (minibufferp (window-buffer (selected-window))))) ; not in minubuffer
 
-             (t (oai-restapi-stop-url-request)) ; oai-restapi.el
-             ;; (org-ai--current-request-buffer-for-image ; org-ai-openai-image.el
-             ;;  (org-ai-image-interrupt-current-request)) ; org-ai-openai-image.el
-             )
-          (error nil)))))
+                )
+        ;; - stop current request
+        (if (bound-and-true-p oai-debug-buffer)
+            ;; - show all errors in debug mode
+            (call-interactively #'oai-restapi-stop-url-request) ; oai-restapi.el
+          ;; else - suppress error in normal mode
+          (condition-case _
+              ;; ((and (boundp 'org-ai-talk--reading-process) ; org-ai-talk.el
+              ;;       (fboundp 'org-ai-talk-stop) ; org-ai-talk.el
+              ;;       org-ai-talk--reading-process ; org-ai-talk.el
+              ;;       (process-live-p org-ai-talk--reading-process)) ; org-ai-talk
+              ;;  (org-ai-talk-stop)) ; org-ai-talk
+              ;; (org-ai-oobabooga--current-request ; org-ai-oobabooga
+              ;;  (org-ai-oobabooga-stop)) ; org-ai-oobabooga
+              ;; (org-ai--current-request-buffer-for-stream ; oai-restapi.el
+              ;;  (org-ai-interrupt-current-request)) ; oai-restapi.el
+
+              (call-interactively #'oai-restapi-stop-url-request) ; oai-restapi.el
+            ;; (org-ai--current-request-buffer-for-image ; org-ai-openai-image.el
+            ;;  (org-ai-image-interrupt-current-request)) ; org-ai-openai-image.el
+            (error nil)))))))
 
 ;; (defun org-ai--install-keyboard-quit-advice () ; TODO: make Org only
 ;;   "Cancel current request when `keyboard-quit' is called."
@@ -366,6 +367,7 @@ It's designed to \"do the right thing\":
 
 (defun oai-update-mode-line (count)
   "Used in ora-timers.el to show COUNT of active requests."
+  (oai--debug "oai-update-mode-line %s" count)
   (if (and count (> count 0))
       (setq oai-mode-line-string (format " org-ai[%d]" count))
     ;; else

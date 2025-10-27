@@ -36,6 +36,12 @@ Delay after which it will be killed."
   :type 'integer
   :group 'oai)
 
+(defcustom oai-timers-retries 3
+  "Amount of request attemts before give up.
+Used for `oai-restapi-request-llm-retries' calling in `oai-prompt'."
+  :type 'integer
+  :group 'oai)
+
 (defvar oai-timers--global-progress-reporter nil
   "Progress-reporter for request response to indical waiting.")
 
@@ -90,7 +96,10 @@ use `oai-timers--element-marker-variable-dict'."
 (defun oai-timers--set (key value)
   "Assign value to key.
 KEY: url-buffer, VALUE: header marker.
-Indented for usage with `oai-block-get-header-marker'."
+Indented for usage with `oai-block-get-header-marker'.
+Used in
+- `oai-restapi-request-prepare'
+- `oai-restapi-request-llm-retries'."
     (if (eq value nil)
         (setf (alist-get key oai-timers--element-marker-variable-dict nil 'remove) nil)
       ;; else
@@ -146,9 +155,10 @@ Don't clear list of url-buffers.
 Called in
 `oai-timers--progress-reporter-run' for restart,
 `oai-timers--interrupt-all-requests' for full stop."
-  (oai--debug "oai-timers--stop-global-progress-reporter"
-                 oai-timers--global-progress-reporter
-                 oai-timers--global-progress-timer)
+  (oai--debug "oai-timers--stop-global-progress-reporter1 %s %s %s"
+              (current-buffer)
+              oai-timers--global-progress-reporter
+              oai-timers--global-progress-timer)
   ;; finish notifications
   (when oai-timers--global-progress-reporter
     (if failed ; timeout
@@ -163,31 +173,33 @@ Called in
 
   ;; clear time
   (when oai-timers--global-progress-timer
+    (oai--debug "oai-timers--stop-global-progress-reporter2"
     (cancel-timer oai-timers--global-progress-timer)
     (setq oai-timers--global-progress-timer nil)
     (setq oai-timers--global-progress-timer-remaining-ticks 0)
-    (oai--debug "oai-timers--stop-global-progress-reporter" oai-timers--global-progress-timer-remaining-ticks)))
+    (oai--debug "oai-timers--stop-global-progress-reporter3 ticks: %s" oai-timers--global-progress-timer-remaining-ticks))))
 
 (defvar oai-timers--oai-update-mode-line (intern "oai-update-mode-line")
   "dependency injection from in oai.el")
 
-(defun oai-timers--update-global-progress-reporter ()
+(defun oai-timers--update-global-progress-reporter (&optional failed)
   "Count url-buffers and stop reporter if it is empty.
 Called from
 `oai-restapi-request-llm-retries'
 `oai-timers--interrupt-current-request'
 `oai-timers--interrupt-all-requests'."
+  (oai--debug "oai-timers--update-global-progress-reporter1, dict: %s" oai-timers--element-marker-variable-dict)
   (let* ((buffers (oai-timers--get-all-keys))
          (count (length buffers))
          (count-live (length (delq nil (mapcar #'buffer-live-p buffers)))))
-    (oai--debug "oai-timers--update-global-progress-reporter count: %s count-live: %s" count count-live)
+    (oai--debug "oai-timers--update-global-progress-reporter2, count: %s count-live: %s" count count-live)
     (let ((count (length (oai-timers--get-all-keys))))
       (unless oai-timers--oai-update-mode-line
         (error "oai.el should be loaded to use oai-timers--update-global-progress-reporter function"))
       (funcall oai-timers--oai-update-mode-line count)
       ;; (oai-update-mode-line count)
       (when (eql count 0)
-        (oai-timers--stop-global-progress-reporter)))))
+        (oai-timers--stop-global-progress-reporter failed)))))
 
 (defun oai-timers--interrupt-all-requests (interrupt-request-func &optional failed)
   "Interrup all url requests and stop global timer.
@@ -196,23 +208,24 @@ INTERRUPT-REQUEST-FUNC may be `oai-restapi--interrupt-url-request' or
 Called from
 `oai-restapi-stop-all-url-requests' by C-g
 `oai-timers--progress-reporter-run' by global timer."
-  ;; (oai--debug "oai-timers--interrupt-all-requests1 %s %s" interrupt-request-func failed)
-  (if-let ((buffers (oai-timers--get-all-keys)))
-      (progn
-        (oai--debug "oai-timers--interrupt-all-requests2" buffers)
-        ;; stop requests
-        (unwind-protect
-            (mapc (lambda (url-buffer)
-                    (funcall interrupt-request-func url-buffer))
-                  buffers)
-          ;; clear list
-          (setq oai-timers--element-marker-variable-dict nil)
+  (oai--debug "oai-timers--interrupt-all-requests1 %s %s" oai-timers--element-marker-variable-dict failed)
+  (when-let ((buffers (oai-timers--get-all-keys)))
+    (oai--debug "oai-timers--interrupt-all-requests2 %s" buffers)
+    ;; stop requests
+    ;; (unwind-protect
+    (mapc (lambda (url-buffer)
+            (funcall interrupt-request-func url-buffer))
+          buffers))
+  (oai--debug "oai-timers--interrupt-all-requests3")
+  ;; clear list
+  (setq oai-timers--element-marker-variable-dict nil)
 
-          ;; stop global timer
-          (oai-timers--update-global-progress-reporter)
-          (oai-timers--stop-global-progress-reporter failed)
-          t))
-    nil))
+  ;; stop global timer
+  (oai--debug "oai-timers--interrupt-all-requests4")
+  (oai-timers--update-global-progress-reporter failed)
+  ;; (oai--debug "oai-timers--interrupt-all-requests5")
+  ;; (oai-timers--stop-global-progress-reporter failed)
+  )
 
 ;; (defun oai-timers--stop-current-timer (url-buffer &optional failed)
 ;;   (oai--debug "oai-timers--stop-current-timer")
@@ -314,10 +327,11 @@ Set:
 - `oai-timers--global-progress-timer-remaining-ticks'.
 - `oai-timers--current-timer' - count life of url buffer,
 - `oai-timers--current-timer-remaining-ticks'."
-  (oai--debug "oai-timers--progress-reporter-run")
+  (oai--debug "oai-timers--progress-reporter-run %s %s" (length (oai-timers--get-all-keys)) oai-timers--element-marker-variable-dict)
   ;; - update mode-line
   ;; (oai-timers--update-global-progress-reporter)
-  (oai-update-mode-line (length (oai-timers--get-all-keys))) ; count
+  ;; We make delay because this function run after url-retrieve and url-buffer may be not saved.
+  (run-with-timer 1.0 nil (lambda () (oai-update-mode-line (length (oai-timers--get-all-keys)))))
 
   ;; - precalculate ticks based on duration, 25/ 0.2 = 125 ticks
   (setq oai-timers--global-progress-timer-remaining-ticks
@@ -329,8 +343,9 @@ Set:
     ;; else - create new - reporter
     (setq oai-timers--global-progress-reporter (make-progress-reporter oai-timers--global-progress-reporter-waiting-string)))
 
-  (oai--debug "oai-timers--progress-reporter-run2")
+  (oai--debug "oai-timers--progress-reporter-run2 %s" oai-timers--global-progress-timer)
   (when (not oai-timers--global-progress-timer)
+    (oai--debug "oai-timers--progress-reporter-run3")
     ;; timer1
     (setq oai-timers--global-progress-timer
           (run-with-timer ; do not respect `with-current-buffer'
@@ -347,7 +362,9 @@ Set:
                ;; else -  ticks -= 1
                (setq oai-timers--global-progress-timer-remaining-ticks
                      (1- oai-timers--global-progress-timer-remaining-ticks))
-               (progress-reporter-update oai-timers--global-progress-reporter))))))
+               (progress-reporter-update oai-timers--global-progress-reporter)))))
+    (oai--debug "oai-timers--progress-reporter-run4")
+    )
 
   ;; timer2 - request killer
   ;; (with-current-buffer url-buffer

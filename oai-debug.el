@@ -17,11 +17,13 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with oai.el.
 ;; If not, see <https://www.gnu.org/licenses/>.
+;;; Commentary:
 
 ;;; Code
+
 (defcustom oai-debug-buffer nil
   "If non-nil, enable debuging to a debug buffer.
-  Set to something like *debug-oai*. to enable debugging."
+Set to something like *debug-oai*. to enable debugging."
   :type 'string
   :group 'oai)
 
@@ -58,7 +60,8 @@ Heavy to execute."
 
 (defun oai--debug (&rest args)
   "If firt argument of ARGS is a stringwith %s than behave like format.
-Otherwise format every to string and concatenate."
+Otherwise format every to string and concatenate.
+Return last argument, but should not be used for return value."
   ;; (print (list "oai--debug --------vvvvvvvvvvvvvv1" (bound-and-true-p ert-enabled)))
   (when (and (or oai-debug-buffer
                  (bound-and-true-p ert-enabled))
@@ -128,7 +131,8 @@ Otherwise format every to string and concatenate."
                   (print result-string)
                 ;; else
                 (insert result-string)))
-            ))))))
+            )))))
+  (car (reverse args)))
 
 
 (defun oai-debug--prettify-json-string (json-string)

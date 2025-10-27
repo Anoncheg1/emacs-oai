@@ -369,7 +369,7 @@ Argument SOURCE-BUF url-http response buffer."
                                                               (point-min))
                                                           (point-max)))))
             (goto-char (point-max))
-            (insert "url-buf response:\n")
+            (insert "oai-restapi--debug-urllib response:\n")
             (insert stri)
             (newline))))
       )))
@@ -696,7 +696,7 @@ Called from `oai-call-block' in main file.
      #'oai-restapi--interrupt-url-request
      )))
 
-;;; -=-= Main insert, read
+;;; -=-= Normalize, oai-restapi-request
 
 ;; Together.xyz 2025
 ;; '(id "nz7KyaB-3NKUce-9539d1912ce8b148" object "chat.completion" created 1750575101 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt []
@@ -1123,7 +1123,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
               "url-request-buffer event"
               ;; (setq _events _events) ; noqa left unused
               ;; called at error or at the end after `after-change-functions' hooks
-              (oai--debug "url-retrieve callback:" _events)
+              (oai--debug "oai-restapi-request *url-retrieve callback*:" _events)
 
               (oai-restapi--debug-urllib (current-buffer))
 
@@ -1158,20 +1158,21 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
         )
       url-request-buffer)))
 
-
+;;; -=-= oai-restapi-request-llm
 (cl-defun oai-restapi-request-llm (service model callback &optional &key prompt messages max-tokens temperature top-p frequency-penalty presence-penalty)
   "Simplified version of `oai-restapi-request' without stream support.
 Used for building agents or chain of requests.
-Call callback with nil or result of `oai-restapi--normalize-response' of
-response.
+Call CALLBACK called from callback of url-retrieve with nil or result of
+`oai-restapi--normalize-response' of response.
 Use argument SERVICE to find endpoint, MODEL as parameter to request.
-Call CALLBACK at receive.
+Call CALLBACK at receive. Call CALLBACK with nil if error.
 One of argument PROMPT and MESSAGES used as main payload.
 Optional argument MAX-TOKENS - OpenAI parameter.
 Optional argument TEMPERATURE - OpenAI parameter
 Optional argument TOP-P - OpenAI parameter
 Optional argument FREQUENCY-PENALTY - OpenAI parameter
 Optional argument PRESENCE-PENALTY - OpenAI parameter."
+  (oai--debug "oai-restapi-request-llm00 %s %s %s" (current-buffer) service oai-restapi-con-token)
   (let ((url-request-extra-headers (oai-restapi--get-headers service))
         (url-request-method "POST")
         (endpoint (oai-restapi--get-endpoint messages service))
@@ -1198,7 +1199,9 @@ Optional argument PRESENCE-PENALTY - OpenAI parameter."
            (url-retrieve ; <- - - - - - - - -  MAIN
             endpoint
             (lambda (_events)
+              (oai--debug "oai-restapi-request-llm *url-retrieve callback*:" _events)
               (oai-restapi--debug-urllib (current-buffer))
+
               (if (oai-restapi--maybe-show-openai-request-error) ; TODO: change to RESULT by global customizable option
                   (funcall callback nil) ; signal error to callback
                 ;; else - read from url-buffer
@@ -1259,115 +1262,140 @@ Optional argument PRESENCE-PENALTY - OpenAI parameter."
 ;;                            :frequency-penalty frequency-penalty
 ;;                            :presence-penalty presence-penalty)))
 
-(defvar oai-restapi-request-llm-retries-local-url-buffer  nil
-  "Save url-buffer in temp buffer in which timer have been started.")
-(make-variable-buffer-local 'oai-restapi-request-llm-retries-local-url-buffer)
+;; (defvar oai-restapi-request-llm-retries  nil
+;;   "Save url-buffer in temp buffer in which timer have been started.")
+;; (make-variable-buffer-local 'oai-restapi-request-llm-retries)
 
 (cl-defun oai-restapi-request-llm-retries (service model timeout callback &optional &key retries prompt messages header-marker max-tokens temperature top-p frequency-penalty presence-penalty)
   "Add TIMEOUT and RETRIES parameters to `oai-restapi-request-llm' function.
+Only one request per ai block is allowed at one time.
 Timer function restart requst and restart timer with attempts-1.
 In callback we add cancel timer function.
 We save and cancel time only in callback.
 TIMER is time to wait for one request.
-Use argument SERVICE to find endpoint, MODEL as parameter to request."
-  (oai--debug "oai-restapi-request-llm-retries1 timeout %s" timeout)
-  (let (
-        ;; apply tags
-        (messages (with-current-buffer (marker-buffer header-marker)
-                    (oai-restapi--modify-last-user-content
+Use argument SERVICE to find endpoint, MODEL as parameter to request.
+How? we restart request if
+1. url-buffer is alive - hanged - in timer - in timer we check url-buffer is alive.
+2. url returned error, we check it in callback.
+
+We store url-buf with marker of header in oai-timers.el "
+  (oai--debug "oai-restapi-request-llm-retries0 timeout %s" timeout)
+  (with-current-buffer (marker-buffer header-marker)
+    (let (
+          ;; prepare request - apply tags to message
+          (messages (oai-restapi--modify-last-user-content
                      messages
-                     #'oai-block-tags-replace))))
-    (if (or (and retries (> retries 0)) ; just in case
-            (not retries))
-        (with-temp-buffer ; to separate variable `oai-restapi-request-llm-retries-local-url-buffer'
-          (oai--debug "oai-restapi-request-llm-retries12")
-          (let* ((left-retries (if retries (1- retries) 3))
-                 ;; run timer in temp buffer
-                 (timer (run-with-timer timeout
-                                        0
-                                        (lambda ()
-                                          (oai--debug "in oai-restapi-request-llm-retries timer: left-retries: %s buffer-life: %s buffer:" left-retries (buffer-live-p oai-restapi-request-llm-retries-local-url-buffer) oai-restapi-request-llm-retries-local-url-buffer)
-                                          ;; - kill old and restart only if request was hanging
-                                          (when (buffer-live-p oai-restapi-request-llm-retries-local-url-buffer)
-                                            (oai-timers--interrupt-current-request oai-restapi-request-llm-retries-local-url-buffer #'oai-restapi--interrupt-url-request)
+                     #'oai-block-tags-replace)))
+      (when (or (and retries (> retries 0))
+                (not retries))
+        (oai--debug "oai-restapi-request-llm-retries1 %s" (current-buffer))
+        ;; - 1) run timer
+        (let* ((left-retries (if retries (1- retries) 3))
+               (tmp-buf (current-buffer))
+               ;; run timer in temp buffer - to limit request by timeout, and kill url-buffer
+               ;; we start timer first because we pass it to callback to stop timer itself
+               (timer (run-with-timer timeout
+                                      0
+                                      (lambda ()
+                                        "Suppress errors, they don't visible."
+                                        (oai--debug "timer of oai-restapi-request-llm-retries, left-retries: %s" left-retries)
+                                        (oai--debug "timer of oai-restapi-request-llm-retries, buf1: %s" (oai-timers--get-keys-for-variable header-marker))
+                                        (oai--debug "timer of oai-restapi-request-llm-retries, buf2: %s" (seq-find (lambda (x) (buffer-live-p  x))
+                                                                                                                  (oai-timers--get-keys-for-variable header-marker)))
+                                        ;; - get url-buffer to check if it hanging.
+                                        (let ((urlbuf (seq-find (lambda (x) (buffer-live-p x))
+                                                                (oai-timers--get-keys-for-variable header-marker))))
+                                          ;; (with-current-buffer tmp-buf
+                                          (oai--debug "timer of oai-restapi-request-llm-retries, buf3: %s %s" (current-buffer) urlbuf)
+                                          ;; - Main action of timer: interrupt request
+                                          (when urlbuf
+                                            (oai-timers--interrupt-current-request urlbuf #'oai-restapi--interrupt-url-request)
+                                            (oai--debug "in oai-restapi-request-llm-retries WE SHOULD RESTART HERE1")
+
+                                            ;; - retry if request was hanging
                                             ;; - restart
                                             (if (> left-retries 0)
+                                                ;; also save url-buffer
                                                 (oai-restapi-request-llm-retries service model timeout callback
-                                                                                :retries left-retries
-                                                                                :messages messages
-                                                                                :max-tokens max-tokens
-                                                                                :header-marker header-marker
-                                                                                :temperature temperature
-                                                                                :top-p top-p
-                                                                                :frequency-penalty frequency-penalty
-                                                                                :presence-penalty presence-penalty)
+                                                                                 :retries left-retries
+                                                                                 :messages messages
+                                                                                 :max-tokens max-tokens
+                                                                                 :header-marker header-marker
+                                                                                 :temperature temperature
+                                                                                 :top-p top-p
+                                                                                 :frequency-penalty frequency-penalty
+                                                                                 :presence-penalty presence-penalty)
                                               ;; else - failed
-                                              ;; (oai-timers--remove-variable header-marker) ;?
                                               (run-at-time 0 nil callback nil)
+                                              (oai-block-insert-result-message "Failed" header-marker))
+                                            (oai--debug "timer of oai-restapi-request-llm-retries 1111")
+                                            (oai-timers--update-global-progress-reporter))))))
 
-                                              (oai-block-insert-result-message "Failed" header-marker)
-
-                                              (oai-timers--update-global-progress-reporter)
-                                              ))))))
-            (oai--debug "oai-restapi-request-llm-retries2")
-            ;; inside temp buffer we set variable
-            (setq oai-restapi-request-llm-retries-local-url-buffer
+               (url-buffer
+                (progn
+                  (oai--debug "oai-restapi-request-llm-retries2 %s" (current-buffer))
+                  ;; - 2) make request
                   (oai-restapi-request-llm service model
-                                          (lambda (result-llm)
-                                            (oai--debug "oai-restapi-request-llm callback1, timer, result:" timer result-llm)
-                                            (if timer
-                                                (cancel-timer timer))
-                                            (oai--debug "oai-restapi-request-llm  callback2")
-                                            ;; (with-current-buffer cb
-                                            (oai--debug "oai-restapi-request-llm  callback3 %s %s" callback result-llm)
-                                            (if result-llm
-                                                (progn
-                                                  (oai--debug "oai-restapi-request-llm here")
-                                                  (run-at-time 0 nil callback result-llm))
-                                              ;; else - error - retry
-                                              (if (> left-retries 0)
-                                                  (progn
+                                           (lambda (result-llm)
+                                             (oai--debug "oai-restapi-request-llm callback1, result: %s" result-llm)
+                                             (if timer
+                                                 (cancel-timer timer))
+                                             (oai--debug "oai-restapi-request-llm  callback2")
+                                             ;; (with-current-buffer cb
+                                             (oai--debug "oai-restapi-request-llm  callback3 %s" result-llm)
+                                             (if result-llm
+                                                 (progn
+                                                   (oai--debug "oai-restapi-request-llm here")
+                                                   (run-at-time 0 nil callback result-llm))
+                                               ;; else - nil returned - error - retry
+                                               (if (> left-retries 0)
+                                                   (progn
+                                                     ;; oai-restapi-request-llm
                                                     (oai--debug "oai-restapi-request-llm here2")
                                                     ;; retrie after 3 sec
-                                                  (run-at-time 3 nil (lambda () (oai-restapi-request-llm-retries service model timeout callback
-                                                                                  :retries left-retries
-                                                                                  :messages messages
-                                                                                  :max-tokens max-tokens
-                                                                                  :header-marker header-marker
-                                                                                  :temperature temperature
-                                                                                  :top-p top-p
-                                                                                  :frequency-penalty frequency-penalty
-                                                                                  :presence-penalty presence-penalty))))
-                                                ;; else - failed
-                                                (oai--debug "oai-restapi-request-llm failed")
-                                                (run-at-time 0 nil callback nil)
+                                                    (run-at-time 3 nil (lambda () (oai-restapi-request-llm-retries service model timeout callback
+                                                                                                                   :retries left-retries
+                                                                                                                   :messages messages
+                                                                                                                   :max-tokens max-tokens
+                                                                                                                   :header-marker header-marker
+                                                                                                                   :temperature temperature
+                                                                                                                   :top-p top-p
+                                                                                                                   :frequency-penalty frequency-penalty
+                                                                                                                   :presence-penalty presence-penalty))))
+                                                 ;; else - failed
+                                                 (oai--debug "oai-restapi-request-llm failed")
+                                                 (run-at-time 0 nil callback nil)
 
-                                                (oai-block-insert-result-message "Failed" header-marker)
+                                                 (oai-block-insert-result-message "Failed" header-marker)
 
-                                                (oai-timers--update-global-progress-reporter)
-                                                ))
+                                                 (oai-timers--update-global-progress-reporter)
+                                                 ))
 
-                                            ;; (funcall callback result-llm)
-                                            (oai--debug "oai-restapi-request-llm  callback4")
-                                            ;; )
-                                            )
-                                          :prompt prompt
-                                          :messages  messages
-                                          :max-tokens max-tokens
-                                          :temperature temperature
-                                          :top-p top-p
-                                          :frequency-penalty frequency-penalty
-                                          :presence-penalty presence-penalty))
-            ;; save url-buffer
-            (oai-timers--set oai-restapi-request-llm-retries-local-url-buffer
-                             header-marker)
-            (oai--debug "oai-restapi-request-llm-retries3" oai-timers--element-marker-variable-dict oai-restapi-request-llm-retries-local-url-buffer)
-            )))))
+                                             ;; (funcall callback result-llm)
+                                             (oai--debug "oai-restapi-request-llm  callback4")
+                                             ;; )
+                                             )
+                                           :prompt prompt
+                                           :messages  messages
+                                           :max-tokens max-tokens
+                                           :temperature temperature
+                                           :top-p top-p
+                                           :frequency-penalty frequency-penalty
+                                           :presence-penalty presence-penalty))))
+          ;; save url-buffer
+          (oai--debug "oai-restapi-request-llm-retries3" oai-timers--element-marker-variable-dict)
+          (oai-timers--set url-buffer header-marker)
+          (oai--debug "oai-restapi-request-llm-retries4" oai-timers--element-marker-variable-dict)
+          )))))
+
+;;; -=-= error, payload, url-request-on-change-function
 
 (defun oai-restapi--maybe-show-openai-request-error ()
   "If the API request returned an error, show it.
 `REQUEST-BUFFER' is the buffer containing the request.
-Return t if error happen, otherwise nil"
+If http-code is nil - C-g was used to stop all.
+Return t if error happen, otherwise nil.
+If C-g was used return nil."
   (oai--debug "oai-restapi--maybe-show-openai-request-error1")
 
 
@@ -1382,30 +1410,37 @@ Return t if error happen, otherwise nil"
         (http-header-first-line (buffer-substring-no-properties (point-min)
                                                                 (save-excursion
                                                                   (goto-char (point-min))
-                                                                  (line-end-position)))))
-    (oai--debug "oai-restapi--maybe-show-openai-request-error2 %s %s" http-code http-data)
-    (or
-     (when (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
-           (goto-char url-http-end-of-headers)
-           (condition-case nil
-
-               (when-let* ((body (json-read))
-                           (err (or (alist-get 'error body)
-                                    (plist-get body 'error)))
-                           (message (or (alist-get 'message err)
-                                        (plist-get err 'message)))
-                           (message (if (and message (not (string-blank-p message)))
-                                        message
-                                      (json-encode err))))
-                 (funcall oai-restapi-show-error-function (concat (format "%s\n" http-header-first-line)
-                                                                  "Error from the service API:\n\t" message)
-                          (oai-timers--get-variable (current-buffer))) ; header-marker
-                 )
-             (error nil)))
-     (when (and http-code (/= http-code 200))
-       (funcall oai-restapi-show-error-function (format "HTTP Error from the service: %s %s \n %s" http-code http-data http-header-first-line)
-                (oai-timers--get-variable (current-buffer))) ; header-marker
-           ))))
+                                                                  (line-end-position))))
+        ret)
+    (oai--debug "oai-restapi--maybe-show-openai-request-error2 %s %s " http-code http-data)
+    (when (boundp 'url-http-end-of-headers)
+        (oai--debug "oai-restapi--maybe-show-openai-request-error22 %s " url-http-end-of-headers))
+    (setq ret
+          (or
+           (when (and http-code (/= http-code 200))
+             (oai--debug "oai-restapi--maybe-show-openai-request-error3")
+             (funcall oai-restapi-show-error-function (format "HTTP Error from the service: %s %s \n %s" http-code http-data http-header-first-line)
+                      (oai-timers--get-variable (current-buffer))) ; header-marker
+             t)
+           (when (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
+             (goto-char url-http-end-of-headers)
+             (condition-case nil
+                 (when-let* ((body (json-read))
+                             (err (or (alist-get 'error body)
+                                      (plist-get body 'error)))
+                             (message (or (alist-get 'message err)
+                                          (plist-get err 'message)))
+                             (message (if (and message (not (string-blank-p message)))
+                                          message
+                                        (json-encode err))))
+                   (funcall oai-restapi-show-error-function (concat (format "%s\n" http-header-first-line)
+                                                                    "Error from the service API:\n\t" message)
+                            (oai-timers--get-variable (current-buffer))) ; header-marker
+                   )
+               (error nil)))))
+    (oai--debug "oai-restapi--maybe-show-openai-request-error3 %s" ret)
+    ret
+    ))
 
 
 (cl-defun oai-restapi--payload (&optional &key service model prompt messages max-tokens temperature top-p frequency-penalty presence-penalty stream)
@@ -1614,6 +1649,7 @@ Called from `oai-restapi-stop-url-request',
   ;; (oai--debug "oai-restapi--interrupt-url-request"
   ;;                (eq (current-buffer) url-buffer)
   ;;                (buffer-live-p url-buffer))
+  (oai--debug "oai-restapi--stop-tracking-url-request %s" url-buffer)
   (if (eq (current-buffer) url-buffer)
       (progn
         (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t)
@@ -1631,7 +1667,7 @@ Called from `oai-restapi-stop-url-request',
   "Remove on-update hook and not kill URL-BUFFER.
 Called from `oai-restapi-stop-url-request',
 `oai-restapi-stop-all-url-requests'."
-  (oai--debug "oai-restapi--stop-tracking-url-request"
+  (oai--debug "oai-restapi--stop-tracking-url-request %s %s"
                  (eq (current-buffer) url-buffer)
                  (buffer-live-p url-buffer))
   (if (eq (current-buffer) url-buffer)

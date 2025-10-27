@@ -404,7 +404,9 @@ Use ELEMENT only in current moment in element buffer."
 (defun oai-block-insert-result (result &optional result-params hash exec-time)
   "Modified `org-babel-insert-result' function.
 Insert RESULT into the current buffer.
-TODO: EXEC-TIME."
+TODO: EXEC-TIME.
+Optional argument RESULT-PARAMS not used.
+Optional argument HASH not used."
   (when (stringp result)
     (setq result (substring-no-properties result)))
   (save-excursion
@@ -430,7 +432,8 @@ TODO: EXEC-TIME."
        ((member "replace" result-params)
         (delete-region (point) (org-babel-result-end)))
        ((member "append" result-params)
-        (goto-char (org-babel-result-end)) (setq beg (point-marker))))
+        (goto-char (org-babel-result-end))
+        (setq beg (point-marker))))
       (goto-char beg) (insert (concat result "\n"))
       (setq end (copy-marker (point) t))
       (org-babel-examplify-region beg end "")

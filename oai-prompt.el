@@ -25,20 +25,23 @@
 ;;; Changelog
 
 ;;; Commentary:
+;;
+;; `oai-agent-call-function' -> `oai-prompt-request-switch' -> `oai-prompt-request-chain'
+;;
 ;; Re1
-;; Sys: You a helpful. Give plan of 3 parts to research for answer and do only first part.
+;; Sys: You a helpful.  Give plan of 3 parts to research for answer and do only first part.
 ;; user: How to make it?
 ;;
 ;; "choices": ["message": {"role": "assistant", "content": "To..."}}]
 ;;
 ;; Re2
-;; Sys: You a helpful. Give plan of 3 parts to research for answer and do only first part.
+;; Sys: You a helpful.  Give plan of 3 parts to research for answer and do only first part.
 ;; user: How to make it?
 ;; Assist: Plan and solution for 1) step.
 ;; user: Research 2-th part and what was missed before.
 ;;
 ;; Re3
-;; Sys: You a helpful. Give plan of 3 parts to research for answer and do only first part with summary.
+;; Sys: You a helpful.  Give plan of 3 parts to research for answer and do only first part with summary.
 ;; user: How to make it?
 ;; Assist: Plan and solution for 1) step.
 ;; user: Research 2-th part and what was missed before.
@@ -143,7 +146,8 @@ answers except of the first one are already in block-content."
 
 
 (defun oai-prompt-request-switch (&rest args)
-  "For assiging to `oai-agent-call-function'."
+  "For assiging to `oai-agent-call-function'.
+Optional argument ARGS "
   ;; element = (nth 1 args)
   (when (not (eql 'x (alist-get :chain (oai-block-get-info (nth 1 args)) 'x)))
       (apply #'oai-prompt-request-chain args)
@@ -157,8 +161,18 @@ answers except of the first one are already in block-content."
   "Use :chain parameter to activate and use :step to execute chain of prompt.
 Aspects:
 1) start and stop reporter at begining and at the end (final callback).
-2) error handling: kill reporter, kill tmp buffer, kill timers"
-  (oai--debug "oai-prompt-agent-request-prepare1 service, model: %s %s" service model)
+2) error handling: kill reporter, kill tmp buffer, kill timers
+
+Execution Chain:
+`oai-restapi-request-llm-retries'
+`oai-restapi-request-llm'
+
+Modeline notification:
+1) `oai-timers--set' used in `oai-restapi-request-llm-retries'.
+2) `oai-timers--set' here
+3) `oai-timers--progress-reporter-run' - here
+"
+  (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
   ;; noqa Unused lexical argument
   (setq req-type req-type
         sys-prompt-for-all-messages sys-prompt-for-all-messages
@@ -170,37 +184,25 @@ Aspects:
         (end-marker (oai-block--get-content-end-marker element))
         (header-marker (oai-block-get-header-marker element))
         ;; (gap-between-requests 3) ; TODO
-        (buffer-key (get-buffer-create "*oai--chain-tmp*" t)) ; use one buffer as for updating global notification timer
+        ;; (buffer-key (get-buffer-create "*oai--chain-tmp*" t)) ; use one buffer as for updating global notification timer
         (step (alist-get :step (oai-block-get-info element))) ; Works? not tested TODO
-        )
+        (oai-timers-duration-copy oai-timers-duration)
+        (oai-timers-retries-copy oai-timers-retries))
 
     (let (
-          (callbackmy (lambda (data callback)
-                        (when data ; if not data it is fail
-                          (oai--debug "calbackmy")
-                          (oai-restapi--insert-single-response end-marker (concat "[AI]: " data) nil 'final)
-                          (run-at-time 0 nil callback data)
-                          (oai-timers--progress-reporter-run #'oai-restapi--stop-tracking-url-request))))
-          (calbafin (lambda (data callback)
-                      (setq callback callback) ; noqa unused
-                      (when data ; if not data it is fail
-                        (oai--debug "calbafin")
-                        (oai-restapi--insert-single-response end-marker (concat "[AI]: " data))
-                        (oai-restapi--insert-single-response end-marker nil 'insertrole 'final) ; finalize
-                        (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request)
-                        (oai-timers--interrupt-current-request buffer-key #'oai-restapi--stop-tracking-url-request))))
-          (call (lambda (step)
+          (call (lambda (step) ; called 3 times
                   (lambda (data callback)
-                    (oai--debug "oai-prompt-agent-request-prepare-call step %s" step)
-                    (oai--debug "oai-prompt-agent-request-prepare-call buffer %s" (current-buffer))
-                    (oai--debug "oai-prompt-agent-request-prepare-call max-tokens %s header-marker %s sys-prompt %s" max-tokens header-marker sys-prompt )
+                    (oai--debug "oai-prompt-request-chain1 step %s" step) ; 0, 1, 2
+                    (oai--debug "oai-prompt-request-chain1 buffer %s" (current-buffer))
+                    (oai--debug "oai-prompt-request-chain1 max-tokens %s header-marker %s sys-prompt %s" max-tokens header-marker sys-prompt)
+
                     ;; also save request for timer
-                    (condition-case err ; for `oai-block-tags-replace'
+                    ;; (condition-case err ; for `oai-block-tags-replace'
                         (oai-restapi-request-llm-retries service
                                                          model
-                                                         oai-timers-duration
+                                                         oai-timers-duration-copy ; use current-buffer
                                                          callback
-                                                         :retries 3
+                                                         :retries oai-timers-retries-copy ; use current-buffer
                                                          :messages
                                                          (oai-prompt-collect-chat-research-steps-prompt oai-prompt-chain-list
                                                                                                         step
@@ -213,28 +215,62 @@ Aspects:
                                                          :top-p top-p
                                                          :frequency-penalty frequency-penalty
                                                          :presence-penalty presence-penalty)
-                      (user-error
-                       (funcall oai-restapi-show-error-function (error-message-string err)
-                                header-marker)))
-                    ))))
+                      ;; (user-error
+                      ;;  (funcall oai-restapi-show-error-function (error-message-string err)
+                      ;;           header-marker)))
+                  )))
+          (callbackmy (lambda (data callback)
+                        "Called in (current-buffer)."
+                        (when data ; if not data it is fail
+                          (oai--debug "calbackmy %s %s" oai-timers--element-marker-variable-dict (current-buffer))
+                          (oai-restapi--insert-single-response end-marker (concat "[AI]: " data) nil 'final)
+                          (run-at-time 0 nil callback data)
+                          ;; (oai-timers--progress-reporter-run #'oai-restapi--stop-tracking-url-request)
+                          )))
+          (calbafin (lambda (data callback)
+                      (setq callback callback) ; noqa unused
+                      (when data ; if not data it is fail
+                        (oai--debug "calbafin")
+                        (oai-restapi--insert-single-response end-marker (concat "[AI]: " data))
+                        (oai-restapi--insert-single-response end-marker nil 'insertrole 'final) ; finalize
+                        (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request)
+                        ;; (oai-timers--interrupt-current-request buffer-key #'oai-restapi--stop-tracking-url-request)
+                        ))))
+
+      (oai--debug "oai-prompt-request-chain2 %s %s %s %s" header-marker service model oai-timers-duration)
+      (condition-case err
+          (progn
+            (oai-timers--progress-reporter-run #'oai-restapi--stop-tracking-url-request (* oai-timers-duration oai-timers-retries-copy) )
+            (oai--debug "oai-prompt-request-chain3")
+
+            ;; There is a problem that we handle error in callback before timer may be run.
+            ;; And we can't run timer before.
+            (oai-async1-start nil
+                              (list (funcall call 0)
+                                    callbackmy
+                                    (funcall call 1)
+                                    callbackmy
+                                    (funcall call 2)
+                                    calbafin
+                                    ))
+            (oai--debug "oai-prompt-request-chain4")
 
 
-      (oai--debug "oai-prompt-agent-request-prepare2 %s %s %s %s" header-marker service model oai-timers-duration)
-      ;;
-      (oai-async1-start nil
-                        (list (funcall call 0)
-                              callbackmy
-                              (funcall call 1)
-                              callbackmy
-                              (funcall call 2)
-                              calbafin
-                              ))
-      ;; Global reporter uppdated and run all the time.
-      ;; Every task have own timer for parallel requests to retry them.
-      ;; 1) save request for timer
-      (oai-timers--set buffer-key header-marker)
-      ;; 2) run global reporter
-      (oai-timers--progress-reporter-run #'oai-restapi--stop-tracking-url-request (* oai-timers-duration 3) )))
+            ;; (oai--debug "oai-prompt-request-chain3")
+            ;; Global reporter uppdated and run all the time.
+            ;; Every task have own timer for parallel requests to retry them.
+            ;; 1) save request for timer
+            ;; (oai-timers--set buffer-key header-marker)
+            ;; 2) run global reporter
+            ;; (sleep-for 1) ; allow to save url-buffer to global variable
+
+            )
+        (user-error
+         (funcall oai-restapi-show-error-function (error-message-string err)
+                  header-marker)
+         (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request)
+         )
+      )))
 
   ;;     ;; - else - built-in
   ;;     (oai--debug "ELSE")
