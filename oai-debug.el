@@ -62,7 +62,6 @@ Heavy to execute."
   "If firt argument of ARGS is a stringwith %s than behave like format.
 Otherwise format every to string and concatenate.
 Return last argument, but should not be used for return value."
-  ;; (print (list "oai--debug --------vvvvvvvvvvvvvv1" (bound-and-true-p ert-enabled)))
   (when (and (or oai-debug-buffer
                  (bound-and-true-p ert-enabled))
              args)
@@ -91,13 +90,13 @@ Return last argument, but should not be used for return value."
 
         (with-current-buffer bu
           ;; - move point to  to bottom
-          (if buf-exist ; was not created
+          (when buf-exist ; was not created
               (goto-char (point-max))
             ;; else buffer just created
             (local-set-key "q" #'quit-window)
             )
           ;; ;; - scroll debug buffer down
-          (if bu-window
+          (when (and bu-window (not (bound-and-true-p ert-enabled)))
               (with-selected-window (get-buffer-window bu)
                 (with-no-warnings
                   (end-of-buffer nil))
@@ -128,7 +127,7 @@ Return last argument, but should not be used for return value."
                     (setq result-string nil))
             (when result-string
               (if (bound-and-true-p ert-enabled)
-                  (print result-string)
+                  (princ (concat result-string "\n"))
                 ;; else
                 (insert result-string)))
             )))))

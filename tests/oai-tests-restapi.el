@@ -247,6 +247,91 @@ Stop it with `oai-restapi-stop-url-request'."
 ;;              ;; org-element-property :parameters returns a plist, which alist-get works on.
 ;;              (info-alist (org-element-property :parameters element)))
 ;;         element))))
+
+
+;;; - Handling non-unicode characters at input in url-buffer
+(progn
+  (let (
+        (json-object-type 'plist)
+        (json-key-type 'symbol)
+        (json-array-type 'vector)
+        (garbage-str (concat (string ?\x81 ?\xA0 ?\xFF)))
+         data)
+    (setq data (with-temp-buffer
+      ;; (insert "{\"choices\":[{\"message\":{\"annotations\":[],\"content\":\"How can I perform a test?\\n\\n\",\"refusal\":null,\"role\":\"assistant\"}}]}")
+      (insert (concat "{\"choices\":[{\"message\":{\"annotations\":[],\"content\":\"How can I perform a test?"
+                      garbage-str
+                      "\\n\\n\",\"refusal\":null,\"role\":\"assistant\"}}]}"))
+      (goto-char (point-min))
+      (json-read)))
+    (setq data (aref (plist-get data 'choices) 0))
+    (print (list "data1" data))
+    (setq data (plist-get (plist-get data 'message) 'content))
+    (print (list "data2" data))
+    ;; (print (alist-get 'choices data))
+))
+
+
+(let ((json-object-type 'plist)
+      (json-key-type 'symbol)
+      (json-array-type 'vector))
+  (condition-case _err
+      (json-read-from-string (concat
+                              (string-as-unibyte (string ?\x81 ?\xA0 ?\xFF )) ; garbage-str
+                              (string ?\x10) ; garbage
+                              "\\n\\n\",\"refusal\":null,\"role\":\"assistant\"}}]}"))
+  (error
+   nil
+   )))
+
+;; (with-temp-buffer
+;;   (let ((garbage-str (concat (string ?\x81 ?\xA0 ?\xFF))))
+;;      (insert garbage-str)))
+
+;; oai-restapi--url-request-on-change-function
+(defvar callback-n-test 0)
+(defvar callback-test nil)
+
+(defun test-oai-restapi--callback (data)
+
+  (when (= callback-n-test 0)
+    (setq callback-n-test (1+ callback-n-test))
+    (print (list "ss" data))
+    (setq callback-test data)))
+
+(with-temp-buffer
+  (insert (concat "{\"choices\":[{\"message\":{\"annotations\":[],\"content\":\"How can I perform a test?"
+                  (concat
+                   (string-as-unibyte (string ?\x81 ?\xA0 ?\xFF )) ; garbage-str
+                   (string ?\x10) ; garbage
+                   "\\n\\n\",\"refusal\":null,\"role\":\"assistant\"}}]}")))
+  (goto-char (point-min))
+  ;; set vars,functions used in `oai-restapi--url-request-on-change-function'
+  (let ((oai-restapi--current-url-request-callback 'test-oai-restapi--callback)
+        oai-restapi--current-request-is-streamed
+        ;; oai-debug-buffer
+        (callback-n-test 0))
+    (setq url-http-end-of-headers (point-min)) ; should set globally, checked by `boundp'
+    ;; (print (list (boundp 'url-http-end-of-headers) url-http-end-of-headers))
+  ;; (funcall oai-restapi--current-url-request-callback "data")
+  (oai-restapi--url-request-on-change-function nil nil nil)
+  (print (list "wtf" callback-test))
+  (print (list "wtf" callback-test))
+  (let ((data (aref (plist-get callback-test 'choices) 0)))
+    (plist-get (plist-get data 'message) 'content))
+  ;; (let ((json-object-type 'plist)
+  ;;                 (json-key-type 'symbol)
+  ;;                 (json-array-type 'vector))
+  ;;                 (let ( ; error
+  ;;                       (data (json-read-from-string
+  ;;                              (buffer-substring-no-properties (point) (point-max))))
+  ;;                       ;; (data (json-read))  ; problem: with codepage, becaseu url buffer not utf-8
+  ;;                       )
+  ;;                   (when data
+  ;;                     (print data))
+  ;; ))
+  ))
+
 ;;; others
 (ert-deftest test-oai-restapi--strip-api-url-test ()
   "Runs tests for `oai-restapi--strip-api-url` explicitly for each case,

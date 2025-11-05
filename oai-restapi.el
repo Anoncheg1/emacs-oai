@@ -82,6 +82,15 @@
 ;; `oai-timers--interrupt-current-request' we remove buffer from
 ;; saved and call (oai-restapi--interrupt-url-request url-buffer).
 
+;; Main path of JSON decoding:
+;; `oai-restapi--url-request-on-change-function' ->
+;; `oai-restapi--get-single-response-text' ->
+;; `oai-restapi--insert-single-response'
+
+;; To read data from JSON there is two ways (json-read) and
+;; (json-read-from-string), we specify plist as target, so we use
+;; (plist-get data 'choices) instead of (alist-get 'choices data)
+
 ;;; -=-= includes
 (require 'org)
 (require 'org-element)
@@ -706,15 +715,18 @@ Called from `oai-call-block' in main file.
 (defun oai-restapi--get-single-response-text (&optional response)
   "Return text from RESPONSE or nil and signal error if it have \"error\" field.
 For Completion LLM mode. Used as callback for `oai-restapi-request'."
-  ;; (oai--debug "oai-restapi--get-single-response-text response:" response)
   (when response
+    ;; (oai--debug "oai-restapi--get-single-response-text response:" response)
+    (print (list "asd" (car response)))
+    ;; (print (list "asd" (plist-get response 'choices)))
     (if-let ((error (plist-get response 'error)))
         (if-let ((message (plist-get error 'message))) (error message) (error error))
       ;; else - no "error" field
       (if-let* ((choice (aref (plist-get response 'choices) 0))
                 (text (or (plist-get choice 'text)
                           ;; Together.xyz way
-                          (plist-get (plist-get choice 'message) 'content))))
+                          (plist-get (plist-get choice 'message) 'content)
+                          )))
           ;; - Decode text
           (decode-coding-string text 'utf-8)))))
 
@@ -937,7 +949,7 @@ Called within url-buffer.
 Argument INSERT-ROLE provided just in case we will need to insert with
 specific role."
 
-  (oai--debug "oai-restapi--insert-stream-response")
+  (oai--debug "oai-restapi--insert-stream-response" ) ; response
   (let ((normalized (oai-restapi--normalize-response response)) ; list of messages
         (buffer (marker-buffer end-marker))
         (first-resp oai-restapi--currently-chat-got-first-response)
@@ -1507,6 +1519,7 @@ This  callback  here  is `oai-restapi--insert-stream-response'  for  chat  or
 Called within `url-retrieve' buffer."
   ;; (oai--debug "oai-restapi--url-request-on-change-function: %s %s %s %s" _beg _end _len (current-buffer))
   ;; (with-current-buffer org-ai--last-url-request-buffer
+
   (when (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
     (save-match-data
       (save-excursion
@@ -1516,91 +1529,92 @@ Called within `url-retrieve' buffer."
           (goto-char url-http-end-of-headers)
           (setq oai-restapi--url-buffer-last-position-marker (point-marker)))
 
-          ;; Avoid a bug where we skip responses because url has modified the http
-          ;; buffer and we are not where we think we are.
-          ;; TODO this might break
-          (unless (eolp)
-            (beginning-of-line))
+        ;; Avoid a bug where we skip responses because url has modified the http
+        ;; buffer and we are not where we think we are.
+        ;; TODO this might break
+        (unless (eolp)
+          (beginning-of-line))
 
-          ;; - Non-streamed - response of a single json object
-          (if (not oai-restapi--current-request-is-streamed)
-              (let ((json-object-type 'plist)
-                    (json-key-type 'symbol)
-                    (json-array-type 'vector))
-                (condition-case _err
-                    (let ( ; error
-                          (data (json-read-from-string
-                                 (buffer-substring-no-properties (point) (point-max))))
-                          ;; (data (json-read))  ; problem: with codepage, becaseu url buffer not utf-8
-                          )
-                      (when data
-                        (oai--debug "on change 1)")
-                        (funcall oai-restapi--current-url-request-callback data) ; INSERT CALLBACK!
-                        ;; We call this in lambda "url-request-buffer event" anyway
-                        ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request)
-                        ))
-                  (error
-                   nil
-                   )
-                  )
-                ;; - Done or Error
-                (oai--debug "on change 2)")
-                (funcall oai-restapi--current-url-request-callback nil) ; INSERT CALLBACK!
-                (message "oai request done")
+        ;; - Non-streamed - response of a single json object
+        (if (not oai-restapi--current-request-is-streamed)
+            (let ((json-object-type 'plist)
+                  (json-key-type 'symbol)
+                  (json-array-type 'vector))
+              (condition-case _err
+                  (let ( ; error
+                        (data (json-read-from-string
+                               (buffer-substring-no-properties (point) (point-max))))
+                        ;; (data (json-read))  ; problem: with codepage, becaseu url buffer not utf-8
+                        )
+                    (when data
+                      (oai--debug "on change 1)")
+                      (funcall oai-restapi--current-url-request-callback data) ; INSERT CALLBACK!
+                      ;; We call this in lambda "url-request-buffer event" anyway
+                      ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request)
+                      ))
+                (error
+                 nil
+                 )
                 )
+              ;; - Done or Error
+              (oai--debug "on change 2)")
+              (funcall oai-restapi--current-url-request-callback nil) ; INSERT CALLBACK!
+              ;; (message "oai request done")
+              )
 
-            ;; - else - streamed, multiple json objects prefixed with "data: "
-            ;; (oai--debug "oai-restapi--url-request-on-change-function 2.1) %s %s" (point) (eolp))
-            (let ((errored nil))
-              (while (and (not errored)
-                          (search-forward "data: " nil t))
-                (let ((line (buffer-substring-no-properties (point) (line-end-position)))
-                      (tmp-buf "*oai--temp*"))
-                  ;; (oai--debug "on change 2.2) line: %s" line)
-                  ;; (message "...found data: %s" line)
-                  (if (not (string= line "[DONE]"))
-                      (let ((json-object-type 'plist)
-                            (json-key-type 'symbol)
-                            (json-array-type 'vector)
-                            data)
-                        ;; (data (json-read-from-string line)) ; slow
-                        (setq data (with-current-buffer (get-buffer-create tmp-buf t) ; faster
-                                     (condition-case _err
-                                         (progn
-                                           (erase-buffer)
-                                           (insert line)
-                                           (goto-char (point-min))
-                                           (json-read))
-                                       (error
-                                        (oai--debug "oai-restapi--url-request-on-change-function 2.3) errored")
-                                        (setq errored t)
-                                        (kill-buffer)
-                                        nil))))
-                        ;; (setq org-ai--debug-data (append org-ai--debug-data (list data)))
-                        (when data
-                          (end-of-line)
-                          (set-marker oai-restapi--url-buffer-last-position-marker (point))
-                          ;; (oai--debug (format "on change 3) %s" oai-restapi--url-buffer-last-position-marker))
-                          (funcall oai-restapi--current-url-request-callback data) ; INSERT CALLBACK!
-                          ))
+          ;; - else - streamed, multiple json objects prefixed with "data: "
+          ;; (oai--debug "oai-restapi--url-request-on-change-function 2.1) %s %s" (point) (eolp))
+          (let ((errored nil))
+            (while (and (not errored)
+                        (search-forward "data: " nil t))
+              (let ((line (buffer-substring-no-properties (point) (line-end-position)))
+                    (tmp-buf "*oai--temp*"))
+                ;; (oai--debug "on change 2.2) line: %s" line)
+                ;; (message "...found data: %s" line)
+                (if (not (string= line "[DONE]"))
+                    (let ((json-object-type 'plist)
+                          (json-key-type 'symbol)
+                          (json-array-type 'vector)
+                          data)
+                      ;; (data (json-read-from-string line)) ; slow
+                      (setq data (with-current-buffer (get-buffer-create tmp-buf t) ; faster
+                                   (condition-case _err
+                                       (progn
+                                         (erase-buffer)
+                                         (insert line)
+                                         (goto-char (point-min))
+                                         (json-read))
+                                     (error
+                                      (oai--debug "oai-restapi--url-request-on-change-function 2.3) errored")
+                                      (setq errored t)
+                                      (kill-buffer)
+                                      nil))))
+                      ;; (setq org-ai--debug-data (append org-ai--debug-data (list data)))
+                      (when data
+                        (end-of-line)
+                        (set-marker oai-restapi--url-buffer-last-position-marker (point))
+                        ;; (oai--debug (format "on change 3) %s" oai-restapi--url-buffer-last-position-marker))
+                        (funcall oai-restapi--current-url-request-callback data) ; INSERT CALLBACK!
+                        ))
 
-                    ;; - else "[DONE]" string found
-                    (progn
-                      ;; (end-of-line)
-                      (set-marker oai-restapi--url-buffer-last-position-marker (point))
-                      ;; (setq oai-restapi--url-buffer-last-position-marker nil)
-                      (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request) ; stop timer
-                      ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--interrupt-url-request) ; stop timer
-                      (if (get-buffer tmp-buf)
-                          (kill-buffer tmp-buf))
-                      ;; (oai--debug "on change 4)")
-                      (funcall oai-restapi--current-url-request-callback nil) ; INSERT CALLBACK!
-                      ;; (org-ai-reset-stream-state)
-                      (message "oai request done"))
-                    )))))
-          ;; (goto-char p) ; additional protection
-          ;; (oai--debug "oai-restapi--url-request-on-change-function end")
-          ))))
+                  ;; - else "[DONE]" string found
+                  (progn
+                    ;; (end-of-line)
+                    (set-marker oai-restapi--url-buffer-last-position-marker (point))
+                    ;; (setq oai-restapi--url-buffer-last-position-marker nil)
+                    (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request) ; stop timer
+                    ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--interrupt-url-request) ; stop timer
+                    (if (get-buffer tmp-buf)
+                        (kill-buffer tmp-buf))
+                    ;; (oai--debug "on change 4)")
+                    (funcall oai-restapi--current-url-request-callback nil) ; INSERT CALLBACK!
+                    ;; (org-ai-reset-stream-state)
+                    ;; (message "oai request done")
+                    )
+                  )))))
+        ;; (goto-char p) ; additional protection
+        ;; (oai--debug "oai-restapi--url-request-on-change-function end")
+        ))))
 
 ;; (defun org-ai--kill-query-process ()
 ;;   (let ((proc (get-buffer-process org-ai--last-url-request-buffer)))

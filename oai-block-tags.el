@@ -153,11 +153,14 @@ Nil if buffer does not exist."
 
 ;;; -=-= Links: Files & Directories
 
+(defvar oai-block-tags-get-directory-switches "-AltGg")
+
 (defun oai-block-tags--get-directory-content (path-string)
   (if oai-block-tags-use-simple-directory-content
       (concat (apply #'mapconcat #'identity (directory-files path-string)  '("\n")))
     ;; else
-    (let ((buf (dired-noselect path-string)))
+    (let* ((dired-listing-switches oai-block-tags-get-directory-switches)
+           (buf (dired-noselect path-string)))
       (unwind-protect
           (with-current-buffer buf
             (buffer-substring-no-properties (point-min) (point-max)))
@@ -327,18 +330,24 @@ Works for ai block also."
                    (org-element-property :begin element)))
           (end (or (org-element-property :contents-end element)
                    (org-element-property :end element))))
+      ;; Bug end is wrong if "#\\+end_" at next line.
       (when (and beg end)
-        ;; - skip headers if begin at header
-        (save-excursion (goto-char beg)
-                        (when (or (looking-at "#\\+begin_")
-                                  (search-forward "#+begin_" end t))
-                          (forward-line)
-                          (setq beg (point)))
-                        (goto-char end)
-                        (when (or (looking-at "#\\+end_")
-                                  (search-backward "#+end_" beg t))
-                          (forward-line -1)
-                          (setq end (line-end-position)))))
+        ;; - skip headers if begin at header and fix end bug.
+        (save-excursion
+          (goto-char beg)
+          (when (or (looking-at "#\\+begin_")
+                    (search-forward "#+begin_" end t))
+            (forward-line) ; at begin of line after
+            (setq beg (point)))
+          (when
+                (search-forward "#+end_" end t)
+            (setq end (line-beginning-position)))
+          ;; ;; (goto-char end)
+          ;; (when (or (looking-at "#\\+end_")
+          ;;           (search-backward "#+end_" beg t))
+            ;; (forward-line -1)
+            ;; (setq end (line-beginning-position))
+            ))
       (list beg end))))
 
 
@@ -615,6 +624,12 @@ Ensures there are no fences between block begin and point."
   (save-excursion
     (let ((point-pos (point))
           begin end)
+      ;; fix limits
+      (when (and limit-begin (< point-pos limit-begin))
+          (setq limit-begin point-pos))
+      (when (and limit-end (> point-pos limit-end))
+          (setq limit-end point-pos))
+
       ;; Find nearest header backward
       (when (or (when (looking-at oai-block--markdown-begin-re nil)
                   (forward-line)
@@ -641,10 +656,10 @@ LIMIT-BEGIN and LIMIT-END restrict the search region around point.
 Returns t if was marked, nil otherwise.
 Used in `oai-block-tags-mark-md-block-body'."
   ;; fill limit-begin and limit-end - if they was not profiled
-  (if (or (not limit-begin) (not limit-end))
-      (let ((element (oai-block-p)))
-        (setq limit-begin (org-element-property :contents-begin element))
-        (setq limit-end (org-element-property :contents-end element))))
+  (when (not (and limit-begin limit-end))
+    (when-let* ((region (oai-block-tags--get-org-block-region)))
+      (setq limit-begin (car region))
+      (setq limit-end (cadr region))))
 
   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range limit-begin limit-end))
               (beg (car r))
@@ -738,7 +753,7 @@ Used in `oai-block-tags-mark-md-block-body'."
   "Replace the last match of REGEXP in STRING with REPLACEMENT,
 preserving any extra captured groups.
 Check that found regexp not in markdown block.
-If REPLACEMENT not provided return found string for regexp."
+If REPLACEMENT not provided return found string for regexp or nil if not found."
   (let ((pos 0)
         (last-pos nil)
         (last-end nil)
@@ -746,30 +761,30 @@ If REPLACEMENT not provided return found string for regexp."
     (while (and pos
                 (string-match regexp string pos)
                 (not (oai-block-tags--position-in-markdown-block-str-p string (setq pos (match-beginning 0))))) ; not in markdonw block
-      ;; (print (list "vv" (oai-block-tags--position-in-markdown-block-str-p string (setq pos (match-beginning 0)))))
       (setq last-pos pos) ; beg
-
       (setq last-end (match-end 0)) ; end
-      ;; (print (list "last-group"   (match-string 0 string) (match-string 1 string) (match-string 2 string)))
       (setq pos last-end) ; move forward
       )
-    (if last-pos
-        (if replacement
+
+    (if replacement
+        (if last-pos
             ;; (replace-match replacement 'fixedcase 'literal string)
             ;; (if (eq (aref string (1- last-end)) ?\s) ;; if space after match
                 ;; (replace-match replacement 'fixedcase 'literal string 1)
-              ;; else
+              ;; 1) replace
               (concat (substring string 0 last-pos)
                       replacement
                       ;; last-group
                       (substring string last-end))
-          ;; else - just return 0 group
-          ;; remove leading and ending (` and space) characters
-           (replace-regexp-in-string "^[` ]*" ""
+          ;; else - return just string
+          string
+          )
+      ;; else no replacement
+      (if last-pos
+          (replace-regexp-in-string "^[` ]*" ""
                                      (replace-regexp-in-string "[` ]*\$" ""
                                                                (match-string 0 string))) ;; (substring string last-pos last-end)
-          ) ; what was found
-      string)))
+      nil))))
 
 (cl-assert
  (string-equal (oai-block-tags--replace-last-regex-smart "asdasd@Backtraceasdasdasd" "\\(@Backtrace\\)" "111")
@@ -997,7 +1012,9 @@ Return modified string or the same string."
   "Fontify Org links in #+begin_ai ... #+end_ai blocks, up to LIMIT.
 This is special fontify function, that return t when match found.
 1) search for ai block begin and then end, 2) call fontify on range that
-goto to the begining firstly `org-activate-links'."
+goto to the begining firstly `org-activate-links'.
+TODO: maybe we should use something like
+`oai-block-tags--position-in-markdown-block-str-p'"
   (if oai-block-fontify-markdown
       (let ((case-fold-search t)
             (ret))
@@ -1046,18 +1063,16 @@ Mark or select block content around cursor.
 make this function to no relay on oai-block."
   (interactive)
   (or (when-let* ((region (oai-block-tags--get-org-block-region))
-                (beg (car region))
-                (end (cadr region)))
-          ;; Mardown in block
-          (or (oai-block-tags--markdown-mark-fenced-code-body beg end)
-              ;; else - no markdown - mark ai block only
-              (progn
-                (set-mark beg)
-                (goto-char end)
-                (forward-line -1)
-                (end-of-line)
-                (activate-mark)))
-          t)
+                  (beg (car region))
+                  (end (cadr region)))
+        ;; Mardown in block
+        (or (oai-block-tags--markdown-mark-fenced-code-body beg end)
+            ;; else - no markdown - mark ai block only
+            (progn
+              (set-mark beg)
+              (goto-char end)
+              (activate-mark)))
+        t)
       (org-mark-element)))
 
 (provide 'oai-block-tags)
