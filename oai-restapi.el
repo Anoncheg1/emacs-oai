@@ -838,7 +838,6 @@ Here used for completion mode in `oai-restapi-request'.
   "This function normalizes JSON data in OpenAI-style but with some differences.
 `RESPONSE' is one JSON message of the stream response."
   ;; (oai--debug "response:" response)
-
   (if-let ((error-message (plist-get response 'error)))
       (list (make-oai-restapi--response :type 'error :payload (or (plist-get response 'message) error-message)))
 

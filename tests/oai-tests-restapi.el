@@ -43,29 +43,16 @@
 
 ;;; Code:
 
-(defun oai-tests--progress-reporter-stop-one ()
-  "Start one request.
-Stop it with `oai-restapi-stop-url-request'."
-
-  (let ((buf (generate-new-buffer "*oai-test-temp*")))
-    (with-current-buffer buf
-      (org-mode)
-      (insert "#+begin_ai\n#+end_ai")
-      (goto-char (point-min))
-      (oai-block-p)
-      ))
-  )
-
 ;;; - For `oai-restapi--get-token' (old)
 
 ;; (require 'oai) ;; Assuming the function is defined in oai.el
 
-(ert-deftest oai-restapi--get-token-string-test ()
+(ert-deftest oai-tests-restapi--get-token-string      ()
   "Test when oai-restapi-con-token is a non-empty string."
   (let ((oai-restapi-con-token "test-token-123"))
     (should (equal (oai-restapi--get-token 'openai) "test-token-123")))) ; ignored
 
-(ert-deftest oai-restapi--get-token-plist-valid-test ()
+(ert-deftest oai-tests-restapi--get-token-plist-valid-test ()
   "Test when oai-restapi-con-token is a plist with valid service token."
   (let ((oai-restapi-con-token '(:openai "test-token-openai" :anthropic "test-token-anthropic")))
     (should (equal (oai-restapi--get-token :openai) "test-token-openai"))))
@@ -73,7 +60,7 @@ Stop it with `oai-restapi-stop-url-request'."
 ;; (let ((oai-restapi-con-token '(:openai "test-token-openai" :anthropic "test-token-anthropic")))
 ;;     (oai-restapi--get-token :openai))
 
-(ert-deftest oai-restapi--get-token-plist-invalid-test ()
+(ert-deftest oai-tests-restapi--get-token-plist-invalid-test ()
   "Test when oai-restapi-con-token is a plist without the service token."
   (let ((oai-restapi-con-token '(:anthropic "test-token-anthropic")))
     (let ((err (cadr
@@ -83,7 +70,7 @@ Stop it with `oai-restapi-stop-url-request'."
 ;; (let ((oai-restapi-con-token '(:anthropic "test-token-anthropic")))
 ;;   (oai-restapi--get-token :openai))
 
-;; (ert-deftest oai-restapi--get-token-auth-source-test ()
+;; (ert-deftest oai-tests-restapi--get-token-auth-source-test ()
 ;;   "Test when token is retrieved from auth-source."
 ;;   (let ((oai-restapi-con-token "")
 ;;         (auth-sources '((:host "api.openai.com" :user "user" :secret "auth-token-123"))))
@@ -92,7 +79,7 @@ Stop it with `oai-restapi-stop-url-request'."
 ;;     (fmakunbound 'oai-restapi--get-token-auth-source)))
 
 
-(ert-deftest oai-restapi--get-token-auth-source-test ()
+(ert-deftest oai-tests-restapi--get-token-auth-source-test ()
   "Test when token is retrieved from auth-source."
   (let* ((oai-restapi-con-token "")
          (auth-sources '((:host "api.openai.com" :user "user" :secret "auth-token-123")))
@@ -103,7 +90,7 @@ Stop it with `oai-restapi-stop-url-request'."
           (should (equal (oai-restapi--get-token 'openai) "auth-token-123")))
       (fset 'oai-restapi--get-token-auth-source orig-fn))))
 
-;; (ert-deftest oai-restapi--get-token-no-valid-token-test ()
+;; (ert-deftest oai-tests-restapi--get-token-no-valid-token-test ()
 ;;   "Test when no valid token is provided."
 ;;   (let ((oai-restapi-con-token "")
 ;;         (auth-sources nil))
@@ -116,7 +103,7 @@ Stop it with `oai-restapi-stop-url-request'."
 ;;     )
 ;;     (fmakunbound 'oai-restapi--get-token-auth-source))
 
-(ert-deftest oai-restapi--get-token-no-valid-token-test ()
+(ert-deftest oai-tests-restapi--get-token-no-valid-token-test ()
   "Test when no valid token is provided."
   (let ((oai-restapi-con-token "")
         (auth-sources nil)
@@ -133,12 +120,12 @@ Stop it with `oai-restapi-stop-url-request'."
 ;; Dummy function for auth-source behavior
 ;; (defun oai-restapi--get-token-auth-source (service) nil)
 
-(ert-deftest oai-restapi--get-token/string ()
+(ert-deftest oai-tests-restapi--get-token/string ()
   "Single string in `oai-restapi-con-token` returns value."
   (let ((oai-restapi-con-token "tok123"))
     (should (equal (oai-restapi--get-token "foo") "tok123"))))
 
-;; (ert-deftest oai-restapi--get-token/empty-string-error ()
+;; (ert-deftest oai-tests-restapi--get-token/empty-string-error ()
 ;;   "Empty string errors out."
 ;;   (let ((oai-restapi-con-token ""))
 ;;     (let ((err (cadr
@@ -147,23 +134,23 @@ Stop it with `oai-restapi-stop-url-request'."
 ;;       (should (eql 0 (string-match "Please set" err)))
 ;;       )))
 
-(ert-deftest oai-restapi--get-token/plist-string ()
+(ert-deftest oai-tests-restapi--get-token/plist-string ()
   "Plist with symbol key, single string."
   (let ((oai-restapi-con-token '(:foo "tokfoo")))
     (should (equal (oai-restapi--get-token "foo") "tokfoo"))))
 
-(ert-deftest oai-restapi--get-token/plist-list-by-index ()
+(ert-deftest oai-tests-restapi--get-token/plist-list-by-index ()
   "Plist with key and list of strings, access by index."
   (cl-labels ((oai-restapi--split-dash-number (s) (setq s s) (cons "foo" 1))) ;; fake service splitting
     (let ((oai-restapi-con-token '(:foo ("tok0" "tok1"))))
       (should (equal (oai-restapi--get-token "foo--1") "tok1")))))
 
-(ert-deftest oai-restapi--get-token/plist-list-car ()
+(ert-deftest oai-tests-restapi--get-token/plist-list-car ()
   "Plist with key and list of strings, no index (get car)."
   (let ((oai-restapi-con-token '(:foo ("tok0" "tok1"))))
     (should (equal (oai-restapi--get-token "foo") "tok0"))))
 
-(ert-deftest oai-restapi--get-token/plist-error-when-key-not-found ()
+(ert-deftest oai-tests-restapi--get-token/plist-error-when-key-not-found ()
   "Plist with missing key errors."
   (let ((oai-restapi-con-token '(:foo "tokfoo")))
     (let ((err (cadr
@@ -172,14 +159,14 @@ Stop it with `oai-restapi-stop-url-request'."
       (should (eql 0 (string-match "Token not found" err))))))
 
 
-(ert-deftest oai-restapi--get-token/plist-bad-config ()
+(ert-deftest oai-tests-restapi--get-token/plist-bad-config ()
   "Plist with invalid structure signals error."
   (let ((oai-restapi-con-token '(:foo 1234)))
     (should-error (oai-restapi--get-token "foo")
                   :type 'error)))
 
 
-(ert-deftest oai-restapi--get-token/missing-errors ()
+(ert-deftest oai-tests-restapi--get-token/missing-errors ()
   "Neither string, plist nor auth-source: signals error."
   (let ((oai-restapi-con-token nil))
     (should-error (oai-restapi--get-token "foo")
@@ -187,7 +174,7 @@ Stop it with `oai-restapi-stop-url-request'."
 
 
 ;;; - For `oai-restapi--get-headers'
-(ert-deftest oai-tests-oai-restapi--get-headers()
+(ert-deftest oai-tests-restapi--get-headers()
   (let ((oai-restapi-con-token '(:local1
                                  :github ("token1" "token2" "token3")
                                  :some "vv"
@@ -211,7 +198,7 @@ Stop it with `oai-restapi-stop-url-request'."
                   :type 'user-error)
     ))
 ;;; - oai-restapi--get-values
-(ert-deftest oai-tests--oai-restapi--get-values ()
+(ert-deftest oai-tests-restapi--oai-restapi--get-values ()
   ;; Example variables
   (defvar my-plist '(:foo "bar" :baz "qux" :bavv nil ))
   (defvar my-string "hello")
@@ -288,7 +275,7 @@ Stop it with `oai-restapi-stop-url-request'."
 (defvar callback-n-test 0)
 (defvar callback-test nil)
 
-(defun test-oai-restapi--callback (data)
+(defun oai-tests-restapi--callback (data)
 
   (when (= callback-n-test 0)
     (setq callback-n-test (1+ callback-n-test))
@@ -361,10 +348,10 @@ Stop it with `oai-restapi-stop-url-request'."
 ;;                (member ch '(?\t ?\n ?\r ?\x20))))) ; whitespace
 ;;           (string-to-list str))))
 
-(ert-deftest oai-tests-oai-restapi--url-request-on-change-function-not-streamed()
+(ert-deftest oai-tests-restapi--url-request-on-change-function-not-streamed()
   (with-temp-buffer
     ;; set vars,functions used in `oai-restapi--url-request-on-change-function'
-    (let ((oai-restapi--current-url-request-callback 'test-oai-restapi--callback)
+    (let ((oai-restapi--current-url-request-callback 'oai-tests-restapi--callback)
           oai-restapi--current-request-is-streamed
           ;; oai-debug-buffer
           (callback-n-test 0)
@@ -389,10 +376,10 @@ Stop it with `oai-restapi-stop-url-request'."
         (should (> length 25))
         ))))
 
-(ert-deftest oai-tests-oai-restapi--url-request-on-change-function-streamed()
+(ert-deftest oai-tests-restapi--url-request-on-change-function-streamed()
   (with-temp-buffer
     ;; set vars,functions used in `oai-restapi--url-request-on-change-function'
-    (let ((oai-restapi--current-url-request-callback 'test-oai-restapi--callback)
+    (let ((oai-restapi--current-url-request-callback 'oai-tests-restapi--callback)
           (oai-restapi--current-request-is-streamed t)
           ;; oai-debug-buffer
           (callback-n-test 0)
@@ -431,7 +418,7 @@ Stop it with `oai-restapi-stop-url-request'."
 
 
 ;;; others
-(ert-deftest test-oai-restapi--strip-api-url-test ()
+(ert-deftest oai-tests-restapi--strip-api-url-test ()
   "Runs tests for `oai-restapi--strip-api-url` explicitly for each case,
    without using a loop or an explicit assert function."
 
@@ -463,7 +450,7 @@ Stop it with `oai-restapi-stop-url-request'."
   t) ; Return t for success
 
 
-(ert-deftest oai-tests-restapi-get-set-test ()
+(ert-deftest oai-tests-restapi--get-set-test ()
   (should (equal (oai-async1-plist-get '(:zaza :foo 1 :bar nil) :zaza) nil))
   (should (equal (oai-restapi--get-values '(:foo 1 :bar nil) :foo)	'(1)))
   (should (equal (oai-restapi--get-values '(:foo 1 :bar nil) :bar)	'(nil))) ; value is nil
@@ -482,7 +469,7 @@ Stop it with `oai-restapi-stop-url-request'."
               (oai-restapi--get-values-enhanced oai-restapi-con-token "github--3")) nil))
   )
 
-(ert-deftest oai-tests-restapi-split-dash-number-test ()
+(ert-deftest oai-tests-restapi--split-dash-number-test ()
   (should-error (oai-restapi--split-dash-number nil))
   (should (equal (oai-restapi--split-dash-number "foo")
                                                  nil))
