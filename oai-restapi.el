@@ -115,9 +115,18 @@
   :type 'boolean
   :group 'oai)
 
-(defcustom oai-restapi-auto-fill nil
+(defcustom oai-restapi-auto-fill t
   "If non-nil, will fill paragraphs when inserting completions."
   :type 'boolean
+  :group 'oai)
+
+(defun oai-restapi--fill-paragraph ()
+  "Default fill-paragraph for streaming."
+  (fill-region (line-beginning-position) (line-end-position)))
+
+(defcustom oai-restapi-fill-paragraph-function 'oai-restapi--fill-paragraph
+  "Function that will be called if auto-fill is active."
+  :type 'function
   :group 'oai)
 
 (defcustom oai-restapi-con-service 'openai
@@ -1009,7 +1018,7 @@ specific role."
                                     (when (or first-resp (not (string= (string-trim text) "")))
                                       (when (and (not first-resp) (string-prefix-p "```" text))
                                         ;; start markdown codeblock responses on their own line
-                                        (insert "\n"))
+                                        (setq text (concat text "\n")))
                                       (when first-resp
                                         ;; call stop waiting with url-buffer and progress reporter.
                                         (oai--debug "oai-restapi--insert-stream-response first-resp")
@@ -1022,8 +1031,10 @@ specific role."
                                       ;; (oai--debug text)
                                       (insert text)
                                       ;; - "auto-fill" if not in code block
-                                      (when (and oai-restapi-auto-fill (not c-inside-code-m))
-                                        (fill-paragraph))
+                                      (when (and oai-restapi-auto-fill
+                                                 (not c-inside-code-m)
+                                                 (not (string-empty-p (string-trim text))))
+                                        (funcall oai-restapi-fill-paragraph-function))
 
                                       (condition-case hook-error
                                           (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'text text pos buffer)
@@ -1131,10 +1142,11 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
     (let ((url-request-buffer
            (url-retrieve ; <- - - - - - - - -  MAIN
             endpoint
-            (lambda (_events) ; called with url-request-buffer as current buffer
-              "url-request-buffer event"
+            (lambda (_events) ;
+              "Called within url-request-buffer after `after-change-functions'"
               ;; (setq _events _events) ; noqa left unused
-              ;; called at error or at the end after `after-change-functions' hooks
+              ;; called one time at error or at the end of all receiving.
+
               (oai--debug "oai-restapi-request *url-retrieve callback*:" _events)
 
               (let (oai-restapi--url-buffer-last-position-marker)
@@ -1147,6 +1159,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
               ;; finally stop track buffer, error or not
               ;; (oai--debug "Main request lambda" _events)
               (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request)
+              ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--interrupt-url-request)
               ))))
 
       (oai--debug "Main request after." url-request-buffer)
@@ -1584,15 +1597,21 @@ Called within `url-retrieve' buffer."
           (let ((errored nil))
             (while (and (not errored)
                         (search-forward "data: " nil t)) ; set cursor after "data: {" on "{"
-              (let ((line
+              (oai--debug "oai-restapi--url-request-on-change-function 2.2) %s %s" (point) oai-restapi--url-buffer-last-position-marker)
+              (let ((psave (point))
+                    (line
                      ;; if string splitted in url-buffer for some reason. we look for empty lines as a separateror.
                      (string-join
-                        (let ((lines (list (buffer-substring-no-properties (point) (line-end-position)))))
-                          (while (save-excursion (and  (= (forward-line) 0))
-                                                 (/= (line-beginning-position) (line-end-position)))
-                            (forward-line)
-                            (push (buffer-substring-no-properties (point) (line-end-position)) lines))
+                        (let ((lines (list (buffer-substring-no-properties (point) (line-end-position))))
+                              (continue t))
+                          (while (and continue
+                                                      (/= (line-beginning-position) (line-end-position)))
+                            (push (buffer-substring-no-properties (point) (line-end-position)) lines)
+                            (when (/= (forward-line) 0)
+                              (setq continue nil)))
                           lines))))
+                (goto-char psave)
+              ;; (let ((line (buffer-substring-no-properties (point) (line-end-position))))
                 ;; (oai--debug "oai-restapi--url-request-on-change-function 2.3) in: %s %s" (point) line)
                 (oai--debug "oai-restapi--url-request-on-change-function 2.3)")
                 ;; (oai--debug "on change 2.2) line: %s" line)
@@ -1617,9 +1636,10 @@ Called within `url-retrieve' buffer."
                       (when errored
                         (oai--debug "oai-restapi--url-request-on-change-function 2.3) errored 1)")
                         (setq data (oai-restapi--json-decode-not-streamed line))
-                        (when (not data)
-                          (oai--debug "oai-restapi--url-request-on-change-function 2.3) errored 2)")
-                          (kill-buffer)))
+                        (if data
+                          (setq errored nil)
+                          ;; else
+                             (oai--debug "oai-restapi--url-request-on-change-function 2.3) errored 2)")))
 
                       ;; (setq org-ai--debug-data (append org-ai--debug-data (list data)))
                       (when data
@@ -1636,17 +1656,16 @@ Called within `url-retrieve' buffer."
                     ;; (end-of-line)
                     (set-marker oai-restapi--url-buffer-last-position-marker (point))
                     ;; (setq oai-restapi--url-buffer-last-position-marker nil)
-                    (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request) ; stop timer
+                    ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request) ; stop timer
                     ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--interrupt-url-request) ; stop timer
                     ;; (if (get-buffer tmp-buf)
                     ;;     (kill-buffer tmp-buf))
                     ;; (oai--debug "on change 4)")
                     (funcall oai-restapi--current-url-request-callback nil) ; INSERT CALLBACK!
-                    (kill-buffer)
+                    ;; (kill-buffer)
                     ;; (org-ai-reset-stream-state)
                     ;; (message "oai request done")
-                    )
-                  )))))))))
+                    ))))))))))
         ;; (goto-char p) ; additional protection
         ;; (oai--debug "oai-restapi--url-request-on-change-function end")
 
