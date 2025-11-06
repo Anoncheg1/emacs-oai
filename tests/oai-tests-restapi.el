@@ -36,7 +36,7 @@
 
 (require 'ert)
 (require 'oai-restapi)
-
+(defvar ert-enabled nil)
 ;; (eval-buffer)
 ;; (ert t)
 ;;

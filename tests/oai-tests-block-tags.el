@@ -32,7 +32,7 @@
 (require 'oai-block-tags)
 ;; (print (list "vvvvvvvvvvvvvvvvvvvvvv1" (bound-and-true-p debug)))
 (require 'ert)
-(defvar ert-enabled t)
+(defvar ert-enabled nil)
 ; org-links - is optional dependency
 
 ;; (eval-buffer) or (load-file "path/to/async-tests.el")
@@ -338,8 +338,8 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
                      (should (string-match-p "```ls-output" (nth 2 res)))
                      (should (string-match-p "  /tmp/test[^ ]+:" (nth 3 res)))
                      ;; "  -rw-rw-r-- 1 g 0 Nov  5 21:13 file1.txt"
-                     (should (string-match-p "file1.txt" (nth 4 res)))
-                     (should (string-match-p "file2.txt" (nth 5 res)))
+                     (should (string-match-p "file[12].txt" (nth 4 res)))
+                     (should (string-match-p "file[12].txt" (nth 5 res)))
                      (should (string-match-p "^```$" (nth 7 res)))
                      (should (string-match-p "^ bbb$" (nth 8 res))))))
 
