@@ -582,7 +582,7 @@ not found in tokens."
 (defun oai-restapi--get-endpoint (messages &optional service)
   "Correct endpoint based on the SERVICE and type of requst.
 Ff MESSAGES are provided, type of request is chat, otherwise completion."
-  (print (list "oai-restapi--get-endpoint" messages service))
+  (oai--debug "oai-restapi--get-endpoint %s %s" messages service)
   (let* ((service (or (if service
                           (oai-restapi--openai-service-clear-dashes service))
                       ;; else
@@ -1487,7 +1487,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
         (setq max-tokens nil)
         (setq max-completion-tokens (or max-tokens 128000))))
 
-    (print (list "stream-payload" stream))
+    (oai--debug "oai-restapi--payload stream: %s" stream)
 
     (let* ((input (if messages `(messages . ,messages) `(prompt . ,prompt)))
            ;; TODO yet unsupported properties: n, stop, logit_bias, user
@@ -1547,6 +1547,7 @@ This  callback  here  is `oai-restapi--insert-stream-response'  for  chat  or
 `oai-restapi--insert-single-response' for completion.
 Called within `url-retrieve' buffer."
   ;; (oai--debug "oai-restapi--url-request-on-change-function: %s %s %s %s" _beg _end _len (current-buffer))
+  (oai--debug "oai-restapi--url-request-on-change-function")
   ;; (with-current-buffer org-ai--last-url-request-buffer
   ;; (oai--debug "oai-restapi--url-request-on-change-function call: %s %s" oai-restapi--url-buffer-last-position-marker url-http-end-of-headers)
   (when (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
@@ -1592,7 +1593,8 @@ Called within `url-retrieve' buffer."
                             (forward-line)
                             (push (buffer-substring-no-properties (point) (line-end-position)) lines))
                           lines))))
-                (oai--debug "oai-restapi--url-request-on-change-function 2.3) in: %s %s" (point) line)
+                ;; (oai--debug "oai-restapi--url-request-on-change-function 2.3) in: %s %s" (point) line)
+                (oai--debug "oai-restapi--url-request-on-change-function 2.3)")
                 ;; (oai--debug "on change 2.2) line: %s" line)
                 ;; (message "...found data: %s" line)
                 (if (not (string= line "[DONE]"))
@@ -1621,7 +1623,8 @@ Called within `url-retrieve' buffer."
 
                       ;; (setq org-ai--debug-data (append org-ai--debug-data (list data)))
                       (when data
-                        (oai--debug "oai-restapi--url-request-on-change-function 2.4) %s" data)
+                        ;; (oai--debug "oai-restapi--url-request-on-change-function 2.4) %s" data)
+                        (oai--debug "oai-restapi--url-request-on-change-function 2.4)")
                         (end-of-line)
                         (set-marker oai-restapi--url-buffer-last-position-marker (point))
                         ;; (oai--debug (format "on change 3) %s" oai-restapi--url-buffer-last-position-marker))
@@ -1639,6 +1642,7 @@ Called within `url-retrieve' buffer."
                     ;;     (kill-buffer tmp-buf))
                     ;; (oai--debug "on change 4)")
                     (funcall oai-restapi--current-url-request-callback nil) ; INSERT CALLBACK!
+                    (kill-buffer)
                     ;; (org-ai-reset-stream-state)
                     ;; (message "oai request done")
                     )
