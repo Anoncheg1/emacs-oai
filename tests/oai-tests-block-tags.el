@@ -308,7 +308,6 @@ ss2")
       (should (string-equal "bb." (nth 5 res)))))
 
 
-
 ;;; - Test: oai-block-tags-replace - for directory
 (defmacro with-temp-files (filenames &rest body)
   "Create a temporary directory, populate it with FILENAMES (as empty files),
