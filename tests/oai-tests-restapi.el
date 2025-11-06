@@ -292,7 +292,6 @@ Stop it with `oai-restapi-stop-url-request'."
 
   (when (= callback-n-test 0)
     (setq callback-n-test (1+ callback-n-test))
-    (print (list "ss" data))
     (setq callback-test data)))
 
 
@@ -411,16 +410,11 @@ Stop it with `oai-restapi-stop-url-request'."
       (insert "\n\n")
       (goto-char (point-min))
       (setq url-http-end-of-headers (point-min)) ; should set globally, checked by `boundp'
-      ;; (print (list (boundp 'url-http-end-of-headers) url-http-end-of-headers))
-      ;; (funcall oai-restapi--current-url-request-callback "data")
       (oai-restapi--url-request-on-change-function nil nil nil)
-      ;; (print (list "wtf" callback-test))
-      ;; (print (list "data0" (aref (plist-get callback-test 'choices) 0)))
-      ;;
       (setq data (aref (plist-get callback-test 'choices) 0))
-      (print (list "data1" data))
+      ;; (print (list "data1" data))
       (setq data (plist-get (plist-get data 'delta) 'content))
-      (print (list "data2" (length data) data ))
+      ;; (print (list "data2" (length data) data ))
       (should (= (length data) 7))
       )))
     ;; (let ((json-object-type 'plist)

@@ -720,8 +720,6 @@ Called from `oai-call-block' in main file.
 For Completion LLM mode. Used as callback for `oai-restapi-request'."
   (when response
     ;; (oai--debug "oai-restapi--get-single-response-text response:" response)
-    (print (list "asd" (car response)))
-    ;; (print (list "asd" (plist-get response 'choices)))
     (if-let ((error (plist-get response 'error)))
         (if-let ((message (plist-get error 'message))) (error message) (error error))
       ;; else - no "error" field
