@@ -4,10 +4,8 @@
 ;; Keywords: org, comm, url, link
 ;; URL: https://github.com/Anoncheg1/emacs-oai
 ;; Version: 0.1
-;;  Fork from orig. version: 0.5.6 (commit cc4a4eb778e4689573ebd2d472b8164f4477e8b8)
 ;; Created: 20 Aug 2025
 ;; Package-Requires: ((emacs "27.1"))
-;;  :  (compat "30.")
 ;; Optional dependency: ((org-links "0.2"))
 ;; SPDX-License-Identifier: AGPL-3.0-or-later
 ;; Copyright (C) 2023-2025 Robert Krahn
@@ -34,7 +32,8 @@
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
 ;;; Commentary:
-;;
+;; Fork from orig. version: 0.5.6 (commit cc4a4eb778e4689573ebd2d472b8164f4477e8b8)
+
 ;; OAI extend Org mode with "ai block" that allows you to interact
 ;; with the OpenAI-compatible REST APIs.  Fork of "org-ai".
 ;;
