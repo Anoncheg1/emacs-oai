@@ -23,8 +23,11 @@
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
 
+;;; Commentary:
 ;; `interrupt-request-func' is for implementation of interrupt that `oai-restapi--interrupt-url-request'
-;;; - Variables
+
+;;; Code:
+
 (defcustom oai-timers-echo-gap 0.2
   "Echo update interval."
   :type 'float
@@ -66,13 +69,13 @@ Used for `oai-restapi-request-llm-retries' calling in `oai-prompt'."
 Pairs of url-buffer (key) -> Header-marker (variable).
 So ai block may have several url-buffer running at the same time.
 Intented for usage with `oai-block--copy-header-marker' and keep pairs of
-(url-retrieve buffero -> header marker).
+\(url-retrieve buffero -> header marker).
 Should be used for interactive interrup of request only.
 `eq' is good for buffers, for markers we should use `equal'")
 
 ;;; - variable-dict
 (defun oai-timers--get-variable (key)
-  "Get variable for key.
+  "Get variable for KEY.
 Get header-marker (variable) for url-buffer (key).
 Key is Indented for usage with `oai-block-get-header-marker'.
 Use ELEMENT only in current moment.
@@ -100,18 +103,43 @@ Indented for usage with `oai-block-get-header-marker'.
 Used in
 - `oai-restapi-request-prepare'
 - `oai-restapi-request-llm-retries'."
-    (if (eq value nil)
+    (if (not value)
         (setf (alist-get key oai-timers--element-marker-variable-dict nil 'remove) nil)
       ;; else
       (setf (alist-get key oai-timers--element-marker-variable-dict) value)))
 
+(defun oai-timers--rassq-delete-all-equal (value alist)
+  "Delete from ALIST all elements whose cdr is `equal' to VALUE.
+Return the modified alist. Elements of ALIST that are not conses are ignored.
+We need this,  because `rassq-delete-all' remove by `eq'  only which not
+suitable for  markers which should  be compared by buffer  and position,
+not by object itself."
+  (delq nil
+        (mapcar (lambda (elt)
+                  (and (consp elt)
+                       (not (equal (cdr elt) value))
+                       elt))
+                alist)))
+;; (setq mylist '((a . 1) (b . 2) (c . (1 2)) (d . 2)))
+;; (rassq-delete-all 2 mylist) ;; removes (b . 2) and (d . 2), only if value is `eq` to 2
+;; (setq mylist '((a . 1) (b . 2) (c . (1 2)) (d . 2)))
+;; (rassq-delete-all-equal 2 mylist) ;; removes (b . 2) and (d . 2), works for numerics
+;; (rassq-delete-all-equal '(1 2) mylist) ;; removes (c . (1 2)), matches by content
+
 (defun oai-timers--remove-variable (value)
   "Remove marker.
 `equal' for markers compare buffer and positon, `eq' compare objects itself.
-We use `eq' here."
+We use `eq' here.
+Argument VALUE is Header-marker."
   (setq oai-timers--element-marker-variable-dict
         ;; eq compare objects itself
-        (rassq-delete-all value oai-timers--element-marker-variable-dict)))
+        (oai-timers--rassq-delete-all-equal value oai-timers--element-marker-variable-dict)))
+
+;; (setq a (copy-marker (point)))
+;; (setq b (copy-marker (point)))
+;; (setq c (copy-marker a))
+;; (eq a c)
+
 
 (defun oai-timers--remove-key (key)
   "Remove buffer. Use `eq' to find key, for buffer eq is ok."
@@ -197,7 +225,6 @@ Called from
       (unless oai-timers--oai-update-mode-line
         (error "oai.el should be loaded to use oai-timers--update-global-progress-reporter function"))
       (funcall oai-timers--oai-update-mode-line count)
-      ;; (oai-update-mode-line count)
       (when (eql count 0)
         (oai-timers--stop-global-progress-reporter failed)))))
 
@@ -331,7 +358,7 @@ Set:
   ;; - update mode-line
   ;; (oai-timers--update-global-progress-reporter)
   ;; We make delay because this function run after url-retrieve and url-buffer may be not saved.
-  (run-with-timer 1.0 nil (lambda () (oai-update-mode-line (length (oai-timers--get-all-keys)))))
+  (run-with-timer 1.0 nil (lambda () (funcall oai-timers--oai-update-mode-line (length (oai-timers--get-all-keys)))))
 
   ;; - precalculate ticks based on duration, 25/ 0.2 = 125 ticks
   (setq oai-timers--global-progress-timer-remaining-ticks
@@ -363,8 +390,7 @@ Set:
                (setq oai-timers--global-progress-timer-remaining-ticks
                      (1- oai-timers--global-progress-timer-remaining-ticks))
                (progress-reporter-update oai-timers--global-progress-reporter)))))
-    (oai--debug "oai-timers--progress-reporter-run4")
-    )
+    (oai--debug "oai-timers--progress-reporter-run4"))
 
   ;; timer2 - request killer
   ;; (with-current-buffer url-buffer

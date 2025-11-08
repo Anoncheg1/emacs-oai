@@ -244,7 +244,6 @@ messages."
       ;; - else
       (when (or (and (bound-and-true-p oai-mode)
                      (not (minibufferp (window-buffer (selected-window))))) ; not in minubuffer
-
                 )
         ;; - stop current request
         (if (bound-and-true-p oai-debug-buffer)
