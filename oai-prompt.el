@@ -174,9 +174,10 @@ Modeline notification:
 "
   (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
   ;; noqa Unused lexical argument
-  (setq req-type req-type
-        sys-prompt-for-all-messages sys-prompt-for-all-messages
-        stream stream)
+  (ignore req-type sys-prompt-for-all-messages stream)
+  ;; (setq req-type req-type
+  ;;       sys-prompt-for-all-messages sys-prompt-for-all-messages
+  ;;       stream stream)
 
   ;; (if (not (eql 'x (alist-get :chain (oai-block-get-info element) 'x))) ; check if :my exist
   ;; - My request
@@ -184,14 +185,14 @@ Modeline notification:
         (end-marker (oai-block--get-content-end-marker element))
         (header-marker (oai-block-get-header-marker element))
         ;; (gap-between-requests 3) ; TODO
-        ;; (buffer-key (get-buffer-create "*oai--chain-tmp*" t)) ; use one buffer as for updating global notification timer
-        (step (alist-get :step (oai-block-get-info element))) ; Works? not tested TODO
+        ;; (step (alist-get :step (oai-block-get-info element))) ; Works? not tested TODO
         (oai-timers-duration-copy oai-timers-duration)
         (oai-timers-retries-copy oai-timers-retries))
 
     (let (
           (call (lambda (step) ; called 3 times
-                  (lambda (data callback)
+                  (lambda (_data callback)
+                    (ignore _data)
                     (oai--debug "oai-prompt-request-chain1 step %s" step) ; 0, 1, 2
                     (oai--debug "oai-prompt-request-chain1 buffer %s" (current-buffer))
                     (oai--debug "oai-prompt-request-chain1 max-tokens %s header-marker %s sys-prompt %s" max-tokens header-marker sys-prompt)
@@ -225,7 +226,6 @@ Modeline notification:
                           (oai--debug "calbackmy %s %s" oai-timers--element-marker-variable-dict (current-buffer))
                           (oai-restapi--insert-single-response end-marker (concat "[AI]: " data) nil 'final)
                           (run-at-time 0 nil callback data)
-                          ;; (oai-timers--progress-reporter-run #'oai-restapi--stop-tracking-url-request)
                           )))
           (calbafin (lambda (data callback)
                       (setq callback callback) ; noqa unused
@@ -234,7 +234,6 @@ Modeline notification:
                         (oai-restapi--insert-single-response end-marker (concat "[AI]: " data))
                         (oai-restapi--insert-single-response end-marker nil 'insertrole 'final) ; finalize
                         (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request)
-                        ;; (oai-timers--interrupt-current-request buffer-key #'oai-restapi--stop-tracking-url-request)
                         ))))
 
       (oai--debug "oai-prompt-request-chain2 %s %s %s %s" header-marker service model oai-timers-duration)
@@ -253,30 +252,11 @@ Modeline notification:
                                     (funcall call 2)
                                     calbafin
                                     ))
-            (oai--debug "oai-prompt-request-chain4")
-
-
-            ;; (oai--debug "oai-prompt-request-chain3")
-            ;; Global reporter uppdated and run all the time.
-            ;; Every task have own timer for parallel requests to retry them.
-            ;; 1) save request for timer
-            ;; (oai-timers--set buffer-key header-marker)
-            ;; 2) run global reporter
-            ;; (sleep-for 1) ; allow to save url-buffer to global variable
-
-            )
+            (oai--debug "oai-prompt-request-chain4"))
         (user-error
          (funcall oai-restapi-show-error-function (error-message-string err)
                   header-marker)
-         (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request)
-         )
-      )))
-
-  ;;     ;; - else - built-in
-  ;;     (oai--debug "ELSE")
-  ;;     (oai-restapi-request-prepare req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
-  ;; )
-)
+         (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request))))))
 
 
 ;;; provide

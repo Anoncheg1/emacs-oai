@@ -121,7 +121,7 @@
   :group 'oai)
 
 (defun oai-restapi--fill-paragraph ()
-  "Default fill-paragraph for streaming."
+  "Default `fill-paragraph' for streaming."
   (fill-region (line-beginning-position) (line-end-position)))
 
 (defcustom oai-restapi-fill-paragraph-function 'oai-restapi--fill-paragraph
@@ -1188,10 +1188,10 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
 (cl-defun oai-restapi-request-llm (service model callback &optional &key prompt messages max-tokens temperature top-p frequency-penalty presence-penalty)
   "Simplified version of `oai-restapi-request' without stream support.
 Used for building agents or chain of requests.
-Call CALLBACK called from callback of url-retrieve with nil or result of
+Call CALLBACK called from callback of `url-retrieve' with nil or result of
 `oai-restapi--normalize-response' of response.
 Use argument SERVICE to find endpoint, MODEL as parameter to request.
-Call CALLBACK at receive. Call CALLBACK with nil if error.
+Call CALLBACK at receive.  Call CALLBACK with nil if error.
 One of argument PROMPT and MESSAGES used as main payload.
 Optional argument MAX-TOKENS - OpenAI parameter.
 Optional argument TEMPERATURE - OpenAI parameter
@@ -1295,7 +1295,7 @@ Optional argument PRESENCE-PENALTY - OpenAI parameter."
 ;; (make-variable-buffer-local 'oai-restapi-request-llm-retries)
 
 (cl-defun oai-restapi-request-llm-retries (service model timeout callback &optional &key retries prompt messages header-marker max-tokens temperature top-p frequency-penalty presence-penalty)
-  "Add TIMEOUT and RETRIES parameters to `oai-restapi-request-llm' function.
+  "`oai-restapi-request-llm' function with TIMEOUT and RETRIES.
 Only one request per ai block is allowed at one time.
 Timer function restart requst and restart timer with attempts-1.
 In callback we add cancel timer function.
@@ -1303,10 +1303,11 @@ We save and cancel time only in callback.
 TIMER is time to wait for one request.
 Use argument SERVICE to find endpoint, MODEL as parameter to request.
 How? we restart request if
-1. url-buffer is alive - hanged - in timer - in timer we check url-buffer is alive.
+1.  url-buffer is alive - hanged - in timer - in timer we check
+url-buffer is alive.
 2. url returned error, we check it in callback.
 
-We store url-buf with marker of header in oai-timers.el "
+We store url-buf with marker of header in oai-timers.el"
   (oai--debug "oai-restapi-request-llm-retries0 timeout %s" timeout)
   (with-current-buffer (marker-buffer header-marker)
     (let (
@@ -1421,9 +1422,9 @@ We store url-buf with marker of header in oai-timers.el "
 (defun oai-restapi--maybe-show-openai-request-error ()
   "If the API request returned an error, show it.
 `REQUEST-BUFFER' is the buffer containing the request.
-If http-code is nil - C-g was used to stop all.
+If http-code is nil - C\\-g was used to stop all.
 Return t if error happen, otherwise nil.
-If C-g was used return nil."
+If C\\-g was used return nil."
   (oai--debug "oai-restapi--maybe-show-openai-request-error1")
 
 
@@ -1524,8 +1525,9 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
 
      ;; (encode-coding-string (json-encode data) 'utf-8))))
 
-(defun clean-unicode-text (str)
-  "Allow all Unicode, but remove ASCII control chars except tab, newline, and carriage return."
+(defun oai-restapi--clean-unicode-text (str)
+  "Remove ASCII control chars except tab, newline, and carriage return.
+Argument STR unicode multi-byte string."
   (apply #'string
          (seq-filter
           (lambda (ch)
@@ -1536,7 +1538,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
           (string-to-list str))))
 
 (defun oai-restapi--json-decode-not-streamed (string)
-  "Decode JSON string to plist.
+  "Decode JSON STRING to plist.
 This is slow version compared to `json-read', because
 `json-read-from-string' create temp buffer.
 Return nil if error."
@@ -1545,7 +1547,7 @@ Return nil if error."
         (json-array-type 'vector))
     (condition-case _err
         (json-read-from-string
-         (clean-unicode-text
+         (oai-restapi--clean-unicode-text
           (decode-coding-string (encode-coding-string string 'utf-8 't) 'utf-8))) ; just in case
       (error nil))))
 
