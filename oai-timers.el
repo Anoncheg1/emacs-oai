@@ -75,7 +75,7 @@ Should be used for interactive interrup of request only.
 
 ;;; - variable-dict
 (defun oai-timers--get-variable (key)
-  "Get variable for KEY.
+  "Get variable (one or first) for KEY.
 Get header-marker (variable) for url-buffer (key).
 Key is Indented for usage with `oai-block-get-header-marker'.
 Use ELEMENT only in current moment.

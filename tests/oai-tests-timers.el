@@ -96,6 +96,24 @@
     (oai-timers--set 1 nil)
     (should-not (oai-timers--get-variable 1))))
 
+(ert-deftest oai-tests-timers--set-and-get-variable1-real ()
+  (let ((oai-timers--element-marker-variable-dict nil)
+        (buffer (current-buffer))
+        (marker1 (copy-marker (point))))
+    (with-temp-buffer
+      (let ((tem-buf (current-buffer))
+            (marker2 (copy-marker (point))))
+
+        (should (equal (oai-timers--get-variable buffer) nil))
+
+        (oai-timers--set buffer marker1)
+        (oai-timers--set tem-buf marker1)
+
+        (should (equal (oai-timers--get-variable buffer) marker1))
+        (should (equal (oai-timers--get-variable tem-buf) marker1))
+        (oai-timers--set tem-buf marker2)
+        (should (equal (oai-timers--get-variable tem-buf) marker2))))))
+
 (ert-deftest oai-tests-timers--get-keys-for-variable2 ()
   "Test retrieval of all keys mapped to a variable."
   (let ((oai-timers--element-marker-variable-dict nil))
@@ -108,7 +126,7 @@
     ;; Not present
     (should (equal (oai-timers--get-keys-for-variable 300) nil))))
 
-(ert-deftest oai-tests-timers--remove-variable-removes-all-matching ()
+(ert-deftest oai-tests-timers--remove-variable ()
   "Test removing all mappings by variable (eq)."
   (let ((oai-timers--element-marker-variable-dict nil))
     (oai-timers--set 'a 'marker1)
@@ -123,6 +141,35 @@
     (oai-timers--remove-variable 'marker2)
     (should (equal oai-timers--element-marker-variable-dict nil))))
 
+(ert-deftest oai-tests-timers--remove-variable-remove-real ()
+  "Test removing all mappings by marker value."
+  (let ((oai-timers--element-marker-variable-dict nil)
+        (buffer (current-buffer))
+        (marker1 (copy-marker (point)))
+        )
+    (with-temp-buffer
+      (let ((tem-buf (current-buffer))
+            (marker2 (copy-marker (point)))
+            (marker3 (copy-marker (point)))
+            )
+        ;; Set
+        (oai-timers--set tem-buf marker1)
+        (oai-timers--set buffer marker2)
+        ;; Remove marker1, leaving only marker2 mapping
+        (oai-timers--remove-variable marker1)
+
+        (should (= (length oai-timers--element-marker-variable-dict) 1))
+        (should (equal (oai-timers--get-variable buffer) marker2))
+
+        (oai-timers--remove-variable marker2)
+        (should (equal oai-timers--element-marker-variable-dict nil))
+
+        (oai-timers--set buffer marker1)
+        (oai-timers--set tem-buf marker1)
+        (oai-timers--remove-variable marker1)
+        (should (equal oai-timers--element-marker-variable-dict nil))
+        ))))
+
 (ert-deftest oai-tests-timers--remove-key-removes-only-that-key ()
   "Test removing only the specified key."
   (let ((oai-timers--element-marker-variable-dict nil))
@@ -133,6 +180,7 @@
     ;; Removing non-existing key does nothing
     (oai-timers--remove-key 'gamma)
     (should (equal oai-timers--element-marker-variable-dict '((alpha . v1))))))
+
 
 (ert-deftest oai-tests-timers--get-all-keys ()
   "Test getting all unique keys."
