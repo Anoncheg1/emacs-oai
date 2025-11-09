@@ -438,7 +438,10 @@ Optional argument HASH not used."
   t)
 
 (defun oai-block-where-is-result (&optional insert _info hash)
-  "Modified `org-babel-where-is-src-block-result' function."
+  "Modified `org-babel-where-is-src-block-result' function.
+If Optional  argument INSERT is  non-nil just enshure that  result field
+exist.
+For _INFO HASH check `org-babel-where-is-src-block-result' function."
   (oai--debug "oai-block-where-is-result")
   (let ((context (oai-block-p)))
     (catch :found
@@ -520,8 +523,9 @@ the rest of the result."
 
 (defun oai-block--fontify-markdown-subblocks (start end)
   "Fontify ```language ... ``` fenced mardown code blocks.
- We search for begining of block, then for end of block, then fontify
- with `org-src-font-lock-fontify-block'."
+We search for begining of block, then for end of block, then fontify
+ with `org-src-font-lock-fontify-block'.
+Argument START and END are limits for searching."
   (goto-char start)
   (let ((case-fold-search t))
     (while (and (< (point) end)

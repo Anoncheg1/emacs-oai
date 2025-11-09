@@ -146,8 +146,8 @@ answers except of the first one are already in block-content."
 
 
 (defun oai-prompt-request-switch (&rest args)
-  "For assiging to `oai-agent-call-function'.
-Optional argument ARGS "
+  "Check if there is :chain at ai block parameters and call chain function.
+For assiging to `oai-agent-call-function' with all normal ARGS."
   ;; element = (nth 1 args)
   (when (not (eql 'x (alist-get :chain (oai-block-get-info (nth 1 args)) 'x)))
       (apply #'oai-prompt-request-chain args)
@@ -170,8 +170,7 @@ Execution Chain:
 Modeline notification:
 1) `oai-timers--set' used in `oai-restapi-request-llm-retries'.
 2) `oai-timers--set' here
-3) `oai-timers--progress-reporter-run' - here
-"
+3) `oai-timers--progress-reporter-run' - here"
   (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
   ;; noqa Unused lexical argument
   (ignore req-type sys-prompt-for-all-messages stream)

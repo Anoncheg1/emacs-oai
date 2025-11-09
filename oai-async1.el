@@ -209,11 +209,11 @@ Used for :aggregator."
     default))
 
 (if (not (eq (oai-async1-plist-get '(:foo 1 :bar nil :zaza nil) :zaza)  nil))
-    (error "oai-async1-plist-get1"))
+    (error "Error: oai-async1-plist-get1"))
 (if (not (eq (oai-async1-plist-get '(:foo 1 :bar nil :zaza) :zaza) nil))
-    (error "oai-async1-plist-get1"))
+    (error "Error: oai-async1-plist-get2"))
 (if (not (eq (oai-async1-plist-get '(:zaza :foo 1 :bar nil) :zaza) nil))
-    (error "oai-async1-plist-get1"))
+    (error "Error: oai-async1-plist-get3"))
 
 (defun oai-async1--handle-parallel-step (specs data chain-step current-index)
   "Execute parallel SPECS with DATA, aggregate results with AGGREGATOR.

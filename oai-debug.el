@@ -23,13 +23,13 @@
 ;; If not, see <https://www.gnu.org/licenses/>.
 ;;; Commentary:
 
-;;; Code
-
 (require 'backtrace) ; for `oai--debug-get-caller' (not used now)
+
+;;; Code:
 
 (defcustom oai-debug-buffer nil
   "If non-nil, enable debuging to a debug buffer.
-Set to something like *debug-oai*. to enable debugging."
+Set to something like *debug-oai*.  to enable debugging."
   :type 'string
   :group 'oai)
 
