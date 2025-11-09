@@ -548,12 +548,18 @@ not found in tokens."
             (user-error "Token in `oai-restapi-con-token' is not string but something other, please check")))
       ;; else - nil not found or `oai-restapi-con-token' is not defined
       (prog1 (setq token (oai-restapi--get-token-auth-source service))
-        (if (not token)
-            ;; else - not found in auth-sources and not found or `oai-restapi-con-token' is not defined
-            (if oai-restapi-con-token
-                (user-error "Token not found in defined plist `oai-restapi-con-token' and in auth sources")
-              ;; else no `oai-restapi-con-token'
-              (user-error "Please set `oai-restapi-con-token' to your OpenAI API token or setup auth-source (see oai readme)")))))))
+        (when (not token)
+          ;; else - not found in auth-sources and not found or `oai-restapi-con-token' is not defined
+          (cond
+           ((and oai-restapi-con-token (proper-list-p oai-restapi-con-token))
+            (user-error "Token not found in defined plist `oai-restapi-con-token' and in auth sources"))
+           ((and oai-restapi-con-token
+                 (stringp oai-restapi-con-token)
+                 (string-empty-p oai-restapi-con-token))
+            (user-error "`oai-restapi-con-token' is an empty string. Please set."))
+           (t
+            ;; else no `oai-restapi-con-token'
+            (user-error "Please set `oai-restapi-con-token' to your OpenAI API token or setup auth-source (see oai readme)"))))))))
 
 
 ;; (oai-restapi--get-token "github") => first token from list

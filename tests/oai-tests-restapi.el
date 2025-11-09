@@ -111,9 +111,16 @@
     (unwind-protect
         (progn
           (fset 'oai-restapi--get-token-auth-source (lambda (service) (setq service service) nil))
+
           (let ((err (cadr
                       (should-error (oai-restapi--get-token :openai) :type 'error))))
-            (should (eql 0 (string-match "Please set" err)))))
+            ;; (print err)))))
+            (should (string-match "Please set" err)))
+          (setq oai-restapi-con-token '(:asd nil))
+          (let ((err (cadr
+                      (should-error (oai-restapi--get-token :openai) :type 'error))))
+            ;; (print err)))))
+            (should (string-match "ot found" err))))
       (fset 'oai-restapi--get-token-auth-source orig-fn))))
 ;;;
 ;;; - For `oai-restapi--get-token'
