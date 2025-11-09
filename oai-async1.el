@@ -41,7 +41,8 @@
 ;; Deep trees should work also.
 
 ;; How this works:
-;; Each async records-functions wrapped in lambda that call to next record with result.
+;; Each async records-functions wrapped in lambda that call to next
+;; record with result.
 ;; All lambda functions created as a one lambda and we call it.
 
 ;; Examples of usage:
@@ -57,7 +58,8 @@
 ;;     (:result "Parallel B" :delay 2))
 ;;    (:result "Step 3" :delay -1)))
 
-;; "Final result: {Step 1 -> Sub-seq a -> Sub-seq b, Step 1 -> Parallel B, Step 1 -> Parallel A} -> Step 3"
+;; "Final result: {Step 1 -> Sub-seq a -> Sub-seq b, Step 1 -> Parallel B,
+;;    Step 1 -> Parallel A} -> Step 3"
 
 ;; 2. Mixing custom function and parallel steps
 ;; (defun custom-async-step (data callback)

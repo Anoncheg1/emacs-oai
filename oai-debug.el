@@ -122,8 +122,8 @@ Return last argument, but should not be used for return value."
               (setq result-string (apply #'concat (mapcar (lambda (arg)
                                                             (if (equal (type-of arg) 'string)
                                                                 (format "%s\n" arg)
-                                                              (concat (prin1-to-string arg) "\n"))
-                                                            ) args))))
+                                                              (concat (prin1-to-string arg) "\n")))
+                                                          args))))
             (when (and oai--debug-filter
                        (not (string-match-p (regexp-quote oai--debug-filter) result-string)))
                     (setq result-string nil))
@@ -131,8 +131,7 @@ Return last argument, but should not be used for return value."
               (if (bound-and-true-p ert-enabled)
                   (princ (concat result-string "\n"))
                 ;; else
-                (insert result-string)))
-            )))))
+                (insert result-string))))))))
   (car (reverse args)))
 
 

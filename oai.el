@@ -32,7 +32,7 @@
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
 ;;; Commentary:
-;; Fork from orig. version: 0.5.6 (commit cc4a4eb778e4689573ebd2d472b8164f4477e8b8)
+;; Fork from orig.  version: 0.5.6 (commit cc4a4eb778e4689573ebd2d472b8164f4477e8b8)
 
 ;; OAI extend Org mode with "ai block" that allows you to interact
 ;; with the OpenAI-compatible REST APIs.  Fork of "org-ai".
@@ -92,7 +92,6 @@
 ;; - TODO: implement expanders for variables like links and references
 ;; - TODO: implement contant-tags "Fix @problems then document the changes in @/CHANGELOG.md" @url, @file, @folder, @header? (Org)
 
-;;; -=-= Includes
 (require 'oai-debug)
 (require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'
 (require 'oai-block)

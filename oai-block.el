@@ -555,8 +555,7 @@ rules in `font-lock-defaults' variable."
             (when (re-search-forward "^#\\+end_ai.*$" nil t)
               (let ((end (match-beginning 0)))
                 (save-match-data
-                  (setq ret (oai-block--fontify-markdown-subblocks beg end)))
-                ))))
+                  (setq ret (oai-block--fontify-markdown-subblocks beg end)))))))
         ;; required by font lock mode:
         (goto-char limit)
         ret)))

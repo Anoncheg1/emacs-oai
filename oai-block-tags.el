@@ -122,8 +122,7 @@ Used to set `org-link-search-must-match-exact-headline' before
 (defvar oai-block-tags-org-blocks-types '(comment-block center-block dynamic-block example-block
                                                         export-block quote-block special-block
                                                         src-block verse-block)
-  "Org block types that we wrap to markdown and may get by the first line."
-  )
+  "Org block types that we wrap to markdown and may get by the first line.")
 ;;; -=-= @Backtrace
 
 (defun oai-block-tags--take-n-lines (string n)
@@ -287,8 +286,7 @@ Steps: find max, min region of special-block/src-block/buffer
      ;; - 2 - Body
      (string-trim (buffer-substring-no-properties beg end))
      ;; - 3 - Footer ```
-     "\n```")
-    ))
+     "\n```")))
 
 (defun oai-block-tags--get-m-block ()
   "Called for current point.
@@ -411,11 +409,9 @@ Move pointer to the end of block."
                     (org-forward-element)
                     ;; (org-next-item)
                     ;; (error nil))
-                    ))) replacement-list)
-          ) ; while
+                    ))) replacement-list))
         ;; (print (list "!!!!!!!!!" (reverse replacement-list)))
-        (apply 'concat (reverse replacement-list))
-        ))
+        (apply 'concat (reverse replacement-list))))
      ;; - (2) case - Markdown block
      ((oai-block-tags--get-m-block))
      ;; (oai-block-tags--markdown-block-range
@@ -539,8 +535,7 @@ Return replacement string."
                  ;; (user-error "Links to targets in other files not supported for now")
                  )
              ;; else - no ::, only path
-             (oai-block-tags--compose-block-for-path-full path))
-           ))
+             (oai-block-tags--compose-block-for-path-full path))))
 
         ;; LOCAL LINKS!
         ;; ((or "coderef" "custom-id" "fuzzy" "radio")
@@ -782,8 +777,7 @@ If REPLACEMENT not provided return found string for regexp or nil if not found."
                       ;; last-group
                       (substring string last-end))
           ;; else - return just string
-          string
-          )
+          string)
       ;; else no replacement
       (if last-pos
           (replace-regexp-in-string "^[` ]*" ""
@@ -975,9 +969,7 @@ Return modified string or the same string."
 (let* ((temp-dir (make-temp-file "my-tmp-dir-" t))     ;; Create temp directory
        (file1 (expand-file-name "file1.txt" temp-dir)) ;; Known file name
        (file2 (expand-file-name "file2.el" temp-dir))
-       (file3 (expand-file-name "file3.py" temp-dir))
-       )
-
+       (file3 (expand-file-name "file3.py" temp-dir)))
       (with-temp-file file1
         (insert "Contents for file1"))
       (with-temp-file file2
@@ -1029,8 +1021,7 @@ TODO: maybe we should use something like
                     (goto-char beg)
                     (while (re-search-forward oai-block--org-link-any-re end t)
                       (goto-char (match-beginning 0))
-                      (setq ret (org-activate-links end))
-                      ))
+                      (setq ret (org-activate-links end))))
                   ;; - @Backtrace
                   (progn
                     (goto-char beg)
@@ -1045,8 +1036,7 @@ TODO: maybe we should use something like
                       (setq ret t)))
                   ;; fontify markdown sub-blocks
                   ;; (oai-block--fontify-markdown-subblocks beg end)
-                  )
-                ))))
+                  )))))
         ;; required by font lock mode:
         (goto-char limit)
         ret)))
@@ -1056,7 +1046,6 @@ TODO: maybe we should use something like
 (defun oai-block-tags-mark-md-block-body ()
   "Mark content of Markdown code block, or fallback to org-mark-element.
 Mark or select block content around cursor.
-
 `oai-block-tags--get-org-block-region'  do  same thing,  but  we
 make this function to no relay on oai-block."
   (interactive)

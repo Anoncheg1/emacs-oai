@@ -111,7 +111,7 @@ Used in
 
 (defun oai-timers--rassq-delete-all-equal (value alist)
   "Delete from ALIST all elements whose cdr is `equal' to VALUE.
-Return the modified alist. Elements of ALIST that are not conses are ignored.
+Return the modified alist.  Elements of ALIST that are not conses are ignored.
 We need this,  because `rassq-delete-all' remove by `eq'  only which not
 suitable for  markers which should  be compared by buffer  and position,
 not by object itself."
@@ -143,7 +143,7 @@ Argument VALUE is Header-marker."
 
 
 (defun oai-timers--remove-key (key)
-  "Remove buffer. Use `eq' to find key, for buffer eq is ok."
+  "Remove buffer.  Use `eq' to find KEY, for buffer eq is ok."
   (setq oai-timers--element-marker-variable-dict
         (assq-delete-all key oai-timers--element-marker-variable-dict)))
 
@@ -183,7 +183,9 @@ Argument VALUE is Header-marker."
 Don't clear list of url-buffers.
 Called in
 `oai-timers--progress-reporter-run' for restart,
-`oai-timers--interrupt-all-requests' for full stop."
+`oai-timers--interrupt-all-requests' for full stop.
+If Optional argument FAILED is non-nil, then explicitly notify user
+about failure."
   (oai--debug "oai-timers--stop-global-progress-reporter1 %s %s %s"
               (current-buffer)
               oai-timers--global-progress-reporter
@@ -209,14 +211,16 @@ Called in
     (oai--debug "oai-timers--stop-global-progress-reporter3 ticks: %s" oai-timers--global-progress-timer-remaining-ticks))))
 
 (defvar oai-timers--oai-update-mode-line (intern "oai-update-mode-line")
-  "dependency injection from in oai.el")
+  "Dependency injection from in oai.el.")
 
 (defun oai-timers--update-global-progress-reporter (&optional failed)
   "Count url-buffers and stop reporter if it is empty.
 Called from
 `oai-restapi-request-llm-retries'
 `oai-timers--interrupt-current-request'
-`oai-timers--interrupt-all-requests'."
+`oai-timers--interrupt-all-requests'.
+If Optional argument FAILED is non-nil, then explicitly notify user
+about failure."
   (oai--debug "oai-timers--update-global-progress-reporter1, dict: %s" oai-timers--element-marker-variable-dict)
   (let* ((buffers (oai-timers--get-all-keys))
          (count (length buffers))
@@ -234,8 +238,10 @@ Called from
 INTERRUPT-REQUEST-FUNC may be `oai-restapi--interrupt-url-request' or
 `oai-restapi--stop-tracking-url-request'.
 Called from
-`oai-restapi-stop-all-url-requests' by C-g
-`oai-timers--progress-reporter-run' by global timer."
+`oai-restapi-stop-all-url-requests' by C\\-g
+`oai-timers--progress-reporter-run' by global timer.
+If Optional argument FAILED is non-nil, then explicitly notify user
+about failure."
   (oai--debug "oai-timers--interrupt-all-requests1 %s %s" oai-timers--element-marker-variable-dict failed)
   (when-let ((buffers (oai-timers--get-all-keys)))
     (oai--debug "oai-timers--interrupt-all-requests2 %s" buffers)

@@ -395,8 +395,7 @@ Argument SOURCE-BUF url-http response buffer."
             (goto-char (point-max))
             (insert "oai-restapi--debug-urllib response:\n")
             (insert stri)
-            (newline))))
-      )))
+            (newline)))))))
 
 ;;; -=-= Show error
 (defcustom oai-restapi-show-error-function 'oai-block-insert-result-message
@@ -742,8 +741,7 @@ For Completion LLM mode. Used as callback for `oai-restapi-request'."
       (if-let* ((choice (aref (plist-get response 'choices) 0))
                 (text (or (plist-get choice 'text)
                           ;; Together.xyz way
-                          (plist-get (plist-get choice 'message) 'content)
-                          )))
+                          (plist-get (plist-get choice 'message) 'content))))
           ;; - Decode text
           (decode-coding-string text 'utf-8)))))
 
@@ -752,8 +750,8 @@ For Completion LLM mode. Used as callback for `oai-restapi-request'."
   (let ((test-val
          '(id "nz7KyaB-3NKUce-9539d1912ce8b148" object "chat.completion" created 1750575101 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt []
               choices [(finish_reason "length" seed 3309196889559996400 logprobs nil index 0
-                                      message (role "assistant" content " The answer is simple: live a long time. But how do you do that? Well, itâs not as simple as it sounds." tool_calls []))] usage (prompt_tokens 5 completion_tokens 150 total_tokens 155 cached_tokens 0))
-         )) (oai-restapi--get-single-response-text test-val))
+                                      message (role "assistant" content " The answer is simple: live a long time. But how do you do that? Well, itâs not as simple as it sounds." tool_calls []))] usage (prompt_tokens 5 completion_tokens 150 total_tokens 155 cached_tokens 0))))
+    (oai-restapi--get-single-response-text test-val))
   " The answer is simple: live a long time. But how do you do that? Well, itâs not as simple as it sounds."))
 
 
@@ -1407,8 +1405,7 @@ We store url-buf with marker of header in oai-timers.el"
 
                                                  (oai-block-insert-result-message "Failed" header-marker)
 
-                                                 (oai-timers--update-global-progress-reporter)
-                                                 ))
+                                                 (oai-timers--update-global-progress-reporter)))
 
                                              ;; (funcall callback result-llm)
                                              (oai--debug "oai-restapi-request-llm  callback4")
@@ -1996,8 +1993,7 @@ inside the assembled prompt string."
 
 (cl-assert
  (equal
-  (let ((test-val '(id "o3fA4D4-62bZhn-9617f44f6d399d91" object "chat.completion" created 1752904364 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 819567834314233700 logprobs nil index 0 message (role "assistant" content "It works: `(2 3 1)` is returned." tool_calls []))] usage (prompt_tokens 131 completion_tokens 14 total_tokens 145 cached_tokens 0))
-                  ))
+  (let ((test-val '(id "o3fA4D4-62bZhn-9617f44f6d399d91" object "chat.completion" created 1752904364 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 819567834314233700 logprobs nil index 0 message (role "assistant" content "It works: `(2 3 1)` is returned." tool_calls []))] usage (prompt_tokens 131 completion_tokens 14 total_tokens 145 cached_tokens 0))))
     (oai-restapi--normalize-response test-val))
   '(#s(oai-restapi--response role "assistant") #s(oai-restapi--response text "It works: `(2 3 1)` is returned.") #s(oai-restapi--response stop "stop"))))
 

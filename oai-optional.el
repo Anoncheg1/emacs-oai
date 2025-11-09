@@ -1,7 +1,6 @@
 ;;; oai-optional.el --- Useful functions that not enabled by default.  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 github.com/Anoncheg1
-;; Package-Requires: ((emacs "28.1"))
 
 ;;; License
 
