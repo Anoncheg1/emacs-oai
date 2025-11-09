@@ -54,16 +54,21 @@
 ;; -> (org-ai-stream-request service messages|prompt callback)
 ;; -> org-ai--get-headers, org-ai--get-endpoint, oai-restapi--payload, url-retrieve
 ;; - org-ai--get-headers = org-ai-api-creds-token = "api-key" or "x-api-key" or "Authorization"
-;; - org-ai--get-endpoint = hardcoded URL or oai-restapi-con-chat-endpoint, oai-restapi-con-completion-endpoint, org-ai-google-chat-endpoint
+
+;; - org-ai--get-endpoint = hardcoded URL or oai-restapi-con-chat-endpoint,
+;;     oai-restapi-con-completion-endpoint, org-ai-google-chat-endpoint
 ;; -> callback: (oai-restapi--insert-stream-response) or (oai-restapi--insert-single-response)
 ;;
 ;; Main variables:
-;; URL = org-ai--get-endpoint()  or oai-restapi-con-chat-endpoint, oai-restapi-con-completion-endpoint, org-ai-google-chat-endpoint
+;; URL = org-ai--get-endpoint()  or oai-restapi-con-chat-endpoint,
+;;     oai-restapi-con-completion-endpoint, org-ai-google-chat-endpoint
 ;; Headers = org-ai--get-headers
 ;; Token = org-ai-api-creds-token
 ;;
-;; When we create request we count requests, create two timers global one and local inside url buffer.
-;; When we receive error or final answer we stop local, recount requests and update global.
+;; When we create request we count requests, create two timers global
+;;   one and local inside url buffer.
+;; When we receive error or final answer we stop local, recount
+;;   requests and update global.
 ;;
 ;; Chat mode
 ;; - :message (oai-restapi--collect-chat-messages ...)
@@ -149,8 +154,7 @@
     :anthropic		"https://api.anthropic.com/v1/messages"
     :google		"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
     :together		"https://api.together.xyz/v1/chat/completions"
-    :github		"https://models.github.ai/inference/chat/completions"
-    )
+    :github		"https://models.github.ai/inference/chat/completions")
   "Endpoints for services.
 This is a not ordered list of key-value pairs in format of List of
   lists: (SYMBOL VALUE-STRING).  Used for POST HTTP request to service.
@@ -263,8 +267,7 @@ messages."
   :type '(choice (const :tag "Before every message" all)
                  (const :tag "Before first" first)
                  (const :tag "Before last" last)
-                 (const :tag "Don't add" nil)
-                 )
+                 (const :tag "Don't add" nil))
   :group 'oai)
 
 ;; (make-obsolete-variable 'oai-restapi-default-inject-sys-prompt-for-all-messages
@@ -420,7 +423,7 @@ Or provide your own function."
 
 (defun oai-restapi--show-error (error-message &optional header-marker)
   "Show an error message in a buffer.
-`ERROR-MESSAGE' is the error message to show.
+ERROR-MESSAGE is the error message to show.
 Argument HEADER-MARKER not used."
   (setq header-marker header-marker) ; noqa: not used.
   (condition-case nil
@@ -442,7 +445,7 @@ Argument HEADER-MARKER not used."
 ;;; -=-= Get constant functions
 (defun oai-restapi--check-model (model endpoint)
   "Check if the model name is somehow mistyped.
-`MODEL' is the model name.  `ENDPOINT' is the API endpoint."
+MODEL is the model name.  ENDPOINT is the API endpoint."
   (unless model
     (error "No oai model specified"))
 
@@ -459,7 +462,7 @@ Argument HEADER-MARKER not used."
 (defun oai-restapi--split-dash-number (str)
   "Split STR and return list of main string and number after dashes.
 Used to for simple numbering of instances in config."
-  (pcase-let ((`(,a ,b) (split-string str "--")))
+  (pcase-let ((`(,a ,b) (string-split str "--")))
     (and b (string-match-p "\\`[0-9]+\\'" b)
          (cons a (string-to-number b)))))
 
@@ -547,7 +550,7 @@ not found in tokens."
       (prog1 (setq token (oai-restapi--get-token-auth-source service))
         (if (not token)
             ;; else - not found in auth-sources and not found or `oai-restapi-con-token' is not defined
-            (if (plistp oai-restapi-con-token)
+            (if oai-restapi-con-token
                 (user-error "Token not found in defined plist `oai-restapi-con-token' and in auth sources")
               ;; else no `oai-restapi-con-token'
               (user-error "Please set `oai-restapi-con-token' to your OpenAI API token or setup auth-source (see oai readme)")))))))
@@ -575,7 +578,7 @@ not found in tokens."
            ((string-prefix-p "https://" url) (substring url 8))
            ((string-prefix-p "http://" url) (substring url 7))
            (t url)))
-         (parts (split-string stripped-url "/" t))) ; Split by '/', t means remove empty strings
+         (parts (string-split stripped-url "/" t))) ; Split by '/', t means remove empty strings
     ;; Return the first part, which should be the hostname
     (car parts)))
 
@@ -686,8 +689,7 @@ Called from `oai-call-block' in main file.
                                                            sys-prompt
                                                            sys-prompt-for-all-messages
                                                            (if oai-restapi-add-max-tokens-recommendation
-                                                               (oai-restapi--get-lenght-recommendation max-tokens)
-                                                             )))) ; oai-block.el
+                                                               (oai-restapi--get-lenght-recommendation max-tokens))))) ; oai-block.el
          (end-marker (oai-block--get-content-end-marker element))
          (callback (cond ; set to oai-restapi--current-url-request-callback
                     (messages
@@ -714,8 +716,7 @@ Called from `oai-call-block' in main file.
 
     ;; - run timer that show /-\ looping, notification of status
     (oai-timers--progress-reporter-run
-     #'oai-restapi--interrupt-url-request
-     )))
+     #'oai-restapi--interrupt-url-request)))
 
 ;;; -=-= Normalize, oai-restapi-request
 
@@ -1027,8 +1028,7 @@ specific role."
                                       (when first-resp
                                         ;; call stop waiting with url-buffer and progress reporter.
                                         (oai--debug "oai-restapi--insert-stream-response first-resp")
-                                        (oai-timers--interrupt-current-request url-buffer)
-                                        )
+                                        (oai-timers--interrupt-current-request url-buffer))
                                       ;; track if we are inside code markers
                                       (setq c-inside-code-m (and (not c-inside-code-m) ; oai-restapi--currently-inside-code-markers
                                                                  (string-match-p "```" text)))
@@ -1185,8 +1185,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
             (unless (member 'oai-restapi--url-request-on-change-function after-change-functions)
               (add-hook 'after-change-functions #'oai-restapi--url-request-on-change-function nil t))
           ;; else - not stream
-          (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t))
-        )
+          (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t)))
       url-request-buffer)))
 
 ;;; -=-= oai-restapi-request-llm
@@ -1325,7 +1324,7 @@ We store url-buf with marker of header in oai-timers.el"
         (oai--debug "oai-restapi-request-llm-retries1 %s" (current-buffer))
         ;; - 1) run timer
         (let* ((left-retries (if retries (1- retries) 3))
-               (tmp-buf (current-buffer))
+               ;; (tmp-buf (current-buffer))
                ;; run timer in temp buffer - to limit request by timeout, and kill url-buffer
                ;; we start timer first because we pass it to callback to stop timer itself
                (timer (run-with-timer timeout
@@ -1419,8 +1418,7 @@ We store url-buf with marker of header in oai-timers.el"
           ;; save url-buffer
           (oai--debug "oai-restapi-request-llm-retries3" oai-timers--element-marker-variable-dict)
           (oai-timers--set url-buffer header-marker)
-          (oai--debug "oai-restapi-request-llm-retries4" oai-timers--element-marker-variable-dict)
-          )))))
+          (oai--debug "oai-restapi-request-llm-retries4" oai-timers--element-marker-variable-dict))))))
 
 ;;; -=-= error, payload, url-request-on-change-function
 
@@ -1838,8 +1836,8 @@ prompt found in `CONTENT-STRING'."
            (messages (cl-loop for part in parts
                               ;; Filter out reasoning parts as including them will cause 404
                               ;; https://api-docs.deepseek.com/guides/reasoning_model#multi-round-conversation
-                              if (not (string= "[AI_REASON]" (car (split-string part ":"))))
-                              collect (cl-destructuring-bind (type &rest content) (split-string part ":")
+                              if (not (string= "[AI_REASON]" (car (string-split part ":"))))
+                              collect (cl-destructuring-bind (type &rest content) (string-split part ":")
                                         (let ((type (string-trim type))
                                               (content (string-trim (string-join content ":"))))
                                           (if (string= type "[ME") ; typo by human
@@ -2000,17 +1998,12 @@ inside the assembled prompt string."
 
 (let* ((test-val '(#s(oai-restapi--response role "assistant") #s(oai-restapi--response text "It seems ") #s(oai-restapi--response stop "length")))
        (test-val0 (nth 0 test-val))
-       (test-val1 (nth 1 test-val))
-       )
-  (and
-   (equal (length test-val) 3)
-   (equal (oai-restapi--response-type test-val0) 'role)
-   (string-equal (decode-coding-string (oai-restapi--response-payload test-val0) 'utf-8) "assistant")
-   (equal (oai-restapi--response-type test-val1) 'text)
-   (string-equal (decode-coding-string (oai-restapi--response-payload test-val1) 'utf-8) "It seems ")
-  ))
-
-
+       (test-val1 (nth 1 test-val)))
+   (cl-assert (equal (length test-val) 3))
+   (cl-assert (equal (oai-restapi--response-type test-val0) 'role))
+   (cl-assert (string-equal (decode-coding-string (oai-restapi--response-payload test-val0) 'utf-8) "assistant"))
+   (cl-assert (equal (oai-restapi--response-type test-val1) 'text))
+   (cl-assert (string-equal (decode-coding-string (oai-restapi--response-payload test-val1) 'utf-8) "It seems ")))
 
 ;;; -=-= Last user message
 

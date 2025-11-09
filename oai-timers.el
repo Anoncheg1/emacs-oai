@@ -24,7 +24,8 @@
 
 
 ;;; Commentary:
-;; `interrupt-request-func' is for implementation of interrupt that `oai-restapi--interrupt-url-request'
+;; `interrupt-request-func' is for implementation of interrupt that
+;; `oai-restapi--interrupt-url-request'
 
 ;;; Code:
 

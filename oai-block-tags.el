@@ -52,6 +52,7 @@
 (require 'org)
 (require 'ol)
 (require 'oai-debug)
+(require 'org-links nil 'noerror)
 
 ;;; Code:
 ;;; -=-= variables
@@ -129,7 +130,7 @@ Used to set `org-link-search-must-match-exact-headline' before
   "Return a string with the first N lines from STRING.
 If N exceeds the number of lines, return all lines.  If N <= 0, return
 an empty string."
-  (let* ((lines (split-string string "\n"))
+  (let* ((lines (string-split string "\n"))
          (lines-to-keep (cl-subseq lines 0 (min (max 0 n) (length lines)))))
     (mapconcat #'identity lines-to-keep "\n")))
 
@@ -422,41 +423,44 @@ Move pointer to the end of block."
      (t
       (oai-block-tags--get-org-content-m-block)))))
 
-(when (featurep 'org-links)
-    (defun oai-block-tags--get-org-links-content (link)
-      "In current buffer get content for LINK.
+;; (featurep 'org-links)
+(declare-function org-links--local-get-target-position-for-link "org-links")
+
+;; (when (require 'org-links nil 'noerror)
+(defun oai-block-tags--get-org-links-content (link)
+  "In current buffer get content for LINK.
 Support for `org-links' package with additional links types.
 Headlines not wrapped in markdown blocks.
 LINK is string in format is what inside [[...]] or Plain link."
-      (require 'org-links)
-      (oai--debug "oai-block-tags--get-org-links-content1 %s " link)
-      (if-let ((nums (org-links--local-get-target-position-for-link link)))
-          (let ((num1 (car nums))
-                (num2 (cadr nums))) ; may be nil
-            (oai--debug "oai-block-tags--get-org-links-content2 %s %s" num1 num2)
-            ;; 1) Case1: num1 and num2 - get range
-            (if num2
-              (if-let ((pos1 (oai-block-tags--position-at-line-beginning num1))
-                       (pos2 (or (oai-block-tags--position-at-line-beginning num2 'end-of-line) (point-max))))
-                  (progn (oai--debug "oai-block-tags--get-org-links-content3 %s %s" pos1 pos2)
-                  (concat "```auto\n"
-                          (string-replace "```" "\\`\\`\\`"
-                                          (buffer-substring-no-properties
-                                           pos1
-                                           pos2))
-                          "\n```"))
-                ;; pos1 is nil
-                (user-error "In link %s of NUM-NUM format was not possible to find first NUM in buffer %s" link (current-buffer)))
-              ;; else - ;; 1) Case1: only num1, num2 is nil - get object at num1 or just line.
-              (if-let ((pos1 (oai-block-tags--position-at-line-beginning num1)))
-                  (save-excursion
-                    (oai--debug "oai-block-tags--get-org-links-content4 %s" pos1)
-                    (goto-char pos1)
-                    (oai-block-tags--get-org-content))
-                (user-error "In link %s of NUM format was not possible to find first position in buffer %s" link (current-buffer)))
-            ))
-        ;; else - not org-links type link.
-        nil)))
+  ;; (require 'org-links)
+  (oai--debug "oai-block-tags--get-org-links-content1 %s " link)
+  (if-let ((nums (org-links--local-get-target-position-for-link link)))
+      (let ((num1 (car nums))
+            (num2 (cadr nums))) ; may be nil
+        (oai--debug "oai-block-tags--get-org-links-content2 %s %s" num1 num2)
+        ;; 1) Case1: num1 and num2 - get range
+        (if num2
+            (if-let ((pos1 (oai-block-tags--position-at-line-beginning num1))
+                     (pos2 (or (oai-block-tags--position-at-line-beginning num2 'end-of-line) (point-max))))
+                (progn (oai--debug "oai-block-tags--get-org-links-content3 %s %s" pos1 pos2)
+                       (concat "```auto\n"
+                               (string-replace "```" "\\`\\`\\`"
+                                               (buffer-substring-no-properties
+                                                pos1
+                                                pos2))
+                               "\n```"))
+              ;; pos1 is nil
+              (user-error "In link %s of NUM-NUM format was not possible to find first NUM in buffer %s" link (current-buffer)))
+          ;; else - ;; 1) Case1: only num1, num2 is nil - get object at num1 or just line.
+          (if-let ((pos1 (oai-block-tags--position-at-line-beginning num1)))
+              (save-excursion
+                (oai--debug "oai-block-tags--get-org-links-content4 %s" pos1)
+                (goto-char pos1)
+                (oai-block-tags--get-org-content))
+            (user-error "In link %s of NUM format was not possible to find first position in buffer %s" link (current-buffer)))
+          ))
+    ;; else - not org-links type link.
+    nil))
 
 ;; (oai-block-tags--get-org-links-content "9-10")
 
@@ -575,7 +579,7 @@ Return replacement string."
               (goto-char target-pos)
               ;; - 5) Get content for link - org-links or ol.el link
               ;; (print (list "vvvs" (require 'org-links nil 'noerror)  (string-equal type "fuzzy")))
-              (if (and (require 'org-links nil 'noerror)
+              (if (and (featurep 'org-links) ;; (require 'org-links nil 'noerror)
                        (string-equal type "fuzzy"))
                   ;; Type: org-links
                   (progn
@@ -749,7 +753,7 @@ Used in `oai-block-tags-mark-md-block-body'."
 ;; - @./name - file
 ;; - @name - <<target>> or #+NAME: name - in current file
 
-(defun oai-block-tags--replace-last-regex-smart (string regexp &optional replacement subexp)
+(defun oai-block-tags--replace-last-regex-smart (string regexp &optional replacement)
   "Replace the last match of REGEXP in STRING with REPLACEMENT,
 preserving any extra captured groups.
 Check that found regexp not in markdown block.
@@ -757,7 +761,8 @@ If REPLACEMENT not provided return found string for regexp or nil if not found."
   (let ((pos 0)
         (last-pos nil)
         (last-end nil)
-        (last-group ""))
+        ;; (last-group "")
+        )
     (while (and pos
                 (string-match regexp string pos)
                 (not (oai-block-tags--position-in-markdown-block-str-p string (setq pos (match-beginning 0))))) ; not in markdonw block
@@ -795,50 +800,44 @@ If REPLACEMENT not provided return found string for regexp or nil if not found."
                "asda\n```\nvas@Backtraceasdasd\n```\nasd"))
 
 (cl-assert
- (equal (oai-block-tags--replace-last-regex-smart "asdasd@Backtraceasdasdasd" "@Backtrace")
+ (string-equal (oai-block-tags--replace-last-regex-smart "asdasd@Backtraceasdasdasd" "@Backtrace")
         "@Backtrace"))
 
 ;; search without replace
-(cl-assert
- (and
-  (equal (let ((regex oai-block-tags--regexes-backtrace))
-           (oai-block-tags--replace-last-regex-smart
-            "foo `@Backtrace` bar `@Backtrace `@BacktraceX"
-            regex)) "@Backtrace")
+(cl-assert (string-equal (oai-block-tags--replace-last-regex-smart
+                   "foo `@Backtrace` bar `@Backtrace `@BacktraceX"
+                   oai-block-tags--regexes-backtrace)
+                  "@Backtrace"))
 
-  (equal (let ((regex oai-block-tags--regexes-backtrace))
-           (oai-block-tags--replace-last-regex-smart
-            "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
-            regex)) "@Backtrace")
+(cl-assert (string-equal (oai-block-tags--replace-last-regex-smart
+                   "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
+                   oai-block-tags--regexes-backtrace)
+                  "@Backtrace"))
 
-  (equal (let ((regex oai-block-tags--regexes-backtrace))
-           (oai-block-tags--replace-last-regex-smart
+(cl-assert (string-equal (oai-block-tags--replace-last-regex-smart
             "foo `@Backtrace` bar `@Backtrace `@B`X"
-            regex)) "@B")
-  ))
+            oai-block-tags--regexes-backtrace)
+                  "@B"))
 
 (cl-assert
- (equal (let ((regex oai-block-tags--regexes-backtrace))
-          (oai-block-tags--replace-last-regex-smart
-           "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
-           regex
-           "REPLACED"))
-        "foo `@Backtrace` bar `@Backtrace REPLACEDX"))
+ (string-equal (oai-block-tags--replace-last-regex-smart
+                "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
+                oai-block-tags--regexes-backtrace
+                "REPLACED")
+               "foo `@Backtrace` bar `@Backtrace REPLACEDX"))
 ;; with space
 (cl-assert
- (equal (let ((regex oai-block-tags--regexes-backtrace))
-          (oai-block-tags--replace-last-regex-smart
-           "foo `@Backtrace` bar `@Backtrace `@BacktraceX"
-           regex
-           "REPLACED"))
+ (equal (oai-block-tags--replace-last-regex-smart
+         "foo `@Backtrace` bar `@Backtrace `@BacktraceX"
+         oai-block-tags--regexes-backtrace
+         "REPLACED")
         "foo `@Backtrace` bar REPLACED`@BacktraceX"))
 
 (cl-assert
- (equal (let ((regex oai-block-tags--regexes-backtrace))
-          (oai-block-tags--replace-last-regex-smart
-           "foo `@Backtrace` bar `@B `@BacktraceX"
-           regex
-           "REPLACED"))
+ (equal (oai-block-tags--replace-last-regex-smart
+         "foo `@Backtrace` bar `@B `@BacktraceX"
+         oai-block-tags--regexes-backtrace
+         "REPLACED")
         "foo `@Backtrace` bar REPLACED`@BacktraceX"))
 
 (cl-assert
@@ -849,8 +848,7 @@ If REPLACEMENT not provided return found string for regexp or nil if not found."
         "foo REPLACED X"))
 
 (cl-assert
- (equal (let ((regex oai-block-tags--regexes-backtrace))
-          (oai-block-tags--replace-last-regex-smart "foo `@.` bar " oai-block-tags--regexes-path "REPLACED"))
+ (equal (oai-block-tags--replace-last-regex-smart "foo `@.` bar " oai-block-tags--regexes-path "REPLACED")
         "foo REPLACED bar "))
 
 (cl-assert

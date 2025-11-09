@@ -4,11 +4,6 @@
 ;; Copyright (C) 2025 github.com/Anoncheg1
 ;; SPDX-License-Identifier: AGPL-3.0-or-later
 ;; Author: github.com/Anoncheg1,codeberg.org/Anoncheg
-;; Keywords: org, ai, llm, url, http
-;; URL: https://github.com/Anoncheg1/oai
-;; Version: 0.1,  Fork from orig. version: 0.5.6 (commit cc4a4eb778e4689573ebd2d472b8164f4477e8b8)
-;; Created: 20 Aug 2025
-;; Package-Requires: ((emacs "27.1"))
 
 ;;; License
 
@@ -465,7 +460,7 @@ Optional argument HASH not used."
                (or (pcase (org-element-type (org-element-property :parent context))
                      ((or `section `org-data)
                       (org-element-property :end (org-element-property :parent context)))
-                     (_ (org-element-contents-end
+                     (_ (org-element-property :contents-end
                          (org-element-property :parent context))))
                    (point-max))))
           ;; Check if next element is an anonymous result below
@@ -473,7 +468,7 @@ Optional argument HASH not used."
           ((let* ((next (org-element-at-point))
                   (end (save-excursion
                          (goto-char
-                          (org-element-post-affiliated next))
+                          (org-element-property :post-affiliated next))
                          (line-end-position)))
                   (empty-result-re (concat org-babel-result-regexp "$"))
                   (case-fold-search t))
@@ -538,8 +533,7 @@ the rest of the result."
           (let ((block-end (match-beginning 0)))
             (when (fboundp (org-src-get-lang-mode lang)) ; for org-src-font-lock-fontify-block
               (org-src-font-lock-fontify-block lang block-begin block-end)
-              t
-              )))))))
+              t)))))))
 
 (defun oai-block--font-lock-fontify-ai-subblocks (limit)
   "Fontify markdown subblocks in ai blocks, up to LIMIT.
@@ -561,8 +555,7 @@ rules in `font-lock-defaults' variable."
                 ))))
         ;; required by font lock mode:
         (goto-char limit)
-        ret
-        )))
+        ret)))
 
 (defun oai-block--insert-after (list pos element)
   "Insert ELEMENT at after position POS in LIST."

@@ -5,7 +5,7 @@
 ;; URL: https://github.com/Anoncheg1/emacs-oai
 ;; Version: 0.1
 ;; Created: 20 Aug 2025
-;; Package-Requires: ((emacs "27.1"))
+;; Package-Requires: ((emacs "29.1"))
 ;; Optional dependency: ((org-links "0.2"))
 ;; SPDX-License-Identifier: AGPL-3.0-or-later
 ;; Copyright (C) 2023-2025 Robert Krahn

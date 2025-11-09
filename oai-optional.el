@@ -1,6 +1,7 @@
 ;;; oai-optional.el --- Useful functions that not enabled by default.  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 github.com/Anoncheg1
+;; Package-Requires: ((emacs "28.1"))
 
 ;;; License
 
@@ -139,7 +140,9 @@ Does not remove an empty line if the line immediately following it contains '[ME
 ;;     )
 
 (defun oai-optional-remove-distant-empty-lines-hook-function (type _content before-pos buf)
-  "Remove empty lines when there is too many of them."
+  "Remove empty lines when there is too many of them.
+TYPE _CONTENT BEFORE-POS BUF parameters described in
+`oai-restapi-after-chat-insertion-hook' hook."
   (ignore _content)
   (oai--debug "IN A HOOK oai-optional-remove-distant-empty-lines-hook-function: %s %s %s %s"
               before-pos
@@ -162,12 +165,14 @@ Works at every line between BEG-POS and END-POS in the current buffer.
 Uses `org-outline-regexp-bol' to match headers, respecting
 user-configured prefixes."
   (interactive "r")
-  (replace-regexp-in-region org-outline-regexp-bol "" (point-min) (point-max)))
+  (replace-regexp-in-region org-outline-regexp-bol "" beg-pos end-pos))
 
 
 (defun oai-optional-remove-headers-hook-function (type _content before-pos buf)
   "Ready for usage in `oai-restapi-after-chat-insertion-hook'.
-Remove Org headers between BEFORE-POS and current position in BUF buffer."
+Remove Org headers between BEFORE-POS and current position in BUF buffer.
+TYPE _CONTENT BEFORE-POS BUF parameters described in
+`oai-restapi-after-chat-insertion-hook' hook."
   (oai--debug "IN A HOOK oai-optional-remove-headers-for-hook: %s %s %s %s"
               before-pos
               (point)
@@ -181,15 +186,37 @@ Remove Org headers between BEFORE-POS and current position in BUF buffer."
         (oai-optional-remove-headers line-beg (point))))))
 
 ;; - Test: oai-optional-remove-headers-for-hook
-(cl-assert
- (string-equal
-  "Something Importent **\n\nOther Importent **"
-  (with-temp-buffer
-    (let ((oai-debug-buffer nil))
-    (insert "** Something Importent **\n\n")
-    (insert "** Other Importent **")
-    (oai-optional-remove-headers-hook-function 'end "" 1 (current-buffer))
-    (buffer-substring-no-properties (point-min) (point-max))))))
+(with-temp-buffer
+  (let (
+        (oai-debug-buffer nil)
+        p1
+        p2
+        res)
+    (insert "** Something Importent1\n")
+    (insert "#+begin_ai\n")
+    (setq p (point))
+    (insert "** not important **\n")
+    (insert "#+end_ai\n")
+    (setq p2 (point))
+    (insert "** Something Importent2\n")
+    (goto-char p2)
+    (oai-optional-remove-headers-hook-function 'end "" p (current-buffer))
+    (setq res (string-split (buffer-substring-no-properties (point-min) (point-max)) "\n"))
+    (cl-assert
+     (string-equal
+      (nth 0 res) "** Something Importent1"))
+    (cl-assert
+     (string-equal
+      (nth 1 res) "#+begin_ai"))
+    (cl-assert
+     (string-equal
+      (nth 2 res) "not important **"))
+    (cl-assert
+     (string-equal
+      (nth 3 res) "#+end_ai"))
+    (cl-assert
+     (string-equal
+      (nth 4 res) "** Something Importent2"))))
 
 
 (defcustom oai-optional-fill-paragraph-functions
@@ -204,7 +231,9 @@ functions."
 ;;; - old: fill-paragraph (old, not used)
 (defun oai-optional-fill-paragraph (&optional justify region)
   "Call functions until success.
-Replace single `fill-paragraph-function' with list of functions."
+Replace single `fill-paragraph-function' with list of functions.
+Optional argument JUSTIFY is parameter of `fill-paragraph'.
+Optional argument REGION ."
   (interactive (progn
 		 (barf-if-buffer-read-only)
 		 (list (when current-prefix-arg 'full) t)))
@@ -242,7 +271,9 @@ Executed inside `save-excursion'."
 
 (defun oai-optional-block-fill-paragraph (&optional justify region)
   "Fill every line as paragraph in the current Org AI block.
-Ignoring code blocks that start with '```sometext' and end with '```'."
+Ignoring code blocks that start with '```sometext' and end with '```'.
+Optional argument JUSTIFY is parameter of `fill-paragraph'.
+Optional argument REGION todo."
   (interactive (progn
                  (barf-if-buffer-read-only)
                  (list (when current-prefix-arg 'full) t)))

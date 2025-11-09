@@ -1,6 +1,10 @@
 ;;; oai-debug.el --- Logging for oai in separate buffer  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2025 github.com/Anoncheg1
+;; Copyright (C) 2023-2025 Robert Krahn and contributers
+;; Copyright (C) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
+;; SPDX-License-Identifier: AGPL-3.0-or-later
+;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
+
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -21,6 +25,8 @@
 
 ;;; Code
 
+(require 'backtrace) ; for `oai--debug-get-caller' (not used now)
+
 (defcustom oai-debug-buffer nil
   "If non-nil, enable debuging to a debug buffer.
 Set to something like *debug-oai*. to enable debugging."
@@ -31,13 +37,12 @@ Set to something like *debug-oai*. to enable debugging."
 (defun oai--debug-get-caller()
   "Return string with name of function of caller function.
 Heavy to execute."
-  (let* ((backtrace-line-length 20)
+  (let* ((backtrace-line-length 20) ; used by `backtrace-get-frames'
          (print-level 3)
          (print-length 10)
          (bt
           ;; (with-output-to-string (backtrace))
-          (backtrace-to-string (backtrace-get-frames 'backtrace))
-          )
+          (backtrace-to-string (backtrace-get-frames 'backtrace)))
          (caller))
          ;; (print bt)
          (seq-find
@@ -52,7 +57,7 @@ Heavy to execute."
                      nil ; else
                      )))
           ;; - lines
-          (cdr (split-string bt "\n" t)))
+          (cdr (string-split bt "\n" t)))
          caller))
 
 (defvar oai--debug-filter nil
@@ -83,8 +88,7 @@ Return last argument, but should not be used for return value."
                               (display-buffer-in-direction ; exist but hidden
                                bu
                                '((direction . left)
-                                 (window . new)
-                                 )))
+                                 (window . new))))
                             (select-window current-window)))
              result-string)
 
@@ -93,8 +97,7 @@ Return last argument, but should not be used for return value."
           (when buf-exist ; was not created
               (goto-char (point-max))
             ;; else buffer just created
-            (local-set-key "q" #'quit-window)
-            )
+            (local-set-key "q" #'quit-window))
           ;; ;; - scroll debug buffer down
           (when (and bu-window (not (bound-and-true-p ert-enabled)))
               (with-selected-window (get-buffer-window bu)
@@ -117,11 +120,10 @@ Return last argument, but should not be used for return value."
 
               ;; else
               (setq result-string (apply #'concat (mapcar (lambda (arg)
-                                                (if (equal (type-of arg) 'string)
-                                                    (format "%s\n" arg)
-                                                  (concat (prin1-to-string arg) "\n"))
-                                                ) args)))
-              )
+                                                            (if (equal (type-of arg) 'string)
+                                                                (format "%s\n" arg)
+                                                              (concat (prin1-to-string arg) "\n"))
+                                                            ) args))))
             (when (and oai--debug-filter
                        (not (string-match-p (regexp-quote oai--debug-filter) result-string)))
                     (setq result-string nil))

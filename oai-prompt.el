@@ -225,16 +225,14 @@ Modeline notification:
                         (when data ; if not data it is fail
                           (oai--debug "calbackmy %s %s" oai-timers--element-marker-variable-dict (current-buffer))
                           (oai-restapi--insert-single-response end-marker (concat "[AI]: " data) nil 'final)
-                          (run-at-time 0 nil callback data)
-                          )))
+                          (run-at-time 0 nil callback data))))
           (calbafin (lambda (data callback)
                       (setq callback callback) ; noqa unused
                       (when data ; if not data it is fail
                         (oai--debug "calbafin")
                         (oai-restapi--insert-single-response end-marker (concat "[AI]: " data))
                         (oai-restapi--insert-single-response end-marker nil 'insertrole 'final) ; finalize
-                        (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request)
-                        ))))
+                        (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request)))))
 
       (oai--debug "oai-prompt-request-chain2 %s %s %s %s" header-marker service model oai-timers-duration)
       (condition-case err
@@ -250,8 +248,7 @@ Modeline notification:
                                     (funcall call 1)
                                     callbackmy
                                     (funcall call 2)
-                                    calbafin
-                                    ))
+                                    calbafin))
             (oai--debug "oai-prompt-request-chain4"))
         (user-error
          (funcall oai-restapi-show-error-function (error-message-string err)
