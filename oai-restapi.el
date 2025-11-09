@@ -321,7 +321,7 @@ that is why defined as lambda with marker.")
 Note this is called for every stream response so it will typically only
 contain fragments.
 Arguments: type, role-text, pos, buffer
-- type - simbol \'role, \'text or'end,
+- type - simbol \='role, \='text or'end,
 - role-text - text or role name,
 - pos - position before text insertion
 - buffer - target buffer with ai block for third position.")
@@ -785,6 +785,11 @@ Here used for completion mode in `oai-restapi-request'.
                 (insert "\n")
                 (backward-char))
               (insert text)
+              ;; - "auto-fill"
+              (when (and oai-restapi-auto-fill
+                         (not (string-empty-p (string-trim text))))
+                (funcall oai-restapi-fill-paragraph-function))
+
               (set-marker end-marker (point))
               (condition-case hook-error
                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos buffer)

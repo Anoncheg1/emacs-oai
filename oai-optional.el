@@ -22,102 +22,24 @@
 ;; Licensed under the GNU Affero General Public License, version 3 (AGPLv3)
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
-;;; Commentry:
+;;; Commentary:
 
-;; (cl-defun oai-optional-remove-distant-empty-lines (start end)
-;;   "Remove empty lines in current buffer between START and END.
-;; Removes an empty line only if another empty line is two lines above it.
-;; An 'empty line' is blank or whitespace-only.
+;; Configuration for usage:
 
-;; Example:
-;;   Original:      Result:
-;;   line 1         line 1
-;;                  (empty A) (kept)  (empty A)
-;;   line 2         line 2
-;;                  (empty B) (removed)line 3
-;;   line 3         line 4
-;;                  (empty C) (removed)line 5
-;;   line 4         (empty D)
-;;   line 5         line 6
-;;                  (empty D) (kept)
-;;   line 6
-
-;; Case ME:
-;; line 1         line 1
-;;                  (empty A) (kept)  (empty A)
-;; line 2         line 2
-;;                  (empty B) (not removed)
-;; line 3 with [ME]:   line 4
-;; "
-;;   (interactive "r") ;; Usable interactively on a selected region.
-
-;;   (let ((lines-to-delete-pos '()) ; Stores positions of lines to remove.
-;;         (line-info-list '())      ; Stores (line-pos . is-blank-p) for all lines in region.
-;;         (original-start start)    ; Store original region start for robustness.
-;;         (original-end end))       ; Store original region end for robustness.
-
-;;     (save-excursion ;; Preserve point and mark positions after execution.
-
-;;       ;; Phase 1: Collect info about lines in the region.
-;;       ;; Iterate through the region, recording each line's starting position
-;;       ;; and whether it's blank (contains only whitespace).
-;;       (goto-char start)
-;;       (while (< (point) end)
-;;         (push (cons (point) (string-blank-p (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
-;;               line-info-list)
-;;         (forward-line 1))
-;;       ;; Reverse the list to get lines in document order (top to bottom).
-;;       (setq line-info-list (nreverse line-info-list))
-
-;;       ;; Phase 2: Identify lines for deletion.
-;;       ;; Iterate through the collected line information, keeping track of the
-;;       ;; blank status of the previous two lines to apply the condition.
-;;       (let ((line-minus-1-info nil) ; Stores (pos . is-blank) for the line one step back.
-;;             (line-minus-2-info nil)) ; Stores (pos . is-blank) for the line two steps back.
-;;         (dolist (current-line-info line-info-list)
-;;           (let* ((current-line-pos (car current-line-info))
-;;                  (current-line-is-blank (cdr current-line-info)))
-
-;;             ;; Condition for deletion: current line is blank AND the line two steps back existed
-;;             ;; and was also blank.
-;;             (when (and current-line-is-blank
-;;                        line-minus-2-info             ; Check if line two steps back actually exists.
-;;                        (cdr line-minus-2-info))      ; Check if that line was blank.
-;;               ;; If condition met, mark current line for deletion.
-;;               ;; `push` adds positions to the front, so the list will be in reverse order
-;;               ;; of appearance (later lines appear first in the list), which is ideal for deletion.
-;;               (push current-line-pos lines-to-delete-pos)))
-
-;;           ;; Update history for the next iteration:
-;;           ;; Old 'minus-1' becomes new 'minus-2'.
-;;           ;; Current line becomes new 'minus-1'.
-;;           (setq line-minus-2-info line-minus-1-info)
-;;           (setq line-minus-1-info current-line-info))))
-
-;;     ;; Phase 3: Delete the identified lines.
-;;     ;; Iterate through `lines-to-delete-pos`. Since it's already ordered from
-;;     ;; the largest position to the smallest, deletions occur safely from the
-;;     ;; end of the region towards the beginning, preventing position invalidation.
-;;     (save-excursion
-;;       (dolist (pos lines-to-delete-pos)
-;;         ;; Robustness check: Ensure the position is still within the original bounds.
-;;         (when (and (>= pos original-start) (< pos original-end))
-;;           (goto-char pos) ; Move point to the start of the line to be deleted.
-;;           ;; Delete the current line, including its trailing newline.
-;;           (delete-region (point) (progn (forward-line 1) (point))))))
-
-;;     (message "Removed empty lines based on condition.")))
+;; (require 'oai-optional)
+;; (add-hook 'oai-restapi-after-chat-insertion-hook #'oai-optional-remove-headers-hook-function)
+;; (add-hook 'oai-restapi-after-chat-insertion-hook #'oai-optional-remove-distant-empty-lines-hook-function)
 
 ;;; Code:
 
 (require 'cl-lib) ; Ensure cl-lib is loaded for cl-defun and cl-destructuring-bind
 
+;;; - remove-distant-empty-lines hook
 (cl-defun oai-optional-remove-distant-empty-lines (start end)
   "Remove empty lines in current buffer between START and END.
 Removes an empty line only if another empty line is two lines above it.
 An 'empty line' is blank or whitespace-only.
-Does not remove an empty line if the line immediately following it contains '[ME]:'.
-"
+Does not remove an empty line if the line immediately following it contains '[ME]:'."
   (interactive "r")
 
   (let ((lines-to-delete-pos '())
@@ -216,17 +138,59 @@ Does not remove an empty line if the line immediately following it contains '[ME
 ;;                                                                 (point-max))
 ;;     )
 
+(defun oai-optional-remove-distant-empty-lines-hook-function (type _content before-pos buf)
+  "Remove empty lines when there is too many of them."
+  (ignore _content)
+  (oai--debug "IN A HOOK oai-optional-remove-distant-empty-lines-hook-function: %s %s %s %s"
+              before-pos
+              (point)
+              type
+              (type-of type))
+  (when (equal type 'end)
+    (with-current-buffer buf
+      (let* ((context (oai-block-p))
+             (con-beg (org-element-property :contents-begin context))
+             (con-end (org-element-property :contents-end context)))
+        (oai-optional-remove-distant-empty-lines con-beg con-end)))))
 
+;;; - remove-headers hook
 (defun oai-optional-remove-headers (beg-pos end-pos)
-  "Remove Org mode header prefixes between BEG-POS and END-POS in the current buffer.
-LLMs sometimes add ** header ** to text, this break Org.
-Uses `org-outline-regexp-bol' to match headers, respecting user-configured prefixes."
+  "Remove Org mode header prefixes, like ^**.
+You may require this, because  LLMs frequently uses markdown for headers
+that recognized in Org mode as headers, that break blocks.
+Works at every line between BEG-POS and END-POS in the current buffer.
+Uses `org-outline-regexp-bol' to match headers, respecting
+user-configured prefixes."
   (interactive "r")
-  (save-excursion
-    (save-restriction
-      (narrow-to-region beg-pos end-pos)
-      (goto-char (point-min))
-      (replace-regexp-in-region org-outline-regexp-bol "" (point-min) (point-max)))))
+  (replace-regexp-in-region org-outline-regexp-bol "" (point-min) (point-max)))
+
+
+(defun oai-optional-remove-headers-hook-function (type _content before-pos buf)
+  "Ready for usage in `oai-restapi-after-chat-insertion-hook'.
+Remove Org headers between BEFORE-POS and current position in BUF buffer."
+  (oai--debug "IN A HOOK oai-optional-remove-headers-for-hook: %s %s %s %s"
+              before-pos
+              (point)
+              type
+              (type-of type))
+  (when (member type '(text end))
+    (with-current-buffer buf
+      (let ((line-beg (save-excursion
+                        (goto-char before-pos)
+                        (line-beginning-position))))
+        (oai-optional-remove-headers line-beg (point))))))
+
+;; - Test: oai-optional-remove-headers-for-hook
+(cl-assert
+ (string-equal
+  "Something Importent **\n\nOther Importent **"
+  (with-temp-buffer
+    (let ((oai-debug-buffer nil))
+    (insert "** Something Importent **\n\n")
+    (insert "** Other Importent **")
+    (oai-optional-remove-headers-hook-function 'end "" 1 (current-buffer))
+    (buffer-substring-no-properties (point-min) (point-max))))))
+
 
 (defcustom oai-optional-fill-paragraph-functions
   (list
@@ -237,16 +201,10 @@ functions."
   :type '(repeat function)
   :group 'oai)
 
+;;; - old: fill-paragraph (old, not used)
 (defun oai-optional-fill-paragraph (&optional justify region)
   "Call functions until success.
-Replace single `fill-paragraph-function' with list of functions.
-Usage:
-(setq oai-optional-fill-paragraph-functions
-          (append (list #'my/oai-fill-paragraph)
-                  oai-optional-fill-paragraph-functions))
-
-(keymap-set org-mode-map \"M-q\" #'oai-optional-fill-paragraph)
-"
+Replace single `fill-paragraph-function' with list of functions."
   (interactive (progn
 		 (barf-if-buffer-read-only)
 		 (list (when current-prefix-arg 'full) t)))
@@ -256,11 +214,17 @@ Usage:
                 (funcall step justify region))
             my/org-fill-paragraph-functions))
 
+;; Usage:
+;; (setq oai-optional-fill-paragraph-functions
+;;           (append (list #'my/oai-fill-paragraph)
+;;                   oai-optional-fill-paragraph-functions))
+
+;; (keymap-set org-mode-map \"M-q\" #'oai-optional-fill-paragraph)
 
 (defmacro oai-optional--apply-to-region-lines (func start end &rest args)
   "Apply FUNC to each line in region from START to END with ARGS.
-START and END is a pointer. FUNC is called with
-(line-start line-end . ARGS) for each line.
+START and END is a pointer.  FUNC is called with
+\(line-start line-end . ARGS) for each line.
 Executed inside `save-excursion'."
   `(let ((end-marker (copy-marker ,end)))
 
@@ -315,6 +279,90 @@ Ignoring code blocks that start with '```sometext' and end with '```'."
                 (setq beg end)))
             ;; (print "my/oai-fill-paragraph return t")
             t))))))
+;;; - old: remove-distant-empty-lines (old version)
+;; (cl-defun oai-optional-remove-distant-empty-lines (start end)
+;;   "Remove empty lines in current buffer between START and END.
+;; Removes an empty line only if another empty line is two lines above it.
+;; An 'empty line' is blank or whitespace-only.
+
+;; Example:
+;;   Original:      Result:
+;;   line 1         line 1
+;;                  (empty A) (kept)  (empty A)
+;;   line 2         line 2
+;;                  (empty B) (removed)line 3
+;;   line 3         line 4
+;;                  (empty C) (removed)line 5
+;;   line 4         (empty D)
+;;   line 5         line 6
+;;                  (empty D) (kept)
+;;   line 6
+
+;; Case ME:
+;; line 1         line 1
+;;                  (empty A) (kept)  (empty A)
+;; line 2         line 2
+;;                  (empty B) (not removed)
+;; line 3 with [ME]:   line 4
+;; "
+;;   (interactive "r") ;; Usable interactively on a selected region.
+
+;;   (let ((lines-to-delete-pos '()) ; Stores positions of lines to remove.
+;;         (line-info-list '())      ; Stores (line-pos . is-blank-p) for all lines in region.
+;;         (original-start start)    ; Store original region start for robustness.
+;;         (original-end end))       ; Store original region end for robustness.
+
+;;     (save-excursion ;; Preserve point and mark positions after execution.
+
+;;       ;; Phase 1: Collect info about lines in the region.
+;;       ;; Iterate through the region, recording each line's starting position
+;;       ;; and whether it's blank (contains only whitespace).
+;;       (goto-char start)
+;;       (while (< (point) end)
+;;         (push (cons (point) (string-blank-p (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+;;               line-info-list)
+;;         (forward-line 1))
+;;       ;; Reverse the list to get lines in document order (top to bottom).
+;;       (setq line-info-list (nreverse line-info-list))
+
+;;       ;; Phase 2: Identify lines for deletion.
+;;       ;; Iterate through the collected line information, keeping track of the
+;;       ;; blank status of the previous two lines to apply the condition.
+;;       (let ((line-minus-1-info nil) ; Stores (pos . is-blank) for the line one step back.
+;;             (line-minus-2-info nil)) ; Stores (pos . is-blank) for the line two steps back.
+;;         (dolist (current-line-info line-info-list)
+;;           (let* ((current-line-pos (car current-line-info))
+;;                  (current-line-is-blank (cdr current-line-info)))
+
+;;             ;; Condition for deletion: current line is blank AND the line two steps back existed
+;;             ;; and was also blank.
+;;             (when (and current-line-is-blank
+;;                        line-minus-2-info             ; Check if line two steps back actually exists.
+;;                        (cdr line-minus-2-info))      ; Check if that line was blank.
+;;               ;; If condition met, mark current line for deletion.
+;;               ;; `push` adds positions to the front, so the list will be in reverse order
+;;               ;; of appearance (later lines appear first in the list), which is ideal for deletion.
+;;               (push current-line-pos lines-to-delete-pos)))
+
+;;           ;; Update history for the next iteration:
+;;           ;; Old 'minus-1' becomes new 'minus-2'.
+;;           ;; Current line becomes new 'minus-1'.
+;;           (setq line-minus-2-info line-minus-1-info)
+;;           (setq line-minus-1-info current-line-info))))
+
+;;     ;; Phase 3: Delete the identified lines.
+;;     ;; Iterate through `lines-to-delete-pos`. Since it's already ordered from
+;;     ;; the largest position to the smallest, deletions occur safely from the
+;;     ;; end of the region towards the beginning, preventing position invalidation.
+;;     (save-excursion
+;;       (dolist (pos lines-to-delete-pos)
+;;         ;; Robustness check: Ensure the position is still within the original bounds.
+;;         (when (and (>= pos original-start) (< pos original-end))
+;;           (goto-char pos) ; Move point to the start of the line to be deleted.
+;;           ;; Delete the current line, including its trailing newline.
+;;           (delete-region (point) (progn (forward-line 1) (point))))))
+
+;;     (message "Removed empty lines based on condition.")))
 ;;; provide
 (provide 'oai-optional)
 ;;; oai-optional.el ends here
