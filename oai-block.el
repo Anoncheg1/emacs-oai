@@ -90,7 +90,7 @@ Used in prompt engineering only: oai-prompt.el."
 
 (defun oai-block-get-info (&optional element no-eval)
   "Parse the header of #+begin_ai...#+end_ai block.
-`ELEMENT' is the element of the special block.
+ELEMENT is the element of the special block.
 Like `org-babel-get-src-block-info' but instead of list return only
 arguments.
 To get value use: (alist-get :value (oai-block-get-info))
@@ -111,7 +111,7 @@ ignoring case."
 
 (defun oai-block-get-content (&optional element)
   "Extracts the text content of the #+begin_ai...#+end_ai block.
-`ELEMENT' is the element of the special block.
+ELEMENT is the element of the special block.
 
 Will expand noweb templates if an `oai-noweb' property or
 `noweb' header arg is \"yes\".
@@ -135,7 +135,7 @@ ELEMENT."
 
 (defun oai-block--get-request-type (info)
   "Look at the header of the #+begin_ai...#+end_ai block.
-returns the type of request.  `INFO' is the alist of key-value
+returns the type of request.  INFO is the alist of key-value
 pairs from `oai-block-get-info'."
   (cond
    ((not (eql 'x (alist-get :chat info 'x))) 'chat)
@@ -211,7 +211,7 @@ Return one of:
 - for number if specified without value return t.
 - Processed value of parameter (e.g., t/nil for bool).
 Parameters are sourced from:
-1. From Oai block header `INFO' alist.  (e.g., :model \"gpt-4\")
+1. From Oai block header INFO alist.  (e.g., :model \"gpt-4\")
 2. Org inherited property. (e.g., #+PROPERTY: model gpt-4)
 3. DEFAULT-FORM."
   `(let* ,(cl-loop for def-item in definitions
@@ -359,7 +359,7 @@ A negative argument ARG = -N means move backward."
 
 (defun oai-kill-region-at-point (&optional arg)
   "Kill the prompt at point.
-The numeric `ARG' can be used for killing the last n."
+The numeric ARG can be used for killing the last n."
   (interactive "P")
   (cl-loop repeat (or arg 1)
            do (when-let ((region (oai-mark-region-at-point)))
@@ -430,7 +430,7 @@ Optional argument HASH not used."
        ((member "append" result-params)
         (goto-char (org-babel-result-end))
         (setq beg (point-marker))))
-      (goto-char beg) (insert (concat result "\n"))
+      (goto-char beg) (insert result "\n")
       (setq end (copy-marker (point) t))
       (org-babel-examplify-region beg end "")
       ;; finally

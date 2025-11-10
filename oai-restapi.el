@@ -667,24 +667,24 @@ Useful for small max-tokens.
   "Compose API request from data and start a server-sent event stream.
 Call `oai-restapi-request' function as a next step.
 Called from `oai-call-block' in main file.
-`REQ-TYPE' symbol - is completion or chat mostly.  Set
-  `oai-block--get-request-type'.
-`ELEMENT' org-element - is ai block, should be converted to market at once.
-`SYS-PROMPT' string - first system instruction as a string.
-`SYS-PROMPT-FOR-ALL-MESSAGES' from
+REQ-TYPE symbol - is completion or chat mostly.  Set
+  oai-block--get-request-type.
+ELEMENT org-element - is ai block, should be converted to market at once.
+SYS-PROMPT string - first system instruction as a string.
+SYS-PROMPT-FOR-ALL-MESSAGES from
   `oai-restapi-default-inject-sys-prompt-for-all-messages' variable.
-`MODEL' string - is the model to use.
-`MAX-TOKENS' integer - is the maximum number of tokens to generate.
-`TEMPERATURE' integer - 0-2 lower - low 0.3 high-probability tokens
+MODEL string - is the model to use.
+MAX-TOKENS integer - is the maximum number of tokens to generate.
+TEMPERATURE integer - 0-2 lower - low 0.3 high-probability tokens
   producing predictable outputs.  1.5 diversity by flattening the
   probability distribution.
-`TOP-P' integer - 0-1 lower - chooses tokens whose cumulative
+TOP-P integer - 0-1 lower - chooses tokens whose cumulative
   probability exceeds this threshold, adapting to context.
-`FREQUENCY-PENALTY' integer - -2-2, lower less repeat words.
-`PRESENCE-PENALTY' integer - -2-2, lower less repeat concepts.
-`SERVICE' symbol or string - is the AI cloud service such as openai or
+FREQUENCY-PENALTY integer - -2-2, lower less repeat words.
+PRESENCE-PENALTY integer - -2-2, lower less repeat concepts.
+SERVICE symbol or string - is the AI cloud service such as openai or
   azure-openai.
-`STREAM' string - as bool, indicates whether to stream the response."
+STREAM string - as bool, indicates whether to stream the response."
   (oai--debug "oai-restapi-request-prepare")
   (let* (
          (content (string-trim (oai-block-get-content element))) ; string - is block content
@@ -855,7 +855,7 @@ Here used for completion mode in `oai-restapi-request'.
 ;;              index 0)]))
 (defun oai-restapi--normalize-response (response)
   "This function normalizes JSON data in OpenAI-style but with some differences.
-`RESPONSE' is one JSON message of the stream response."
+RESPONSE is one JSON message of the stream response."
   ;; (oai--debug "response:" response)
   (if-let ((error-message (plist-get response 'error)))
       (list (make-oai-restapi--response :type 'error :payload (or (plist-get response 'message) error-message)))
@@ -1087,15 +1087,17 @@ specific role."
 (cl-defun oai-restapi-request (service model callback &optional &key prompt messages max-tokens temperature top-p frequency-penalty presence-penalty stream)
   "Use API to LLM to request and get response.
 Executed by `oai-restapi-request-prepare'
-`PROMPT' is the query for completions `MESSAGES' is the query for
-chatgpt.  `CALLBACK' is the callback function.  `MODEL' is the
-model to use.  `MAX-TOKENS' is the maximum number of tokens to
-generate.  `TEMPERATURE' is the temperature of the distribution.
-`TOP-P' is the top-p value.  `FREQUENCY-PENALTY' is the frequency
-penalty.  `PRESENCE-PENALTY' is the presence penalty.
+PROMPT is the query for completions MESSAGES is the query for chatgpt.
+CALLBACK is the callback function.
+MODEL is the
+model to use.
+MAX-TOKENS is the maximum number of tokens to generate.
+TEMPERATURE is the temperature of the distribution.
+TOP-P is the top-p value.
+FREQUENCY-PENALTY is the frequency penalty.
+PRESENCE-PENALTY is the presence penalty.
 Variables used to save state:
 not buffer local:
-
 buffer local and nil by default:
 - `oai-restapi--current-insert-position-marker' - in url callback to
   track where we insert.
@@ -1113,7 +1115,6 @@ For not stream url return event and hook `after-change-functions'
  triggered only after url buffer already kill, that is why we don't use
  this hook.
 Use argument SERVICE to find endpoint, MODEL as parameter to request."
-
 
   ;; (setq org-ai--debug-data nil)
   ;; (setq org-ai--debug-data-raw nil)
@@ -1483,13 +1484,14 @@ If C\\-g was used return nil."
 
 (cl-defun oai-restapi--payload (&optional &key service model prompt messages max-tokens temperature top-p frequency-penalty presence-penalty stream)
   "Create the payload for the OpenAI API.
-`PROMPT' is the query for completions `MESSAGES' is the query for
-chatgpt.  `MODEL' is the model to use.  `MAX-TOKENS' is the
-maximum number of tokens to generate.  `TEMPERATURE' is the
-temperature of the distribution.  `TOP-P' is the top-p value.
-`FREQUENCY-PENALTY' is the frequency penalty.  `PRESENCE-PENALTY'
-is the presence penalty.
-`STREAM' is a boolean indicating whether to stream the response.
+PROMPT is the query for completions MESSAGES is the query for chatgpt.
+MODEL is the model to use.
+MAX-TOKENS is the maximum number of tokens to generate.
+TEMPERATURE is the temperature of the distribution.
+TOP-P is the top-p value.
+FREQUENCY-PENALTY is the frequency penalty.
+PRESENCE-PENALTY is the presence penalty.
+STREAM is a boolean indicating whether to stream the response.
 Use argument SERVICE to find endpoint, MODEL as parameter to request."
   (let ((extra-system-prompt)
         (max-completion-tokens))
@@ -1954,7 +1956,7 @@ prompt found in `CONTENT-STRING'."
                                                     (assistant-prefix "[AI]: "))
   "Convert a chat message to a string.
 MESSAGES is a vector of (:role :content) pairs.  :role can be
-\='system, \='user or 'assistant.  If DEFAULT-SYSTEM-PROMPT is
+\='system, \='user or \='assistant.  If DEFAULT-SYSTEM-PROMPT is
 non-nil, a [SYS] prompt is prepended if the first message is not
 a system message.  SYSTEM-PREFIX, USER-PREFIX and
 ASSISTANT-PREFIX are the prefixes for the respective roles
@@ -2060,7 +2062,7 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
 
 ;; (defun oai-restapi--stream-supported (service model)
 ;;   "Check if the stream is supported by the service and model.
-;; `SERVICE' is the service to use. `MODEL' is the model to use.
+;; SERVICE is the service to use. MODEL is the model to use.
 ;; Used in oai.el"
 ;;   ;; stream not supported by openai o1 models
 ;;   (not (and (or (eq service 'openai) (eq service 'azure-openai))

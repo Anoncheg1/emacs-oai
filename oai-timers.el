@@ -228,7 +228,7 @@ about failure."
     (oai--debug "oai-timers--update-global-progress-reporter2, count: %s count-live: %s" count count-live)
     (let ((count (length (oai-timers--get-all-keys))))
       (unless oai-timers--oai-update-mode-line
-        (error "oai.el should be loaded to use oai-timers--update-global-progress-reporter function"))
+        (error "Oai.el should be loaded to use oai-timers--update-global-progress-reporter function"))
       (funcall oai-timers--oai-update-mode-line count)
       (when (eql count 0)
         (oai-timers--stop-global-progress-reporter failed)))))
@@ -287,9 +287,11 @@ about failure."
 
 ;;; - Timers Local
 (defun oai-timers--interrupt-current-request (url-buffer &optional interrupt-request-func)
-  "Stop waiting for request, remove buffer from list, update global timer.
+  "Interrupt every buffer, remove buffer from list, update global timer.
 URL-BUFFER one or several buffers.
 Should be called in target buffer with global timer.
+INTERRUPT-REQUEST-FUNC may be `oai-restapi--stop-tracking-url-request'
+or `oai-restapi--interrupt-url-request'
 Called from
 `oai-restapi--insert-stream-response' after receiving first chunk,
 `oai-restapi--url-request-on-change-function' for  not stream after  reply or
@@ -347,20 +349,18 @@ Called from
 (defun oai-timers--progress-reporter-run (interrupt-request-func &optional duration)
   "Start or update progress notification.
 1) Save pair (HEADER-MARKER->URL-BUFFER)
-
 2) INTERRUPT-REQUEST-FUNC - When timer expired kill all by calling for
 every buffer.
-
-Require that url-buffer was saved with oai-timers--set, to count them.
-
+Require that url-buffer was saved with `oai-timers--set', to count them.
 Called from `oai-restapi-request'.
-
 Set:
 - `oai-timers--global-progress-reporter' - lambda that return a string,
 - `oai-timers--global-progress-timer' - timer that output /-\ to echo area.
 - `oai-timers--global-progress-timer-remaining-ticks'.
 - `oai-timers--current-timer' - count life of url buffer,
-- `oai-timers--current-timer-remaining-ticks'."
+- `oai-timers--current-timer-remaining-ticks'.
+Optional argument DURATION may be used to replace `oai-timers-duration'
+value."
   (oai--debug "oai-timers--progress-reporter-run %s %s" (length (oai-timers--get-all-keys)) oai-timers--element-marker-variable-dict)
   ;; - update mode-line
   ;; (oai-timers--update-global-progress-reporter)

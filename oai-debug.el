@@ -116,7 +116,7 @@ Return last argument, but should not be used for return value."
           (save-match-data
             (if (and (equal (type-of (car args)) 'string)
                      (string-match "%s" (car args)))
-                (setq result-string (concat (apply 'format (car args) (cdr args)) "\n"))
+                (setq result-string (concat (apply #'format (car args) (cdr args)) "\n"))
 
               ;; else
               (setq result-string (apply #'concat (mapcar (lambda (arg)

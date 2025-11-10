@@ -130,8 +130,7 @@ contains [ME]:"
                      ;; Call the function
                      (oai-optional-remove-distant-empty-lines start end))
                    (buffer-substring-no-properties                           (point-min)
-                                                                             (point-max))
-                   ))))
+                                                                             (point-max))))))
 ;; ;; [ME]: case
 (cl-assert
  (string-equal (print "line 1\n\nline 2\nline 3\nline 4\nline 5.\n[ME]:line 6\n")
@@ -144,8 +143,7 @@ contains [ME]:"
                    ;; Call the function
                    (oai-optional-remove-distant-empty-lines start end))
                  (buffer-substring-no-properties                           (point-min)
-                                                                           (point-max))
-                 )))
+                                                                           (point-max)))))
 
 (defun oai-optional-remove-distant-empty-lines-hook-function (type _content before-pos buf)
   "Remove empty lines when there is too many of them.

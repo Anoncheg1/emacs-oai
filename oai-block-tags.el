@@ -417,7 +417,7 @@ Move pointer to the end of block."
                     ;; (error nil))
                     ))) replacement-list))
         ;; (print (list "!!!!!!!!!" (reverse replacement-list)))
-        (apply 'concat (reverse replacement-list))))
+        (apply #'concat (reverse replacement-list))))
      ;; - (2) case - Markdown block
      ((oai-block-tags--get-m-block))
      ;; (oai-block-tags--markdown-block-range
