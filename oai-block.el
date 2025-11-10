@@ -396,12 +396,13 @@ Use ELEMENT only in current moment in element buffer."
       (goto-char header-marker)
       (oai-block-insert-result message))))
 
-(defun oai-block-insert-result (result &optional result-params hash exec-time)
+(defun oai-block-insert-result (result &optional result-params hash _exec-time)
   "Modified `org-babel-insert-result' function.
 Insert RESULT into the current buffer.
 TODO: EXEC-TIME.
 Optional argument RESULT-PARAMS not used.
 Optional argument HASH not used."
+  (ignore _exec-time)
   (when (stringp result)
     (setq result (substring-no-properties result)))
   (save-excursion

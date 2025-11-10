@@ -495,7 +495,7 @@ SERVICE is a string."
   "KEY can be a keyword or string.
 Return:
 - list with its value (even if nil) - If KEY exists in PLIST.
-- \'(nil) - If KEY exists with nil or without value.
+- (list nil) - If KEY exists with nil or without value.
 - nil - If KEY does NOT exist."
   (if (stringp plist)
       (list plist)
@@ -1151,7 +1151,8 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
     (let ((url-request-buffer
            (url-retrieve ; <- - - - - - - - -  MAIN
             endpoint
-            (lambda (_events) ;
+            (lambda (_events)
+              (ignore _events)
               "Called within url-request-buffer after `after-change-functions'"
               ;; (setq _events _events) ; noqa left unused
               ;; called one time at error or at the end of all receiving.
@@ -1233,6 +1234,7 @@ Optional argument PRESENCE-PENALTY - OpenAI parameter."
            (url-retrieve ; <- - - - - - - - -  MAIN
             endpoint
             (lambda (_events)
+              (ignore _events)
               "oai-restapi-request-llm main callback."
               (oai--debug "oai-restapi-request-llm *url-retrieve callback*:" _events)
               (let (oai-restapi--url-buffer-last-position-marker)
@@ -1951,11 +1953,11 @@ prompt found in `CONTENT-STRING'."
                                                     (user-prefix "[ME]: ")
                                                     (assistant-prefix "[AI]: "))
   "Convert a chat message to a string.
-`MESSAGES' is a vector of (:role :content) pairs.  :role can be
-\='system, \='user or 'assistant.  If `DEFAULT-SYSTEM-PROMPT' is
+MESSAGES is a vector of (:role :content) pairs.  :role can be
+\='system, \='user or 'assistant.  If DEFAULT-SYSTEM-PROMPT is
 non-nil, a [SYS] prompt is prepended if the first message is not
-a system message.  `SYSTEM-PREFIX', `USER-PREFIX' and
-`ASSISTANT-PREFIX' are the prefixes for the respective roles
+a system message.  SYSTEM-PREFIX, USER-PREFIX and
+ASSISTANT-PREFIX are the prefixes for the respective roles
 inside the assembled prompt string."
   (let ((messages (if (and default-system-prompt
                            (not (eql (plist-get (aref messages 0) :role) 'system)))

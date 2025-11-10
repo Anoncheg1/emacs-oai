@@ -459,8 +459,7 @@ LINK is string in format is what inside [[...]] or Plain link."
                 (oai--debug "oai-block-tags--get-org-links-content4 %s" pos1)
                 (goto-char pos1)
                 (oai-block-tags--get-org-content))
-            (user-error "In link %s of NUM format was not possible to find first position in buffer %s" link (current-buffer)))
-          ))
+            (user-error "In link %s of NUM format was not possible to find first position in buffer %s" link (current-buffer)))))
     ;; else - not org-links type link.
     nil))
 
@@ -576,8 +575,7 @@ Return replacement string."
                     (user-error "Two targets found for link %s\n- %s: %s\n- %s: %s" link-string
                                 (line-number-at-pos) (buffer-substring-no-properties (line-beginning-position) (line-end-position))
                                 ln-found (progn (forward-line (- ln-found (line-number-at-pos)))
-                                                (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
-                    )))
+                                                (buffer-substring-no-properties (line-beginning-position) (line-end-position)))))))
 
               ;; - 4) Move to position of target - if we are here: No second target was found
               ;; (print (list "oai-block-tags--get-replacement-for-org-link found2" (point) target-pos type link-string)) ; `(ref)'

@@ -37,8 +37,9 @@
 ;;; - remove-distant-empty-lines hook
 (cl-defun oai-optional-remove-distant-empty-lines (start end)
   "Remove empty lines in current buffer between START and END.
-Removes an empty line only if another empty line is two lines above it.
-An 'empty line' is blank or whitespace-only.
+Removes an empty line only if another empty line is two lines above
+it.
+Empty line is blank or whitespace-only.
 Does not remove an empty line if the line immediately following it
 contains [ME]:"
   (interactive "r")
@@ -66,8 +67,10 @@ contains [ME]:"
         ;; Iterate through the list with indices to check previous and next lines efficiently.
         (dotimes (i (length line-data-list))
           ;; Use cl-destructuring-bind for clear access to current line's data
-          (cl-destructuring-bind (current-line-pos current-is-blank current-text)
-              (nth i line-data-list)
+          (seq-let (current-line-pos current-is-blank _current-text) (nth i line-data-list)
+            (ignore _current-text)
+          ;; (cl-destructuring-bind (current-line-pos current-is-blank current-text)
+          ;;     (nth i line-data-list)
             (let* (
                    ;; Safely get blank status for previous two lines
                    (prev-line-is-blank
@@ -96,7 +99,7 @@ contains [ME]:"
               ;; 2. Line two steps back was blank.
               ;; 3. The next line does NOT contain "[ME]:".
               (when (and current-is-blank
-                         prev-prev-line-is-blank
+                         (or prev-prev-line-is-blank prev-line-is-blank)
                          (not next-line-contains-me-p))
                 (push current-line-pos lines-to-delete-pos))))))
 
@@ -117,7 +120,7 @@ contains [ME]:"
 ;; ;; - Test for `oai-optional-remove-distant-empty-lines' function
 (cl-assert
  (string-equal (print "line 1\n\nline 2\nline 3\nline 4\nline 5\n\nline 6\n")
-               (let ((string (print "line 1\n\nline 2\n\nline 3\n\nline 4\nline 5\n\nline 6\n")))
+               (let ((string (print "line 1\n\n\nline 2\n\n\nline 3\n\nline 4\nline 5\n\nline 6\n")))
                  (with-temp-buffer
                    ;; Set up initial buffer content
                    (insert string)
@@ -131,10 +134,10 @@ contains [ME]:"
                    ))))
 ;; ;; [ME]: case
 (cl-assert
- (string-equal (print "line 1\n\nline 2\nline 3\nline 4\nline 5\n\n[ME]:line 6\n")
+ (string-equal (print "line 1\n\nline 2\nline 3\nline 4\nline 5.\n[ME]:line 6\n")
                (with-temp-buffer
                  ;; Set up initial buffer content
-                 (insert (print "line 1\n\nline 2\n\nline 3\n\nline 4\n\nline 5\n\n[ME]:line 6\n"))
+                 (insert (print "line 1\n\nline 2\n\nline 3\n\n\n\nline 4\n\nline 5.\n[ME]:line 6\n"))
                  ;; Define the region to operate on (entire buffer in this case)
                  (let ((start (point-min))
                        (end (point-max)))
@@ -199,13 +202,13 @@ TYPE _CONTENT BEFORE-POS BUF parameters described in
         res)
     (insert "** Something Importent1\n")
     (insert "#+begin_ai\n")
-    (setq p (point))
+    (setq p1 (point))
     (insert "** not important **\n")
     (insert "#+end_ai\n")
     (setq p2 (point))
     (insert "** Something Importent2\n")
     (goto-char p2)
-    (oai-optional-remove-headers-hook-function 'end "" p (current-buffer))
+    (oai-optional-remove-headers-hook-function 'end "" p1 (current-buffer))
     (setq res (string-split (buffer-substring-no-properties (point-min) (point-max)) "\n"))
     (cl-assert
      (string-equal
@@ -234,19 +237,19 @@ functions."
   :group 'oai)
 
 ;;; - old: fill-paragraph (old, not used)
-(defun oai-optional-fill-paragraph (&optional justify region)
-  "Call functions until success.
-Replace single `fill-paragraph-function' with list of functions.
-Optional argument JUSTIFY is parameter of `fill-paragraph'.
-Optional argument REGION ."
-  (interactive (progn
-		 (barf-if-buffer-read-only)
-		 (list (when current-prefix-arg 'full) t)))
-  ;; call in loop functions, untill one return true
-  (seq-find (lambda(step)
-                ;; (message step) ; debug
-                (funcall step justify region))
-            my/org-fill-paragraph-functions))
+;; (defun oai-optional-fill-paragraph (&optional justify region)
+;;   "Call functions until success.
+;; Replace single `fill-paragraph-function' with list of functions.
+;; Optional argument JUSTIFY is parameter of `fill-paragraph'.
+;; Optional argument REGION ."
+;;   (interactive (progn
+;; 		 (barf-if-buffer-read-only)
+;; 		 (list (when current-prefix-arg 'full) t)))
+;;   ;; call in loop functions, untill one return true
+;;   (seq-find (lambda(step)
+;;                 ;; (message step) ; debug
+;;                 (funcall step justify region))
+;;             my/org-fill-paragraph-functions))
 
 ;; Usage:
 ;; (setq oai-optional-fill-paragraph-functions
@@ -282,6 +285,7 @@ Optional argument REGION todo."
   (interactive (progn
                  (barf-if-buffer-read-only)
                  (list (when current-prefix-arg 'full) t)))
+  (ignore region)
   ;; inspired by `org-fill-element'
   (with-syntax-table org-mode-transpose-word-syntax-table
     (let ((element (oai-block-p)))
