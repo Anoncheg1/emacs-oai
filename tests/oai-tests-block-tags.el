@@ -49,20 +49,20 @@
     (unwind-protect
         (progn
           (write-region "Hello, test!" nil tmpfile)
-          (should (equal (oai-block-tags--read-file-to-string-safe tmpfile)
+          (should (equal (org-file-contents tmpfile)
                          "Hello, test!")))
       (delete-file tmpfile))))
 
 (ert-deftest oai-tests-block-tags--read-file-to-string-safe--file-missing ()
   "Should signal user-error if the file does not exist."
-  (should-error (oai-block-tags--read-file-to-string-safe "/no/such/file")
+  (should-error (org-file-contents "/no/such/file")
                 :type 'user-error))
 
 (ert-deftest oai-tests-block-tags--read-file-to-string-safe--nonregular ()
   "Should signal user-error if path is not a regular file."
   (let ((tmpdir (make-temp-file "oai-test-dir" t)))
     (unwind-protect
-        (should-error (oai-block-tags--read-file-to-string-safe tmpdir)
+        (should-error (org-file-contents tmpdir)
                       :type 'user-error)
       (delete-directory tmpdir))))
 
@@ -73,7 +73,7 @@
         (progn
           (write-region "not readable" nil tmpfile)
           (set-file-modes tmpfile 0)
-          (should-error (oai-block-tags--read-file-to-string-safe tmpfile)
+          (should-error (org-file-contents tmpfile)
                         :type 'user-error))
       ;; Restore permissions so we can delete it
       (set-file-modes tmpfile #o600)
@@ -86,7 +86,7 @@
         (progn
           (write-region "abc" nil tmpfile)
           (should (equal
-                   (oai-block-tags--read-file-to-string-safe tmpfile 'utf-8)
+                   (org-file-contents tmpfile 'utf-8)
                    "abc")))
       (delete-file tmpfile))))
 
