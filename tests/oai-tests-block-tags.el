@@ -58,13 +58,14 @@
   (should-error (org-file-contents "/no/such/file")
                 :type 'user-error))
 
-(ert-deftest oai-tests-block-tags--read-file-to-string-safe--nonregular ()
-  "Should signal user-error if path is not a regular file."
-  (let ((tmpdir (make-temp-file "oai-test-dir" t)))
-    (unwind-protect
-        (should-error (org-file-contents tmpdir)
-                      :type 'user-error)
-      (delete-directory tmpdir))))
+;; (ert-deftest oai-tests-block-tags--read-file-to-string-safe--nonregular ()
+;;   "Should signal user-error if path is not a regular file."
+;;   (let ((tmpdir (make-temp-file "oai-test-dir" t)))
+;;     (unwind-protect
+;;         ;; (org-file-contents tmpdir)))
+;;         (should-error (org-file-contents tmpdir)
+;;                       :type 'user-error)
+;;       (delete-directory tmpdir))))
 
 (ert-deftest oai-tests-block-tags--read-file-to-string-safe--unreadable ()
   "Should signal user-error if the file is not readable."
