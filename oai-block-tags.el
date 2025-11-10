@@ -156,36 +156,38 @@ Nil if buffer does not exist."
 (defvar oai-block-tags-get-directory-switches "-AltGg")
 
 (defun oai-block-tags--get-directory-content (path-string)
+  "Return string with list of files at PATH-STRING."
   (if oai-block-tags-use-simple-directory-content
       (concat (apply #'mapconcat #'identity (directory-files path-string)  '("\n")))
     ;; else
     (let* ((dired-listing-switches oai-block-tags-get-directory-switches)
-           (buf (dired-noselect path-string)))
+           (buf (dired-noselect path-string))
+           (kill-buffer-query-functions nil))
       (unwind-protect
           (with-current-buffer buf
             (buffer-substring-no-properties (point-min) (point-max)))
         (kill-buffer buf)))))
 
-(defun oai-block-tags--read-file-to-string-safe (path-string &optional coding)
-  ;; check
-  (when (not (and (file-exists-p path-string)
-                  (file-regular-p path-string)
-                  (file-readable-p path-string)))
-           (user-error "File does not exist or not readable: %s" path-string))
-  ;; read
-  (condition-case err
-      (with-temp-buffer
-        (when coding
-          (set-buffer-file-coding-system coding))
-        (insert-file-contents path-string)
-        (buffer-string))
-    (error (message "Error reading file %s: %s" path-string err)
-           nil)))
-
-;; (oai-block-tags--read-file-to-string-safe
+;; replaced with `org-file-contents'
+;; (defun oai-block-tags--read-file-to-string-safe (path-string &optional coding)
+;;   "Read file to string at PATH-STRING, that should be a readable file."
+;;   ;; check
+;;   (when (not (and (file-exists-p path-string)
+;;                   (file-regular-p path-string)
+;;                   (file-readable-p path-string)))
+;;            (user-error "File does not exist or not readable: %s" path-string))
+;;   ;; read
+;;   (condition-case err
+;;       (with-temp-buffer
+;;         (when coding
+;;           (set-buffer-file-coding-system coding))
+;;         (insert-file-contents path-string)
+;;         (buffer-string))
+;;     (error (message "Error reading file %s: %s" path-string err)
+;;            nil)))
 
 (defun oai-block-tags--filepath-to-language (path-string)
-  "For path-string return Org babel source block language name."
+  "For PATH-STRING return Org babel source block language name."
   (let* ((mode-symbol (assoc-default path-string auto-mode-alist 'string-match))
         (mode-string (apply #'mapconcat #'identity (butlast (string-split (symbol-name mode-symbol) "-")) '("-"))))
     (or (car (rassq (intern mode-string) org-src-lang-modes))
@@ -207,7 +209,10 @@ Nil if buffer does not exist."
  (string-equal (oai-block-tags--filepath-to-language "a.txt") "text"))
 
 (defun oai-block-tags--compose-block-for-path (path-string content)
-  "Return file/directory content in mardown block."
+  "Return mardown block with description.
+PATH-STRING may be path to directory or to a file.
+For provided PATH-STRING and CONTENT string, return string that will be
+good understood by AI."
   (concat
    "Here " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder" "") ":\n"
    ;; prefix
@@ -239,12 +244,13 @@ ss
 ```"))
 
 (defun oai-block-tags--compose-block-for-path-full (path-string)
-  "Return file or directory in prepared mardown block."
+  "Return file or directory in prepared mardown block.
+PATH-STRING may be path to file or a directory."
   (oai-block-tags--compose-block-for-path path-string
                                           (if (file-directory-p path-string)
                                               (oai-block-tags--get-directory-content path-string)
                                             ;; else
-                                            (oai-block-tags--read-file-to-string-safe path-string))))
+                                            (org-file-contents path-string)))) ; oai-block-tags--read-file-to-string-safe
 
 ;;; -=-= help functions: get content
 (defun oai-block-tags--get-org-block-element ()
@@ -260,7 +266,7 @@ Same logic as in `oai-block-tags--get-org-block-region'."
 
 
 (defun oai-block-tags--get-org-content-m-block (&optional element)
-  "Return markdown block for LLM for current element at current position.
+  "Return markdown block for LLM for current ELEMENT at current position.
 Move pointer to the end of block.
 Steps: find max, min region of special-block/src-block/buffer
 `org-babel-read-element' from ob-core.el"
@@ -300,7 +306,7 @@ Return non-nil string of markdown block if exist at current position."
 
 (defun oai-block-tags--position-at-line-beginning (line-num &optional end-flag buffer)
   "Return the buffer position at the beginning of LINE-NUM in BUFFER or nil.
-LINE-NUM is 1-based. If BUFFER is nil, use the current buffer.
+LINE-NUM is 1-based.  If BUFFER is nil, use the current buffer.
 If END-FLAG is non-nil, then return end of line position.
 Returns nil if LINE-NUM is out of range."
   (with-current-buffer (or buffer (current-buffer))
@@ -461,8 +467,12 @@ LINK is string in format is what inside [[...]] or Plain link."
 ;; (oai-block-tags--get-org-links-content "9-10")
 
 (defun oai-block-tags--org-search-local (link type path)
-  "Return type
-  of matched result, which is either `dedicated' or `fuzzy'."
+  "Search for LINK Org object with TYPE at PATH in current buffer.
+Where PATH is :path of LINK Org object.
+Wrap `org-link-search' function, like in `org-link-open' function.
+Now we use it for TYPE radio and fuzzy.
+Move pointer to found link and return type of matched result, which is
+either `dedicated' or `fuzzy'.  If not found give raise error."
   (oai--debug "oai-block-tags--org-search-local %s %s %s" link type path)
   (if (equal type "radio")
       (org-link--search-radio-target path)
@@ -492,7 +502,7 @@ LINK is string in format is what inside [[...]] or Plain link."
       (oai-block-tags--get-replacement-for-org-link link-string)))) ; recurse but with current buffer to get local links
 
 (defun oai-block-tags--get-replacement-for-org-link (link-string)
-  "Return string for LLM for LINK-STRING string or nil.
+  "Return string that explain LINK-STRING for LLM or nil.
 Supported targets:
 - Org block in current buffer \"file:\"
 - file: - targets in other files

@@ -555,7 +555,7 @@ not found in tokens."
            ((and oai-restapi-con-token
                  (stringp oai-restapi-con-token)
                  (string-empty-p oai-restapi-con-token))
-            (user-error "`oai-restapi-con-token' is an empty string. Please set."))
+            (user-error "`oai-restapi-con-token' is an empty string. Please set"))
            (t
             ;; else no `oai-restapi-con-token'
             (user-error "Please set `oai-restapi-con-token' to your OpenAI API token or setup auth-source (see oai readme)"))))))))

@@ -39,7 +39,8 @@
   "Remove empty lines in current buffer between START and END.
 Removes an empty line only if another empty line is two lines above it.
 An 'empty line' is blank or whitespace-only.
-Does not remove an empty line if the line immediately following it contains '[ME]:'."
+Does not remove an empty line if the line immediately following it
+contains [ME]:"
   (interactive "r")
 
   (let ((lines-to-delete-pos '())
@@ -114,29 +115,34 @@ Does not remove an empty line if the line immediately following it contains '[ME
 
 
 ;; ;; - Test for `oai-optional-remove-distant-empty-lines' function
-;; (with-temp-buffer
-;;     ;; Set up initial buffer content
-;;     (insert "line 1\n\nline 2\n\nline 3\n\nline 4\nline 5\n\nline 6\n")
-;;     ;; Define the region to operate on (entire buffer in this case)
-;;     (let ((start (point-min))
-;;           (end (point-max)))
-;;       ;; Call the function
-;;       (oai-optional-remove-distant-empty-lines start end))
-;;       (buffer-substring-no-properties                           (point-min)
-;;                                                                 (point-max))
-;;     )
+(cl-assert
+ (string-equal (print "line 1\n\nline 2\nline 3\nline 4\nline 5\n\nline 6\n")
+               (let ((string (print "line 1\n\nline 2\n\nline 3\n\nline 4\nline 5\n\nline 6\n")))
+                 (with-temp-buffer
+                   ;; Set up initial buffer content
+                   (insert string)
+                   ;; Define the region to operate on (entire buffer in this case)
+                   (let ((start (point-min))
+                         (end (point-max)))
+                     ;; Call the function
+                     (oai-optional-remove-distant-empty-lines start end))
+                   (buffer-substring-no-properties                           (point-min)
+                                                                             (point-max))
+                   ))))
 ;; ;; [ME]: case
-;; (with-temp-buffer
-;;     ;; Set up initial buffer content
-;;     (insert "line 1\n\nline 2\n\nline 3\n\nline 4\n\nline 5\n\n[ME]:line 6\n")
-;;     ;; Define the region to operate on (entire buffer in this case)
-;;     (let ((start (point-min))
-;;           (end (point-max)))
-;;       ;; Call the function
-;;       (oai-optional-remove-distant-empty-lines start end))
-;;       (buffer-substring-no-properties                           (point-min)
-;;                                                                 (point-max))
-;;     )
+(cl-assert
+ (string-equal (print "line 1\n\nline 2\nline 3\nline 4\nline 5\n\n[ME]:line 6\n")
+               (with-temp-buffer
+                 ;; Set up initial buffer content
+                 (insert (print "line 1\n\nline 2\n\nline 3\n\nline 4\n\nline 5\n\n[ME]:line 6\n"))
+                 ;; Define the region to operate on (entire buffer in this case)
+                 (let ((start (point-min))
+                       (end (point-max)))
+                   ;; Call the function
+                   (oai-optional-remove-distant-empty-lines start end))
+                 (buffer-substring-no-properties                           (point-min)
+                                                                           (point-max))
+                 )))
 
 (defun oai-optional-remove-distant-empty-lines-hook-function (type _content before-pos buf)
   "Remove empty lines when there is too many of them.
