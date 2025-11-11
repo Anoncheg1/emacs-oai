@@ -668,7 +668,7 @@ Useful for small max-tokens.
 Call `oai-restapi-request' function as a next step.
 Called from `oai-call-block' in main file.
 REQ-TYPE symbol - is completion or chat mostly.  Set
-  oai-block--get-request-type.
+  `oai-block--get-request-type'.
 ELEMENT org-element - is ai block, should be converted to market at once.
 SYS-PROMPT string - first system instruction as a string.
 SYS-PROMPT-FOR-ALL-MESSAGES from
@@ -1203,11 +1203,8 @@ Call CALLBACK called from callback of `url-retrieve' with nil or result of
 Use argument SERVICE to find endpoint, MODEL as parameter to request.
 Call CALLBACK at receive.  Call CALLBACK with nil if error.
 One of argument PROMPT and MESSAGES used as main payload.
-Optional argument MAX-TOKENS - OpenAI parameter.
-Optional argument TEMPERATURE - OpenAI parameter
-Optional argument TOP-P - OpenAI parameter
-Optional argument FREQUENCY-PENALTY - OpenAI parameter
-Optional argument PRESENCE-PENALTY - OpenAI parameter."
+For MAX-TOKENS, TEMPERATURE, TOP-P, FREQUENCY-PENALTY, PRESENCE-PENALTY,
+see `oai-restapi-request-prepare'."
   (oai--debug "oai-restapi-request-llm00 %s %s %s" (current-buffer) service oai-restapi-con-token)
   (let ((url-request-extra-headers (oai-restapi--get-headers service))
         (url-request-method "POST")

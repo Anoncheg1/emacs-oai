@@ -63,6 +63,13 @@ Heavy to execute."
 (defvar oai--debug-filter nil
   "Output only strings that contains this.")
 
+(defun oai-debug--format-argument (arg)
+  "Prepare argument of `oai--debug' for output.
+Always return string."
+  (if (equal (type-of arg) 'string)
+      (format "%s\n" arg)
+    (concat (prin1-to-string arg) "\n")))
+
 (defun oai--debug (&rest args)
   "If firt argument of ARGS is a stringwith %s than behave like format.
 Otherwise format every to string and concatenate.
@@ -114,16 +121,18 @@ Return last argument, but should not be used for return value."
           ;;     (insert " :")))
           ;; - output args
           (save-match-data
+            ;; if first line is a string with %s we output all at one line
             (if (and (equal (type-of (car args)) 'string)
                      (string-match "%s" (car args)))
                 (setq result-string (concat (apply #'format (car args) (cdr args)) "\n"))
 
-              ;; else
-              (setq result-string (apply #'concat (mapcar (lambda (arg)
-                                                            (if (equal (type-of arg) 'string)
-                                                                (format "%s\n" arg)
-                                                              (concat (prin1-to-string arg) "\n")))
-                                                          args))))
+              ;; else - output arguments line by line
+              (setq result-string (concat (oai-debug--format-argument (car args))
+                                          (when (cdr args)
+                                            (concat
+                                             "```\n" (apply #'concat (mapcar #'oai-debug--format-argument
+                                                                               (cdr args)))
+                                             "```\n")))))
             (when (and oai--debug-filter
                        (not (string-match-p (regexp-quote oai--debug-filter) result-string)))
                     (setq result-string nil))

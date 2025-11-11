@@ -162,15 +162,16 @@ For assiging to `oai-agent-call-function' with all normal ARGS."
 Aspects:
 1) start and stop reporter at begining and at the end (final callback).
 2) error handling: kill reporter, kill tmp buffer, kill timers
-
 Execution Chain:
 `oai-restapi-request-llm-retries'
 `oai-restapi-request-llm'
-
 Modeline notification:
 1) `oai-timers--set' used in `oai-restapi-request-llm-retries'.
 2) `oai-timers--set' here
-3) `oai-timers--progress-reporter-run' - here"
+3) `oai-timers--progress-reporter-run' - here
+For REQ-TYPE, ELEMENT, SYS-PROMPT, SYS-PROMPT-FOR-ALL-MESSAGES, MODEL,
+MAX-TOKENS, TOP-P, TEMPERATURE, FREQUENCY-PENALTY, PRESENCE-PENALTY,
+SERVICE, STREAM see `oai-restapi-request-prepare'."
   (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
   ;; noqa Unused lexical argument
   (ignore req-type sys-prompt-for-all-messages stream)

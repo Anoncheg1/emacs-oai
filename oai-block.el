@@ -40,7 +40,9 @@
 
 ;; Note Org terms:
 ;; - element - "room" you are in (e.g., a paragraph) (TYPE PROPS) (org-element-at-point)
-;; - context - "furniture" you are touching within that room (e.g., a bold word, a link). (TYPE PROPS) (org-element-context)
+
+;; - context - "furniture" you are touching within that room (e.g., a
+;;   bold word, a link). (TYPE PROPS) (org-element-context)
 ;; - org-dblock-start-re
 ;;
 ;; Content begin-end

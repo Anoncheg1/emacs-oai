@@ -299,6 +299,16 @@ messages."
                                       org-font-lock-extra-keywords
                                       (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
                                       '(oai-block-tags--font-lock-fontify-links))))
+;;; -=-= Mark block M-h
+(defun oai-mark-at-point (arg)
+  "Mark entity at current poin in current buffer.
+Mark Mardkown block or whole ai block. If universal argument arg is
+non-nil, then mark one chat message."
+  (interactive "P")
+  (if arg
+      (oai-mark-region-at-point)
+    ;; else
+    (oai-block-tags-mark-md-block-body)))
 ;;; -=-= Minor mode
 
 (defvar oai-mode-map (make-sparse-keymap)
@@ -311,7 +321,7 @@ messages."
   ;; (define-key map (kbd "C-c DEL") 'org-ai-kill-region-at-point) ; oai-block.el
   (define-key map (kbd (string-join (list "C-c" " <backspace>"))) #'oai-kill-region-at-point) ; oai-block.el
   ;; (define-key map (kbd (string-join (list "C-c" " r"))) 'org-ai-talk-capture-in-org) ; org-ai-talk.el
-  (define-key map (kbd "M-h") #'oai-block-tags-mark-md-block-body) ; oai-block.el
+  (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
   (define-key map (kbd (string-join (list "C-c" " C-/"))) #'oai-open-request-buffer) ; oai-restapi.el
   (define-key map (kbd (string-join (list "C-c" " ?"))) #'oai-expand-block))
 
