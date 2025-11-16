@@ -119,8 +119,8 @@ contains [ME]:"
 
 ;; ;; - Test for `oai-optional-remove-distant-empty-lines' function
 (cl-assert
- (string-equal (print "line 1\n\nline 2\nline 3\nline 4\nline 5\n\nline 6\n")
-               (let ((string (print "line 1\n\n\nline 2\n\n\nline 3\n\nline 4\nline 5\n\nline 6\n")))
+ (string-equal "line 1\n\nline 2\nline 3\nline 4\nline 5\n\nline 6\n"
+               (let ((string "line 1\n\n\nline 2\n\n\nline 3\n\nline 4\nline 5\n\nline 6\n"))
                  (with-temp-buffer
                    ;; Set up initial buffer content
                    (insert string)
@@ -133,10 +133,10 @@ contains [ME]:"
                                                                              (point-max))))))
 ;; ;; [ME]: case
 (cl-assert
- (string-equal (print "line 1\n\nline 2\nline 3\nline 4\nline 5.\n[ME]:line 6\n")
+ (string-equal "line 1\n\nline 2\nline 3\nline 4\nline 5.\n[ME]:line 6\n"
                (with-temp-buffer
                  ;; Set up initial buffer content
-                 (insert (print "line 1\n\nline 2\n\nline 3\n\n\n\nline 4\n\nline 5.\n[ME]:line 6\n"))
+                 (insert "line 1\n\nline 2\n\nline 3\n\n\n\nline 4\n\nline 5.\n[ME]:line 6\n")
                  ;; Define the region to operate on (entire buffer in this case)
                  (let ((start (point-min))
                        (end (point-max)))

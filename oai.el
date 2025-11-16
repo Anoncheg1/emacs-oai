@@ -76,6 +76,7 @@
 
 ;; Callback write result to ORG
 
+;; Touch: Mirrors everywhere, but they are flawed.
 
 ;;; Changes:
 

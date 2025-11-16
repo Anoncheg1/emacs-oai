@@ -141,11 +141,12 @@ text after"))
   ""
   (should (let ((oai-block-tags-use-simple-directory-content t))
             (and
-             (string-match "oai-block-tags.el" (oai-block-tags--get-replacement-for-org-link "file:./"))
-             (string-match "oai-block-tags.el" (oai-block-tags--get-replacement-for-org-link "[[./]]"))
-             (string-match "oai-block-tags.el" (oai-block-tags--get-replacement-for-org-link "[[file:./]]"))
-             (string-match "oai-block-tags.el" (oai-block-tags--get-replacement-for-org-link "[[file:.]]"))
+             (eq 0 (string-match "Here . folder" (oai-block-tags--get-replacement-for-org-link "file:./")))
+             (eq 0 (string-match "Here . folder" (oai-block-tags--get-replacement-for-org-link "[[./]]")))
+             (eq 0 (string-match "Here . folder" (oai-block-tags--get-replacement-for-org-link "[[file:./]]")))
+             (eq 0 (string-match "Here . folder" (oai-block-tags--get-replacement-for-org-link "[[file:.]]")))
              ))))
+
 ;;; - Test: oai-block-tags-replace
 (ert-deftest oai-tests-block-tags--replace-org-links-norm-header ()
   (let ((kill-buffer-query-functions)
@@ -155,18 +156,20 @@ text after"))
       (org-mode)
       (setq buffer-file-name "/mock/org.org")
       (insert "* headline\nasdas\n** sub-headline\n asd")
-      (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::* headline]]4444"))
+      (setq res1 (print (oai-block-tags-replace  "11[[file:/mock/org.org::* headline]]4444")))
       (setq target
             "11
-
+```text
 # headline
 asdas
 
 ## sub-headline
  asd
+```
+
 4444")
       (should (string-equal res1 target))
-      (setq res2 (oai-block-tags-replace  "11[[* headline]]4444"))
+      (setq res2 (print (oai-block-tags-replace  "11[[* headline]]4444")))
       (should (string-equal res2 target))
       (set-buffer-modified-p nil))))
 
@@ -187,19 +190,20 @@ asdas
         (setq buffer-file-name "/mock/org.org")
         (insert "* headline\nasdas\n** sub-headline\n asd")
           (setq target "11
-
+```text
 # headline
 asdas
 
 ## sub-headline
  asd
+```
+
 4444")
-          (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::1::* headline]]4444"))
+          (setq res1 (oai-block-tags-replace "11[[file:/mock/org.org::1::* headline]]4444"))
           (should (string-equal target res1))
 
-          (setq res2 (oai-block-tags-replace  "11[[1::* headline]]4444"))
-          (should (string-equal target res2))
-          )
+          (setq res2 (print (oai-block-tags-replace  "11[[1::* headline]]4444")))
+          (should (string-equal target res2)))
         ;; (advice-remove 'org-open-file (intern "org-links-org-open-file-advice"))
 
         ;; (insert "[[file:/mock/org.org::1::* headline]]")
@@ -218,12 +222,13 @@ asdas
         (insert "* headline\nasdas\n** sub-headline\n asd")
 
         (setq target "11
-```auto
+
+```org
 * headline
 asdas
 ```
 4444")
-        (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444"))
+        (setq res1 (print (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444")))
         (should (string-equal res1
                               target))
         ;; (advice-remove 'org-open-file (intern "org-links-org-open-file-advice"))
@@ -265,22 +270,21 @@ asdas
         (insert "* headline\nasdas\n** sub-headline\n asd\nss2")
         (setq buffer-file-name "/mock/org.org")
         (read-only-mode)
-        (setq res1 (oai-block-tags--get-replacement-for-org-file-link-in-other-file
-                      "/mock/org.org" "2-3" "[[file:/mock/org.org::2-3]]"))
+        (setq res1 (print (oai-block-tags--get-replacement-for-org-file-link-in-other-file
+                      "/mock/org.org" "2-3")))
 
         (setq target
-              "```auto
-asdas
-** sub-headline
-```")
+              "\n```org\nasdas\n** sub-headline\n```")
         (should (string-equal target res1))
         (setq target
-              "
+              "```text
 ## sub-headline
  asd
-ss2")
-        (setq res2 (oai-block-tags--get-replacement-for-org-file-link-in-other-file
-                      "/mock/org.org" "*sub-headline" "[[file:/mock/org.org::*sub-headline]]"))
+ss2
+```
+")
+        (setq res2 (print (oai-block-tags--get-replacement-for-org-file-link-in-other-file
+                      "/mock/org.org" "*sub-headline")))
         (should (string-equal target res2))
 
         ;; (advice-remove 'org-open-file (intern "org-links-org-open-file-advice"))

@@ -130,7 +130,7 @@ Return last argument, but should not be used for return value."
               (setq result-string (concat (oai-debug--format-argument (car args))
                                           (when (cdr args)
                                             (concat
-                                             "```\n" (apply #'concat (mapcar #'oai-debug--format-argument
+                                             "```debug\n" (apply #'concat (mapcar #'oai-debug--format-argument
                                                                                (cdr args)))
                                              "```\n")))))
             (when (and oai--debug-filter
