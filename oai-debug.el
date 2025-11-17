@@ -63,12 +63,15 @@ Heavy to execute."
 (defvar oai--debug-filter nil
   "Output only strings that contains this.")
 
-(defun oai-debug--format-argument (arg)
-  "Prepare argument of `oai--debug' for output.
+(defun oai-debug--format-argument (args)
+  "Convert ARGS to a string.
+ARGS may be any Elisp object.
+Used to prepare arguments of `oai--debug' for output by converting to a
+string.
 Always return string."
-  (if (equal (type-of arg) 'string)
-      (format "%s\n" arg)
-    (concat (prin1-to-string arg) "\n")))
+  (if (equal (type-of args) 'string)
+      (format "%s\n" args)
+    (concat (prin1-to-string args) "\n")))
 
 (defun oai--debug (&rest args)
   "If firt argument of ARGS is a stringwith %s than behave like format.

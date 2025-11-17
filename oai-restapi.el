@@ -53,7 +53,9 @@
 ;; (org-ai-stream-completion service|model messages|prompt context)
 ;; -> (org-ai-stream-request service messages|prompt callback)
 ;; -> org-ai--get-headers, org-ai--get-endpoint, oai-restapi--payload, url-retrieve
-;; - org-ai--get-headers = org-ai-api-creds-token = "api-key" or "x-api-key" or "Authorization"
+
+;; - org-ai--get-headers = org-ai-api-creds-token = "api-key" or
+;;   "x-api-key" or "Authorization"
 
 ;; - org-ai--get-endpoint = hardcoded URL or oai-restapi-con-chat-endpoint,
 ;;     oai-restapi-con-completion-endpoint, org-ai-google-chat-endpoint
@@ -77,7 +79,8 @@
 ;;   - (setq text (decode-coding-string (org-ai--response-payload response)) 'utf-8)
 ;; Completion mode
 ;; - :prompt content-string
-;; - (setq text  (decode-coding-string (oai-restapi--get-single-response-text result) 'utf-8))
+;; - (setq text  (decode-coding-string (oai-restapi--get-single-response-text result)
+;;                                     'utf-8))
 ;;
 ;; How requests forced to stop with C-g?
 
@@ -308,16 +311,13 @@ messages."
 ;;   "Internal var that stores the current request buffer.
 ;; For chat completion responses.")
 
-(defvar oai-restapi--current-url-request-callback nil
+(defvar-local oai-restapi--current-url-request-callback nil
   "Internal var that stores the current request callback.
 Called within url request buffer, should know about target position,
 that is why defined as lambda with marker.")
-(make-variable-buffer-local 'oai-restapi--current-url-request-callback)
 
-(defvar oai-restapi--current-request-is-streamed nil
+(defvar-local oai-restapi--current-request-is-streamed nil
   "Whether we expect a streamed response or a single completion payload.")
-(make-variable-buffer-local 'oai-restapi--current-request-is-streamed)
-
 
 (defvar oai-restapi-after-chat-insertion-hook nil
   "Hook that is called when a chat response is inserted.
@@ -329,28 +329,23 @@ Arguments: type, role-text, pos, buffer
 - pos - position before text insertion
 - buffer - target buffer with ai block for third position.")
 
-(defvar oai-restapi--current-insert-position-marker nil
+(defvar-local oai-restapi--current-insert-position-marker nil
   "Where to insert the result.")
-(make-variable-buffer-local 'oai-restapi--current-insert-position-marker)
 
-(defvar oai-restapi--current-chat-role nil
+(defvar-local oai-restapi--current-chat-role nil
   "During chat response streaming, this holds the role of the \"current speaker\".
 Used for hook only.")
-(make-variable-buffer-local 'oai-restapi--current-chat-role)
 
-(defvar oai-restapi--currently-chat-got-first-response nil)
-(make-variable-buffer-local 'oai-restapi--currently-chat-got-first-response)
+(defvar-local oai-restapi--currently-chat-got-first-response nil)
 
-(defvar oai-restapi--currently-inside-code-markers nil
+(defvar-local oai-restapi--currently-inside-code-markers nil
   "For If code block received apply `fill-paragraph'.")
-(make-variable-buffer-local 'oai-restapi--currently-inside-code-markers)
 
-(defvar oai-restapi--currently-reasoning nil)
-(make-variable-buffer-local 'oai-restapi--currently-reasoning)
+(defvar-local oai-restapi--currently-reasoning nil)
 
-(defvar oai-restapi--url-buffer-last-position-marker nil
+(defvar-local oai-restapi--url-buffer-last-position-marker nil
   "Local buffer var to store last read position.")
-(make-variable-buffer-local 'oai-restapi--url-buffer-last-position-marker)
+;; (make-variable-buffer-local 'oai-restapi--url-buffer-last-position-marker)
 ;; (makunbound 'oai-restapi--url-buffer-last-position-marker)
 
 (cl-deftype oai-restapi--response-type ()

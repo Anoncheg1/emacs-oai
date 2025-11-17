@@ -55,13 +55,11 @@ Used for `oai-restapi-request-llm-retries' calling in `oai-prompt'."
 (defvar oai-timers--global-progress-timer-remaining-ticks 0
   "The time when the timer started.")
 
-(defvar oai-timers--current-timer nil
+(defvar-local oai-timers--current-timer nil
   "Timer for waiting for url buffer.")
-(make-variable-buffer-local 'oai-timers--current-timer)
 
-(defvar oai-timers--current-timer-remaining-ticks 0
+(defvar-local oai-timers--current-timer-remaining-ticks 0
   "The time when the timer started.")
-(make-variable-buffer-local 'oai-timers--current-timer-remaining-ticks)
 
 (defvar oai-timers--global-progress-reporter-waiting-string "Waiting for a response")
 

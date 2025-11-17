@@ -303,7 +303,7 @@ messages."
 ;;; -=-= Mark block M-h
 (defun oai-mark-at-point (arg)
   "Mark entity at current poin in current buffer.
-Mark Mardkown block or whole ai block. If universal argument arg is
+Mark Mardkown block or whole ai block.  If universal argument ARG is
 non-nil, then mark one chat message."
   (interactive "P")
   (if arg

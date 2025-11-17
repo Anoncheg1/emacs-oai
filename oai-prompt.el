@@ -29,24 +29,28 @@
 ;; `oai-agent-call-function' -> `oai-prompt-request-switch' -> `oai-prompt-request-chain'
 ;;
 ;; Re1
-;; Sys: You a helpful.  Give plan of 3 parts to research for answer and do only first part.
-;; user: How to make it?
+;; Sys: You a helpful.  Give plan of 3 parts to research for answer
+;; and do only first part.  user: How to make it?
 ;;
 ;; "choices": ["message": {"role": "assistant", "content": "To..."}}]
 ;;
 ;; Re2
-;; Sys: You a helpful.  Give plan of 3 parts to research for answer and do only first part.
+;; Sys: You a helpful.  Give plan of 3 parts to research for answer
+;;      and do only first part.
 ;; user: How to make it?
 ;; Assist: Plan and solution for 1) step.
 ;; user: Research 2-th part and what was missed before.
 ;;
 ;; Re3
-;; Sys: You a helpful.  Give plan of 3 parts to research for answer and do only first part with summary.
+;; Sys: You a helpful.  Give plan of 3 parts to research for answer
+;;      and do only first part with summary.
 ;; user: How to make it?
 ;; Assist: Plan and solution for 1) step.
 ;; user: Research 2-th part and what was missed before.
 ;; Assist: sum for 1), new plan, 2) step.
-;; user: Research 3-th part and what was missed before, summarize results give final answer.
+;; user: Research 3-th part and what was missed before, summarize
+;;       results give final answer.
+
 ;;
 ;;; Code:
 ;;; -=-= all
@@ -86,7 +90,7 @@ answers except of the first one are already in block-content."
          (comm (if recom (concat comm " " recom) comm))
          (sys0 (list :role 'system :content
                      comm0)))
-    (apply 'vector sys0 (append bcont
+    (apply #'vector sys0 (append bcont
                                 ;; command after AI answer
                                 (when (> ind 0)
                                   (list (list :role 'system :content comm)))))))

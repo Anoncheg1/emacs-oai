@@ -210,7 +210,7 @@ Nil if buffer does not exist."
 PATH-OR-MODE-STRING may be, and we check in this order:
 - a symbol, like value of '`major-mode' variable.
 - path of file.
-- string with name of mode like emacs-lisp-mode.
+- string with name of mode like `emacs-lisp-mode'.
 Return Org babel source block language name.
 First we check `auto-mode-alist' and then just try to interpret as major
 mode line."
@@ -509,14 +509,14 @@ Substring '```content' without last '```'."
           (range (oai-block-tags--position-in-markdown-block-str-p line 5))
           (mar (substring line (car range) (cadr range))))
     (unless (string-equal mar "```bbb")
-      (error "oai-block-tags--position-in-markdown-block-str-p1"))
+      (error "Error: oai-block-tags--position-in-markdown-block-str-p1"))
   ;; else
-  (error "oai-block-tags--position-in-markdown-block-str-p2"))
+  (error "Error: oai-block-tags--position-in-markdown-block-str-p2"))
 
 (if (not (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 5))   ;; => t   (inside first block)
-    (error "oai-block-tags--position-in-markdown-block-str-p3"))
+    (error "Error: oai-block-tags--position-in-markdown-block-str-p3"))
 (if (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 10)  ;; => nil (outside any block)
-    (error "oai-block-tags--position-in-markdown-block-str-p4"))
+    (error "Error: oai-block-tags--position-in-markdown-block-str-p4"))
 
 
 (defun oai-block-tags--get-m-block ()
@@ -622,12 +622,10 @@ Works in any mode buffers.
                                                        (line-beginning-position))
                                        (progn
                                          (forward-paragraph)
-                                         ;; (forward-line -1)
-                                         (line-end-position)
-                                         ))
+                                         (line-end-position)))
             :lang (oai-block-tags--filepath-to-language major-mode))))
    (t
-    (user-error "No outline, function or paragraph was found to get a block."))))
+    (user-error "No outline, function or paragraph was found to get a block.?"))))
 
 
 ;; Test: outline
@@ -658,7 +656,7 @@ Works in any mode buffers.
 ;; Test: paragraph
 (cl-assert
  (string-equal
-  "\n```text\n;; -- header2\ntext2\n\n```"
+  "\n```text\n;; -- header2\ntext2\n```"
   (with-temp-buffer
     (text-mode)
     (setq-local paragraph-start "\f\\|[ \t]*$")
@@ -677,7 +675,7 @@ Works in any mode buffers.
 
 (defun oai-block-tags--get-content-at-point ()
   "Return prepared block at current position.
-Support any mode buffers. Here code for Org mode.
+Support any mode buffers.  Here code for Org mode.
 If at current position there is a Org block or markdown block
 Return markdown block for LLM for current element at current position.
 May return nil.
@@ -833,7 +831,7 @@ either `dedicated' or `fuzzy'.  If not found give raise error."
   "Find link target and return prepared block for LLM.
 Called for file type.
 1) open file PATH in new buffer
-2) call `oai-block-tags--get-replacement-for-org-link'. with OPTION"
+2) call `oai-block-tags--get-replacement-for-org-link'.  with OPTION"
   (oai--debug "oai-block-tags--get-replacement-for-org-file-link-in-other-file %s %s" path option)
   ;; Code from org-open-file -> find-file-other-window was used:
   (let ((value (find-file-noselect path nil nil nil))) ; buf name
@@ -1001,10 +999,11 @@ Used in `oai-block-tags-mark-md-block-body'."
 ;; - @name - <<target>> or #+NAME: name - in current file
 
 (defun oai-block-tags--replace-last-regex-smart (string regexp &optional replacement)
-  "Replace the last match of REGEXP in STRING with REPLACEMENT,
-preserving any extra captured groups.
+  "Replace the last match of REGEXP in STRING with REPLACEMENT.
+reserve any extra captured groups.
 Check that found regexp not in markdown block.
-If REPLACEMENT not provided return found string for regexp or nil if not found."
+If REPLACEMENT not provided return found string for regexp or nil if not
+found."
   (let ((pos 0)
         (last-pos nil)
         (last-end nil)
@@ -1254,7 +1253,8 @@ Return modified string or the same string."
   "Fontify Org links in #+begin_ai ... #+end_ai blocks, up to LIMIT.
 This is special fontify function, that return t when match found.
 1) search for ai block begin and then end, 2) call fontify on range that
-goto to the begining firstly `org-activate-links'.
+goto to the begining firstly function `org-activate-links' used to
+highlight any link.
 TODO: maybe we should use something like
 `oai-block-tags--position-in-markdown-block-str-p'"
   (if oai-block-fontify-markdown
@@ -1296,7 +1296,7 @@ TODO: maybe we should use something like
 ;;; -=-= key to select block "C-c h" (similar to "M-h")
 
 (defun oai-block-tags-mark-md-block-body ()
-  "Mark content of Markdown code block, or fallback to org-mark-element.
+  "Mark content of Markdown code block, or fallback to `org-mark-element'.
 Mark or select block content around cursor.
 `oai-block-tags--get-org-block-region'  do  same thing,  but  we
 make this function to no relay on oai-block."

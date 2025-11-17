@@ -27,8 +27,10 @@
 ;; Configuration for usage:
 
 ;; (require 'oai-optional)
-;; (add-hook 'oai-restapi-after-chat-insertion-hook #'oai-optional-remove-headers-hook-function)
-;; (add-hook 'oai-restapi-after-chat-insertion-hook #'oai-optional-remove-distant-empty-lines-hook-function)
+;; (add-hook 'oai-restapi-after-chat-insertion-hook
+;;          #'oai-optional-remove-headers-hook-function)
+;; (add-hook 'oai-restapi-after-chat-insertion-hook
+;;          #'oai-optional-remove-distant-empty-lines-hook-function)
 
 ;;; Code:
 
