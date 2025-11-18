@@ -657,7 +657,7 @@ Works in any mode buffers.
 (cl-assert
  (string-equal
   "\n```text\n;; -- header2\ntext2\n```"
-  (with-temp-buffer
+  (print (with-temp-buffer
     (text-mode)
     (setq-local paragraph-start "\f\\|[ \t]*$")
     (setq-local paragraph-separate "[ \t\f]*$")
@@ -668,9 +668,9 @@ Works in any mode buffers.
         (insert ";; -- header1\ntext1\n")
         (setq p (point))
         (insert "\n")
-        (insert ";; -- header2\ntext2\n\n\n"))
+        (insert ";; -- header2\ntext2"))
       (goto-char p))
-      (oai-block-tags--get-content-at-point-not-org))))
+      (oai-block-tags--get-content-at-point-not-org)))))
 
 
 (defun oai-block-tags--get-content-at-point ()
