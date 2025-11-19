@@ -151,7 +151,8 @@
   "Fill ai block for not streaming or fill word for streaming.
 If STREAM is non-nil this function  called after insertion of a chink of
 text, otherwise after full response.
-Ignore markdown blocks."
+Ignore markdown blocks.
+TODO: for streaming: 1) save and pass beginin of paragraph 2) check that it is not in markdown."
   (interactive)
   ;; (oai--debug "oai-restapi--fill-region %s %s" stream (point))
   (if stream
@@ -174,7 +175,9 @@ Ignore markdown blocks."
     ))
 
 (defcustom oai-restapi-fill-paragraph-function #'oai-restapi--fill-region
-  "Function that will be called if auto-fill is active."
+  "Function that will be called if auto-fill is active.
+Should check that position is not inside markdown block and string is
+not quoted with \"> \"."
   :type 'function
   :group 'oai)
 
@@ -381,8 +384,8 @@ Used for hook only.")
 
 (defvar-local oai-restapi--currently-chat-got-first-response nil)
 
-(defvar-local oai-restapi--currently-inside-code-markers nil
-  "For If code block received apply `fill-paragraph'.")
+;; (defvar-local oai-restapi--currently-inside-code-markers nil
+;;   "For If code block received apply `fill-paragraph'.")
 
 (defvar-local oai-restapi--currently-reasoning nil)
 
@@ -1079,15 +1082,12 @@ specific role."
                                         ;; call stop waiting with url-buffer and progress reporter.
                                         (oai--debug "oai-restapi--insert-stream-response first-resp")
                                         (oai-timers--interrupt-current-request url-buffer))
-                                      ;; track if we are inside code markers
-                                      (setq c-inside-code-m (and (not c-inside-code-m) ; oai-restapi--currently-inside-code-markers
-                                                                 (string-match-p "```" text)))
                                       ;; (oai--debug response)
                                       ;; (oai--debug text)
                                       (insert text)
                                       ;; - "auto-fill" if not in code block
                                       (when (and oai-restapi-auto-fill
-                                                 (not c-inside-code-m)
+                                                 ;; (not c-inside-code-m)
                                                  (not (string-empty-p (string-trim text))))
                                         (funcall oai-restapi-fill-paragraph-function t))
 
@@ -1124,7 +1124,7 @@ specific role."
             (goto-char pos)))
       ;; - after buffer - UNWINDFORMS - save variables to url-buffer
       (setq oai-restapi--current-insert-position-marker pos)
-      (setq oai-restapi--currently-inside-code-markers c-inside-code-m)
+      ;; (setq oai-restapi--currently-inside-code-markers c-inside-code-m)
       (setq oai-restapi--current-chat-role c-chat-role))
     ;; - in let
     normalized))
