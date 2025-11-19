@@ -38,7 +38,7 @@ Tested for Emacs 30.2
 - Github
 - Together
 
-oai-restapi-con-service file:org-aire/org-ai-openai.el:164
+oai-restapi-con-service [[./oai-restapi.el]]
 * Configuration
 : git clone https://github.com/Anoncheg1/oai
 
