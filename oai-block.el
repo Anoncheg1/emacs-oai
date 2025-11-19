@@ -550,8 +550,10 @@ Executed inside `save-excursion'."
            (forward-line 1)))))))
 
 (defun oai-block-fill-region-as-paragraph (from to &optional justify nosqueeze squeeze-after)
-  "Ignore lines starts with \"< \".
-For `fill-region-as-paragraph' that applied per lines."
+  "Ignore lines that begin with \"< \".
+For `fill-region-as-paragraph' that applied per lines.
+Argument FROM TO JUSTIFY NOSQUEEZE SQUEEZE-AFTER is arguments of
+fill-region-as-paragraph."
   (goto-char (min from to))
   (unless (looking-at "> ")
     (funcall #'fill-region-as-paragraph from to justify nosqueeze squeeze-after)))

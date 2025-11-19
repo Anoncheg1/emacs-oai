@@ -171,7 +171,7 @@ TODO: for streaming: 1) save and pass beginin of paragraph 2) check that it is n
           (save-excursion
             (fill-region-as-paragraph (line-beginning-position) (line-end-position)))))
     ;; else not stream, single response. We add hack to skip markdown blocks.
-    (oai-block-fill-paragraph) ; fill per line.
+    (oai-block-fill-paragraph) ; fill per line. wrapped in save-excursion inside.
     ))
 
 (defcustom oai-restapi-fill-paragraph-function #'oai-restapi--fill-region
@@ -743,7 +743,8 @@ STREAM string - as bool, indicates whether to stream the response."
                            (lambda (result) (oai-restapi--insert-stream-response end-marker result t))
                          ;; else - not stream
                          (lambda (result) (oai-restapi--insert-single-response end-marker
-                                                                               (concat "[AI]:" (oai-restapi--get-single-response-text result))
+                                                                               (when result
+                                                                                 (concat "[AI]: " (oai-restapi--get-single-response-text result)))
                                                                                t)))
                      ;; else - completion
                      (lambda (result) (oai-restapi--insert-single-response end-marker
@@ -836,13 +837,13 @@ Here used for completion mode in `oai-restapi-request'.
                 (insert "\n")
                 (backward-char))
               (insert text)
+              (set-marker end-marker (point))
               ;; - "auto-fill"
               (when (and oai-restapi-auto-fill
                          (not (string-empty-p (string-trim text))))
                 (undo-boundary)
                 (funcall oai-restapi-fill-paragraph-function nil))
 
-              (set-marker end-marker (point))
               (condition-case hook-error
                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos buffer)
                 (error
@@ -862,9 +863,9 @@ Here used for completion mode in `oai-restapi-request'.
           (when insert-role
             (save-excursion
               ;; - go  to the end of previous line and open new one
-              (goto-char (1- pos))
+              (goto-char pos)
               (newline)
-              (insert "\n\n[ME]: ")
+              (insert "\n[ME]: ")
               (setq pos (point)))
             (set-marker end-marker (point)))
           (when oai-restapi-jump-to-end-of-block
