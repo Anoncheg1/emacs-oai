@@ -549,13 +549,18 @@ Executed inside `save-excursion'."
              ;; else - skip emtpy line
            (forward-line 1)))))))
 
+(defun oai-block-fill-region-as-paragraph (from to &optional justify nosqueeze squeeze-after)
+  "Ignore lines starts with \"< \".
+For `fill-region-as-paragraph' that applied per lines."
+  (goto-char (min from to))
+  (unless (looking-at "> ")
+    (funcall #'fill-region-as-paragraph from to justify nosqueeze squeeze-after)))
 
 (defun oai-block-fill-paragraph (&optional justify _region)
   "Fill every line as paragraph in the current AI block.
-Ignoring code blocks that start with '```sometext' and end with '```'.
+Ignore code blocks that start with '```sometext' and end with '```'.
 Optional argument JUSTIFY is parameter of `fill-paragraph'.
 Optional argument REGION todo.
-TODO: skip likes that starts with >
 TODO: use `forward-paragraph' instead of every line."
   (interactive (progn
                  (barf-if-buffer-read-only)
@@ -566,8 +571,10 @@ TODO: use `forward-paragraph' instead of every line."
     (let ((element (oai-block-p)))
       (when element
         ;; Determine the boundaries of the content
-        (let ((beg (org-element-property :contents-begin element)) ; first line of content
+        (let ( ;; ai block range
+              (beg (org-element-property :contents-begin element)) ; first line of content
               (end (org-element-property :contents-end element))
+              ;; markdown block range
               block-start block-end)
           ;; Content exist?
           (if (or (not beg)
@@ -577,20 +584,26 @@ TODO: use `forward-paragraph' instead of every line."
           (save-excursion
             (while (< beg end)
               (goto-char beg)
+              ;; - search forward for markdkown begining from ai block begining
               (if (re-search-forward "^[ \t\f]*```\\w" end t) ; ex. "    ```elisp"
                   (progn
-                    (setq block-start (copy-marker (line-beginning-position)))
+                    (setq block-start (copy-marker (line-beginning-position))) ; save markdown block begining
+                    ;; - search forward from current for markdown ending
                     (if (re-search-forward "^[ \t\f]*```[ \t\f]*$" end t) ; ex. "    ```      "
                         (progn
                           (setq block-end (copy-marker (line-beginning-position)))
-                          (oai-block--apply-to-region-lines #'fill-region-as-paragraph beg (marker-position block-start) justify)
+                          ;; fill from begining of ai block to begin to markdown block
+                          (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg (marker-position block-start) justify)
+                          ;; go to the end of markdown block
                           (goto-char (marker-position block-end))
                           (forward-line 1)
                           (setq beg (point)))
                       ;; else - not found end of block
-                      (set-marker block-start nil)))
-                ;; else - no block - apply to every line
-                (oai-block--apply-to-region-lines #'fill-region-as-paragraph beg end justify)
+                      (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg (marker-position block-start) justify)
+                      (set-marker block-start nil)
+                      (setq beg end)))
+                ;; else - no markdown block begining - apply to whole block
+                (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg end justify)
                 (setq beg end)))
             ;; (print "my/oai-fill-paragraph return t")
             t))))))
