@@ -227,14 +227,14 @@ TYPE _CONTENT BEFORE-POS BUF parameters described in
       (nth 4 res) "** Something Importent2"))))
 
 
-(defcustom oai-optional-fill-paragraph-functions
-  (list
-   'org-fill-paragraph)
-   "List of steps to perform in the `my/org-fill-paragraph' function.
-Replace single `fill-paragraph-function' variable with list of
-functions."
-  :type '(repeat function)
-  :group 'oai)
+;; (defcustom oai-optional-fill-paragraph-functions
+;;   (list
+;;    'org-fill-paragraph)
+;;    "List of steps to perform in the `my/org-fill-paragraph' function.
+;; Replace single `fill-paragraph-function' variable with list of
+;; functions."
+;;   :type '(repeat function)
+;;   :group 'oai)
 
 ;;; - old: fill-paragraph (old, not used)
 ;; (defun oai-optional-fill-paragraph (&optional justify region)
@@ -258,67 +258,7 @@ functions."
 
 ;; (keymap-set org-mode-map \"M-q\" #'oai-optional-fill-paragraph)
 
-(defmacro oai-optional--apply-to-region-lines (func start end &rest args)
-  "Apply FUNC to each line in region from START to END with ARGS.
-START and END is a pointer.  FUNC is called with
-\(line-start line-end . ARGS) for each line.
-Executed inside `save-excursion'."
-  `(let ((end-marker (copy-marker ,end)))
 
-     (save-excursion
-       (goto-char ,start)
-       (while (< (point) (marker-position end-marker))
-         (let ((line-start (line-beginning-position)) ; may be replace to just (point)
-               (line-end (line-end-position)))
-           ;; (print (list "my/apply-to-region-lines aa" line-start line-end))
-           (if (< line-start line-end)
-             (apply ,func line-start line-end (list ,@args))
-             ;; else - skip emtpy line
-           (forward-line 1)))))))
-
-
-(defun oai-optional-block-fill-paragraph (&optional justify region)
-  "Fill every line as paragraph in the current Org AI block.
-Ignoring code blocks that start with '```sometext' and end with '```'.
-Optional argument JUSTIFY is parameter of `fill-paragraph'.
-Optional argument REGION todo."
-  (interactive (progn
-                 (barf-if-buffer-read-only)
-                 (list (when current-prefix-arg 'full) t)))
-  (ignore region)
-  ;; inspired by `org-fill-element'
-  (with-syntax-table org-mode-transpose-word-syntax-table
-    (let ((element (oai-block-p)))
-      (when (and element (string-equal "ai" (org-element-property :type element)))
-        ;; Determine the boundaries of the content
-        (let ((beg (org-element-property :contents-begin element)) ; first line of content
-              (end (org-element-property :contents-end element))
-              block-start block-end)
-          ;; Content exist?
-          (if (or (not beg)
-                  (not end))
-              (error "Empty block"))
-          ;; Ignore code blocks that start with "```sometext" and end with "```"
-          (save-excursion
-            (while (< beg end)
-              (goto-char beg)
-              (if (re-search-forward "^[ \t\f]*```\\w" end t) ; ex. "    ```elisp"
-                  (progn
-                    (setq block-start (copy-marker (line-beginning-position)))
-                    (if (re-search-forward "^[ \t\f]*```[ \t\f]*$" end t) ; ex. "    ```      "
-                        (progn
-                          (setq block-end (copy-marker (line-beginning-position)))
-                          (oai-optional--apply-to-region-lines #'fill-region-as-paragraph beg (marker-position block-start) justify)
-                          (goto-char (marker-position block-end))
-                          (forward-line 1)
-                          (setq beg (point)))
-                      ;; else - not found end of block
-                      (set-marker block-start nil)))
-                ;; else - no block - apply to every line
-                (oai-optional--apply-to-region-lines #'fill-region-as-paragraph beg end justify)
-                (setq beg end)))
-            ;; (print "my/oai-fill-paragraph return t")
-            t))))))
 ;;; - old: remove-distant-empty-lines (old version)
 ;; (cl-defun oai-optional-remove-distant-empty-lines (start end)
 ;;   "Remove empty lines in current buffer between START and END.

@@ -56,6 +56,16 @@
 (require 'org-element)
 (require 'org-macs)
 
+(defcustom oai-block-fontify-markdown t
+  "Fontinfy ```lang blocks."
+  :type 'boolean
+  :group 'oai)
+
+(defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
+(defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")
+(defvar oai-block--ai-block-begin-re "^#\\+begin_ai[^\n]*\n")
+(defvar oai-block--ai-block-end-re "^#\\+end_ai.*$")
+
 (when (and (boundp 'org-protecting-blocks) (listp org-protecting-blocks))
   (add-to-list 'org-protecting-blocks "ai"))
 
@@ -161,47 +171,6 @@ DEFAULT is a string with default system prompt for LLM."
       ;; else - nil or string
       sys-raw)))
 
-;; (defmacro oai-block--let-params (info definitions &rest body)
-;;   "A specialized `let*' macro for Oai parameters.
-;; DEFINITIONS is a list of (VARIABLE &optional DEFAULT-FORM &key TYPE).
-;; TYPE can be 'number, 'bool, 'string, or 'identity (no conversion).
-;; Return one of:
-;; - nil symbol, if key/property not specified or explicit nil (after type processing).
-;; - Processed value of parameter (e.g., t/nil for bool).
-;; Parameters are sourced from:
-;; 1. From Oai block header `info' alist. (e.g., :model \"gpt-4\")
-;; 2. Org inherited property. (e.g., #+PROPERTY: model gpt-4)
-;; 3. DEFAULT-FORM."
-;;   `(let* ,(cl-loop for def-item in definitions
-;;                    collect
-;;                    (let* ((sym (car def-item))
-;;                           (default-form (cadr def-item))
-;;                           (type (cadr (member :type def-item)))
-;;                           (key (intern (concat ":" (symbol-name sym))))
-;;                           (prop-name (symbol-name sym)))
-;;                      `(,sym (let ((val (or (let* ((v1 (assoc ,key info))
-;;                                                   (v2 (cdr v1)))
-;;                                              (if (and v1 (not v2))
-;;                                                  "nil"
-;;                                                v2))
-;;                                            (org-entry-get-with-inheritance ,prop-name)
-;;                                            ,@(when default-form `(,default-form)))))
-
-;;                               (cond ((eql type 'number)
-;;                                      (cond ((null val) nil)
-;;                                            ((and (stringp val) (string= val "nil")) nil)
-;;                                            ((stringp val) (string-to-number val))
-;;                                            ((numberp val) val) (t val)))
-;;                                     ((eql type 'bool)
-;;                                      (cond ((null val) nil) ((eq val t) t) ((stringp val) (if (member (downcase val) '("t" "true" "yes" "on" "1")) t nil))
-;;                                            (t nil)))
-;;                                     ((eql type 'string)
-;;                                      (cond ((null val) nil) ((stringp val) val)
-;;                                            (t (prin1-to-string val))))
-;;                                     ((eql type 'identity) val) (t val))
-;;                               ))))  ; Default no-op
-;;      ,@body))
-
 (defmacro oai-block--let-params (info definitions &rest body)
   "A specialized `let*' macro for Oai parameters.
 DEFINITIONS is a list of (VARIABLE &optional DEFAULT-FORM &key TYPE).
@@ -301,11 +270,6 @@ line."
 
 
 ;;; -=-= Interactive
-
-(defcustom oai-block-fontify-markdown t
-  "Fontinfy ```lang blocks."
-  :type 'boolean
-  :group 'oai)
 
 (defun oai-mark-last-region ()
   "Mark the last prompt in an oai block."
@@ -521,8 +485,6 @@ the rest of the result."
 
 
 ;;; -=-= Markdown block, fontify mostly
-(defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
-(defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")
 
 (defun oai-block--fontify-markdown-subblocks (start end)
   "Fontify ```language ... ``` fenced mardown code blocks.
@@ -552,10 +514,10 @@ rules in `font-lock-defaults' variable."
   (if oai-block-fontify-markdown
       (let ((case-fold-search t)
             (ret))
-        (while (and (re-search-forward "^#\\+begin_ai[^\n]*\n" limit t)
+        (while (and (re-search-forward oai-block--ai-block-begin-re limit t)
                     (< (point) limit))
           (let ((beg (match-end 0)))
-            (when (re-search-forward "^#\\+end_ai.*$" nil t)
+            (when (re-search-forward oai-block--ai-block-end-re nil t)
               (let ((end (match-beginning 0)))
                 (save-match-data
                   (setq ret (oai-block--fontify-markdown-subblocks beg end)))))))
@@ -567,6 +529,71 @@ rules in `font-lock-defaults' variable."
   "Insert ELEMENT at after position POS in LIST."
   (nconc (take (1+ pos) list) (list element) (nthcdr (1+ pos) list)))
 
+
+;;; -=-=-= Fill-region, paragraph
+
+(defmacro oai-block--apply-to-region-lines (func start end &rest args)
+  "Apply FUNC to each line in region from START to END with ARGS.
+START and END is a pointer.  FUNC is called with
+\(line-start line-end . ARGS) for each line.
+Executed inside `save-excursion'."
+  `(let ((end-marker (copy-marker ,end)))
+     (save-excursion
+       (goto-char ,start)
+       (while (< (point) (marker-position end-marker))
+         (let ((line-start (line-beginning-position)) ; may be replace to just (point)
+               (line-end (line-end-position)))
+           ;; (print (list "my/apply-to-region-lines aa" line-start line-end))
+           (if (< line-start line-end)
+             (apply ,func line-start line-end (list ,@args))
+             ;; else - skip emtpy line
+           (forward-line 1)))))))
+
+
+(defun oai-block-fill-paragraph (&optional justify _region)
+  "Fill every line as paragraph in the current AI block.
+Ignoring code blocks that start with '```sometext' and end with '```'.
+Optional argument JUSTIFY is parameter of `fill-paragraph'.
+Optional argument REGION todo.
+TODO: skip likes that starts with >
+TODO: use `forward-paragraph' instead of every line."
+  (interactive (progn
+                 (barf-if-buffer-read-only)
+                 (list (when current-prefix-arg 'full) t)))
+  (ignore _region)
+  ;; inspired by `org-fill-element'
+  (with-syntax-table org-mode-transpose-word-syntax-table
+    (let ((element (oai-block-p)))
+      (when element
+        ;; Determine the boundaries of the content
+        (let ((beg (org-element-property :contents-begin element)) ; first line of content
+              (end (org-element-property :contents-end element))
+              block-start block-end)
+          ;; Content exist?
+          (if (or (not beg)
+                  (not end))
+              (error "Empty block"))
+          ;; Ignore code blocks that start with "```sometext" and end with "```"
+          (save-excursion
+            (while (< beg end)
+              (goto-char beg)
+              (if (re-search-forward "^[ \t\f]*```\\w" end t) ; ex. "    ```elisp"
+                  (progn
+                    (setq block-start (copy-marker (line-beginning-position)))
+                    (if (re-search-forward "^[ \t\f]*```[ \t\f]*$" end t) ; ex. "    ```      "
+                        (progn
+                          (setq block-end (copy-marker (line-beginning-position)))
+                          (oai-block--apply-to-region-lines #'fill-region-as-paragraph beg (marker-position block-start) justify)
+                          (goto-char (marker-position block-end))
+                          (forward-line 1)
+                          (setq beg (point)))
+                      ;; else - not found end of block
+                      (set-marker block-start nil)))
+                ;; else - no block - apply to every line
+                (oai-block--apply-to-region-lines #'fill-region-as-paragraph beg end justify)
+                (setq beg end)))
+            ;; (print "my/oai-fill-paragraph return t")
+            t))))))
 
 ;;; provide
 (provide 'oai-block)

@@ -1,16 +1,26 @@
 * oai
-Emacs package that provide special Org `#+begin_ai` block for communication with LLMs APIs. Text oriented fork of org-ai.
+Emacs package that provide special Org ~#+begin_ai~ block for communication with LLMs APIs. Text oriented fork of org-ai.
+* dependencies
+Tested for Emacs 30.2
+
+One optional dependency ~org-links~ available at MELA and at https://github.com/Anoncheg1/emacs-org-links
 * files
-| File           | Purpose                                                     |
-|----------------+-------------------------------------------------------------|
-| oai.el         | minor Org oai-mode and `C-c C-c` request activation command |
-| oai-block.el   | handling ai block                                           |
-| oai-restapi.el | connections to REST API (OpenAI-compatible)                 |
+| File              | Purpose                                                        |
+|-------------------+----------------------------------------------------------------|
+| oai.el            | minor Org oai-mode and ~C-c C-c~ request activation command    |
+| oai-restapi.el    | Connection to REST API (OpenAI-compatible)                     |
+| oai-block.el      | handling ai block                                              |
+| oai-block-tags.el | Handlings links in request window                              |
+| oai-timers.el     | Notifications and handling waitings                            |
+| oai-prompt.el     | Working with prompt-engineering, :chain parameter              |
+| oai-async1.el     | Framework for handling callbacks of REST API requests (url.el) |
+| oai-optional.el   | Hooks functions for postprocessing                             |
 
 * Connection configuration
-oai-restapi-con-token - "token-string" or '(:openai "token-string1" :deepseek "token-string2") or nil for reading from "~/.authinfo" or "~/.authinfo.gpg"
+~oai-restapi-con-token~ - "token-string" or token per service: ~'(:openai "token-string1" :deepseek "token-string2")~ or nil for reading from "~/.authinfo" or "~/.authinfo.gpg"
 
-oai-restapi-con-service - 'openai or 'deepseek or use parameter at block like this: ```#+begin_ai :service openai```
+~oai-restapi-con-service~ - 'openai or 'deepseek or use parameter at block like this: ~#+begin_ai :service openai~
+
 * Supported services
 - OpenAI
 - Azure-OpenAI
@@ -20,7 +30,6 @@ oai-restapi-con-service - 'openai or 'deepseek or use parameter at block like th
 - Google
 - Github
 - Together
-
 
 oai-restapi-con-service file:org-aire/org-ai-openai.el:164
 * Configuration
@@ -32,16 +41,19 @@ oai-restapi-con-service file:org-aire/org-ai-openai.el:164
 (add-hook 'org-mode-hook #'oai-mode) ; oai.el
 (setq org-ai-api-creds-token "xxx") ; oai-restapi.el
 #+end_src
-** How to connect to not supported service? (TODO)
-Redefine functions: org-ai--openai-get-token-auth-source, org-ai--get-endpoint, org-ai--get-headers
-Set variables:
+** How to connect to not supported service?
+
 #+begin_src elisp :results none :exports code :eval no
-(setq org-ai-endpoints
-      (append org-ai-endpoints
-              '((my-new-host "https://api.mynewhost.com/v1/chat/completions"))))
+(plist-put oai-restapi-con-endpoints :local "http://localhost:8000/v1/chat/completions")
 ;; Optionally, set it as default
-(setq oai-restapi-con-service 'my-new-host)
+(setq oai-restapi-con-service 'local)
 #+end_src
+
+org-ai--openai-get-token-auth-source, org-ai--get-endpoint, org-ai--get-headers
+
+Redefine:
+- ~oai-restapi--get-headers~ - If you need some special HTTP headers.
+- ~oai-restapi--get-single-response-text~ and ~oai-restapi--normalize-response~ - if HTTP responses is not standard for ~"stream":false~ and ~"stream":true~ respectively.
 
 * Supported “[AI]:” in-text prefixes
 - SYS-EVERYWHERE
@@ -52,91 +64,55 @@ Set variables:
 
 * Supported parameteres for #+begin_ai
 - :model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" - string
+- :service <service> - string symbol/string (oai-restapi-con-service)
 - :max-tokens 150 - int
-- :stream nil - bool/string
-- :top-p
-- :temperature
-- :frequency-penalty
-- :presence-penalty
-- :service
-- :service together - symbol (oai-restapi-con-service)
-- :sys-everywhere - string (sys-prompt-for-all-messages) file:org-aire/org-ai.el:131
-- :chat :completion (org-ai--request-type) file:org-aire/oai-block.el:93
-
-file:org-aire/org-ai-openai.el:467 (org-ai-stream-completion function)
+- :stream - bool
+- :top-p float
+- :temperature float
+- :frequency-penalty float
+- :presence-penalty float
+- :sys-everywhere - string (sys-prompt-for-all-messages) [[./oai.el]]
+- :chat :completion - bool (org-ai--request-type) [[./oai-block.el]]
+- :chain - bool [[./oai-prompt.el]]
 * debugging
 To get full request body and more information set:
-: (setopt org-ai-debug-mode t)
+: (setopt oai-debug-buffer "*debug-oai*")
+: (setq debug-on-error t) ; optional
 
 Built-in url.el have ability to output request and resonse headers, for that you need to set
 : (setq url-debug '(http))
 * Extension guide
 ** How to add post-processing for text
-There are a hook ~org-ai-after-chat-insertion-hook~ that accpet two arguments (par1 par2)
-- par1: text/role/stop - symbol
-- par2: string of chunk
+There are a hook ~oai-restapi-after-chat-insertion-hook~ that accpet two arguments (par1 par2)
+- type :: simbol \='role, \='text or'end,
+- role-text :: text or role name,
+- pos :: position before text insertion
+- buffer :: target buffer with ai block for third position.
+
+There is two implementations for hook in oai-optional.el:
+- oai-optional-remove-distant-empty-lines-hook-function
+-
 
 
-For stream:
-#+begin_src text
-par1:
-role
-par2:
-assistant
-
-par1:
-text
-par2:
-A
-
-par1:
-text
-par2:
- question
-
-par1:
-end
-par2:
-
-#+end_src
-
-
-Example1:
-- file:/home/g/sources/org-ai/org-ai-talk.el::131
-
-Example2 to remove empty lines after AI answer:
-
+Example to remove empty lines after AI answer:
 #+begin_src elisp :results none :exports code :eval no
-(require 'org-ai-expand-block)
+(require 'oai-optional) ; for `oai-optional-remove-distant-empty-lines'
 
-(defun my/ai-postprocess (type content)
-  (if (equal type 'end)
-      (let* ((context (oai-block-p))
-             (con-beg (org-element-property :contents-begin context))
-             (con-end (org-element-property :contents-end context)))
-        (org-ai-remove-distant-empty-lines con-beg con-end))))
+(defun my/ai-postprocess (type _content _pos buf)
+  (ignore _content _pos)
+  (with-current-buffer buf
+    (when (equal type 'end)
+      (save-excursion
+        (let* ((context (oai-block-p))
+               (con-beg (org-element-property :contents-begin context))
+               (con-end (org-element-property :contents-end context)))
+          (oai-optional-remove-distant-empty-lines con-beg con-end))))))
 
-(add-hook 'org-ai-after-chat-insertion-hook #'my/ai-postprocess)
+(add-hook 'oai-restapi-after-chat-insertion-hook #'my/ai-postprocess)
 #+end_src
 
-
-Note: text this text located between org-ai--current-insert-position-marker (point-marker) in current buffer.
-
-** org-block functions
+* org-block functions
 - org-in-src-block-p = oai-block-p
-* Tests
-#+begin_ai :max-tokens 150 :service together :model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
-How to live long?
-#+end_ai
-
-#+begin_ai :stream nil :max-tokens 150 :service together :model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
-How to live long?
-#+end_ai
-
-#+begin_ai :completion :max-tokens 150 :service together :model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
-How to live long?
-#+end_ai
-
-#+begin_ai :stream nil :completion :max-tokens 150 :service together :model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
-How to live long?
-#+end_ai
+- oai-block-insert-result = oai-block-insert-result
+- org-babel-where-is-src-block-result = oai-block-where-is-result
+- org-fill-paragraph = oai-block-fill-paragraph

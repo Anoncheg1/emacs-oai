@@ -37,9 +37,10 @@
 ;;; Code:
 
 ;;; - Help functions
-(defun oai-tests--my-http-server-handler (proc string)
-  "(message \"in my-http-server-handler: %s\" string)"
-  (setq string string) ; noqa Unused lexical argument
+(defun oai-tests--my-http-server-handler (proc _string)
+  "Used for HTTP server as callback.
+PROC is process object.  _STRING is data received."
+  (ignore _string) ; noqa Unused lexical argument
   (process-send-string
    proc
    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"choices\":[{\"finish_reason\":\"length\",\"message\":{\"role\":\"assistant\",\"content\":\"Your question needs clarification.\"}}]}\n")
@@ -47,7 +48,7 @@
 
 
 (defun oai-tests--create-http-service ()
-  "to test: curl -v 127.0.0.1:9239"
+  "To test: curl -v 127.0.0.1:9239."
   (make-network-process
   :name "my-http-server"
   :buffer "*my-http-server*"
@@ -128,7 +129,7 @@
 ;;; - Integration test: oai-restapi-request-llm-retries
 
 (ert-deftest oai-tests-integration1-test2 ()
-  "oai-restapi-request-llm-retries"
+  "Test `oai-restapi-request-llm-retries'."
   (condition-case nil
       (delete-process "my-http-server")
     (error nil))

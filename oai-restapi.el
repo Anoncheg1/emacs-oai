@@ -98,6 +98,9 @@
 ;; `oai-restapi--insert-stream-response' ->
 ;; `oai-restapi--normalize-response'
 
+;; `oai-restapi--insert-stream-response' - may be used for single
+;; response.
+
 ;; To read data from JSON there is two ways (json-read) and
 ;; (json-read-from-string), we specify plist as target, so we use
 ;; (plist-get data 'choices) instead of (alist-get 'choices data)
@@ -128,11 +131,60 @@
   :type 'boolean
   :group 'oai)
 
-(defun oai-restapi--fill-paragraph ()
-  "Default `fill-paragraph' for streaming."
-  (fill-region (line-beginning-position) (line-end-position)))
+;; (defun my/org-fill-element-advice (orig-fun &optional justify)
+;;   "Advice around `org-fill-element`.
+;; If at headline, skip filling. Otherwise call original function."
+;;   (let ((element (save-excursion (end-of-line) (org-element-at-point))))
+;;     (unless (oai-block-tags--markdown-fenced-code-body-get-range)
+;;       (funcall orig-fun justify))))
 
-(defcustom oai-restapi-fill-paragraph-function 'oai-restapi--fill-paragraph
+;; (advice-add 'org-fill-element :around #'my/org-fill-element-advice)
+
+
+(defun oai-restapi--forward-paragraph (arg)
+  "Normal with `forward-paragraph' Skipping markdown blocks.
+Works for positive ARG now only, negative not supported now."
+  (print (list "oai-restapi--forward-paragraph" arg))
+  (funcall 'forward-paragraph arg)
+  (or arg (setq arg 1))
+  (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range))
+                    (beg (car r)) ; after header
+                    (end (cadr r))) ; at end line
+    (when (< arg 0) (not (bobp))
+          (when (> end (point))
+            (goto-char beg)
+            (forward-line -1)))
+    (when (> arg 0) (not (eobp))
+        ;; inside or at the first line? if at first line, do nothin, if in the middle of mardkown, then go to the end
+        (unless (save-excursion (forward-line -1) (eq beg (point)))
+          (goto-char end)
+          (forward-line)))))
+
+(defun oai-restapi--fill-region (&optional stream)
+  "Fill ai block for not streaming or fill word for streaming.
+Ignore markdown blocks."
+  (interactive)
+  ;; (oai--debug "oai-restapi--fill-region %s %s" stream (point))
+  (if stream
+      ;; if at current line ``` or we are at begining of markdown block in ai block.
+      (let ((case-fold-search t) ; if nil
+            (p (point)))
+        (unless
+            (with-syntax-table org-mode-transpose-word-syntax-table
+              (when (re-search-backward oai-block--ai-block-begin-re nil t)
+                (goto-char p)
+                (when (re-search-backward oai-block--markdown-begin-re (match-end 0) t)
+                  (goto-char p)
+                  (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))))
+          ;; (oai--debug "oai-restapi--fill-region11")
+          (goto-char p)
+          (save-excursion
+            (fill-region-as-paragraph (line-beginning-position) (line-end-position)))))
+    ;; else not stream, single response. We add hack to skip markdown blocks.
+    (oai-block-fill-paragraph) ; fill per line.
+    ))
+
+(defcustom oai-restapi-fill-paragraph-function 'oai-restapi--fill-region
   "Function that will be called if auto-fill is active."
   :type 'function
   :group 'oai)
@@ -415,11 +467,11 @@ Or provide your own function."
 ;;   :group 'oai)
 
 
-(defun oai-restapi--show-error (error-message &optional header-marker)
+(defun oai-restapi--show-error (error-message &optional _header-marker)
   "Show an error message in a buffer.
 ERROR-MESSAGE is the error message to show.
-Argument HEADER-MARKER not used."
-  (setq header-marker header-marker) ; noqa: not used.
+Argument _HEADER-MARKER not used."
+  (ignore _header-marker)
   (condition-case nil
       (let ((buf (get-buffer-create "*oai error*")))
         (with-current-buffer buf
@@ -691,10 +743,16 @@ STREAM string - as bool, indicates whether to stream the response."
                                                            (if oai-restapi-add-max-tokens-recommendation
                                                                (oai-restapi--get-lenght-recommendation max-tokens))))) ; oai-block.el
          (end-marker (oai-block--get-content-end-marker element))
-         (callback (cond ; set to oai-restapi--current-url-request-callback
-                    (messages
-                     (lambda (result) (oai-restapi--insert-stream-response end-marker result t)))
-                    ;; - completion
+
+         (callback (if ; chat - ; set to oai-restapi--current-url-request-callback
+                    messages
+                     (if stream
+                         (lambda (result) (oai-restapi--insert-stream-response end-marker result t))
+                       ;; else - not stream
+                     (lambda (result) (oai-restapi--insert-single-response end-marker
+                                                                        (concat "[AI]:" (oai-restapi--get-single-response-text result))
+                                                                        t)))
+                    ;; else - completion
                     (t (lambda (result) (oai-restapi--insert-single-response end-marker
                                                                         (oai-restapi--get-single-response-text result)
                                                                         nil))))))
@@ -788,7 +846,8 @@ Here used for completion mode in `oai-restapi-request'.
               ;; - "auto-fill"
               (when (and oai-restapi-auto-fill
                          (not (string-empty-p (string-trim text))))
-                (funcall oai-restapi-fill-paragraph-function))
+                (undo-boundary)
+                (funcall oai-restapi-fill-paragraph-function nil))
 
               (set-marker end-marker (point))
               (condition-case hook-error
@@ -960,6 +1019,8 @@ Save variables:
 `oai-restapi--currently-chat-got-first-response'
 `oai-restapi--current-chat-role' in current buffer.
 Called within url-buffer.
+If response is multiline `oai-restapi-fill-paragraph-function' may not
+work properly.
 Argument INSERT-ROLE provided just in case we will need to insert with
 specific role."
 
@@ -1038,7 +1099,7 @@ specific role."
                                       (when (and oai-restapi-auto-fill
                                                  (not c-inside-code-m)
                                                  (not (string-empty-p (string-trim text))))
-                                        (funcall oai-restapi-fill-paragraph-function))
+                                        (funcall oai-restapi-fill-paragraph-function t))
 
                                       (condition-case hook-error
                                           (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'text text pos buffer)
