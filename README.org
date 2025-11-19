@@ -1,5 +1,12 @@
 * oai
-Emacs package that provide special Org ~#+begin_ai~ block for communication with LLMs APIs. Text oriented fork of org-ai.
+Emacs package, provide blocks ~#+begin_ai~ in Org mode for communication with LLMs APIs. Text oriented fork of org-ai.
+
+Features:
+- Tags: expansion of links in block
+- Highlighting of code in markdown blocks
+- Auto filling
+- provide prompt engineering tools
+
 * dependencies
 Tested for Emacs 30.2
 

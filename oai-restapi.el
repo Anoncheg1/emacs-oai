@@ -735,18 +735,17 @@ STREAM string - as bool, indicates whether to stream the response."
                                                                (oai-restapi--get-lenght-recommendation max-tokens))))) ; oai-block.el
          (end-marker (oai-block--get-content-end-marker element))
 
-         (callback (if ; chat - ; set to oai-restapi--current-url-request-callback
-                    messages
-                     (if stream
-                         (lambda (result) (oai-restapi--insert-stream-response end-marker result t))
-                       ;; else - not stream
+         (callback (if messages ; chat - ; set to oai-restapi--current-url-request-callback
+                       (if stream
+                           (lambda (result) (oai-restapi--insert-stream-response end-marker result t))
+                         ;; else - not stream
+                         (lambda (result) (oai-restapi--insert-single-response end-marker
+                                                                               (concat "[AI]:" (oai-restapi--get-single-response-text result))
+                                                                               t)))
+                     ;; else - completion
                      (lambda (result) (oai-restapi--insert-single-response end-marker
-                                                                        (concat "[AI]:" (oai-restapi--get-single-response-text result))
-                                                                        t)))
-                    ;; else - completion
-                    (t (lambda (result) (oai-restapi--insert-single-response end-marker
-                                                                        (oai-restapi--get-single-response-text result)
-                                                                        nil))))))
+                                                                              (oai-restapi--get-single-response-text result)
+                                                                              nil)))))
     (oai--debug "oai-restapi-request-prepare messages1" messages)
     (setq messages (oai-restapi--modify-last-user-content messages #'oai-block-tags-replace))
     (oai--debug "oai-restapi-request-prepare messages2" messages)

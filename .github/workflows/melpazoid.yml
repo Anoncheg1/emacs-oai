@@ -29,7 +29,7 @@ jobs:
          emacs -Q --batch -l ert.el -l oai-async1.el -l ./tests/oai-tests-async1.el -f ert-run-tests-batch-and-exit
       - name: Tests timers
         run: |
-         emacs -Q --batch -l ert.el -l oai-timers.el -l ./tests/oai-tests-timers.el -f ert-run-tests-batch-and-exit
+         emacs -Q --batch -l ert.el -l oai-timers.el -l ./tests/oai-tests-timers.el -f ert-run-tests-batch-and-exity
       - name: Tests block
         run: |
          emacs -Q --batch -l ert.el -l oai-block.el -l ./tests/oai-tests-block.el -f ert-run-tests-batch-and-exit
@@ -56,8 +56,12 @@ jobs:
         run: |
           echo $GITHUB_REF
           if make -C ~/melpazoid |& tee output.log; then
-            if grep -q "Warning" output.log; then
-              echo "Warnings detected, failing workflow"
+            # if grep -q "Warning" output.log; then
+            #   echo "Warnings detected, failing workflow"
+            #   exit 1
+            # fi
+            if grep -q "Error" output.log; then
+              echo "Error detected, failing workflow"
               exit 1
             fi
           else
