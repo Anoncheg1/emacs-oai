@@ -1,4 +1,4 @@
-;;; oai-block-tags.el --- Logging for oai in separate buffer  -*- lexical-binding: t; -*-
+;;; oai-block-tags.el --- Handling links inside ai block  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 github.com/Anoncheg1
 

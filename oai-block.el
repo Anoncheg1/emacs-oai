@@ -57,7 +57,7 @@
 (require 'org-macs)
 
 (defcustom oai-block-fontify-markdown t
-  "Fontinfy ```lang blocks."
+  "If non-nil, enabling of fontinfication for ```lang blocks."
   :type 'boolean
   :group 'oai)
 

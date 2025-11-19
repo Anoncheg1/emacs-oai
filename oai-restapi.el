@@ -24,24 +24,10 @@
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
 ;;; Changelog:
-;; - DONE: comment redundent "org-ai-use-auth-source" variable
-;; - DONE: add debug-switch "oai-debug-buffer"
-;; - DONE: add :stream nil
-;; - DOME: allow to disable "system" role completely
-;; - DONE: BUG: :completion req-type don't output anything
-;; - DONE: `org-ai-after-chat-insertion-hook' not called for :stream nil and :completion
-;; - DONE: hook errors handling at user side.
-;; - DONE: stop timer when "When no connection"
-;; - DONE: shut network process when timer expire - kill buffer, remove callback.
-;; - DONE: coding is broken for received text for not English languages
-;; - DONE: make URLs as variables without hardcoding in functions and bunch of variables
-;; - DONE: write guide to add new LLM provider
-;; - DONE: remove oai-block, org, org-element
+;; - BUG: shut network process when timer expire - kill buffer, remove callback.
 ;; - TODO: rename all functions to convention
-;; - TODO: rename file to -api.el
-;; - TODO: escame #+end_ai after insert of text in block
+;; - TODO: escape #+end_ai after insert of text in block
 ;; - TODO: add support for several backends, curl, request.el
-
 
 ;;; Commentary:
 
@@ -59,7 +45,8 @@
 
 ;; - org-ai--get-endpoint = hardcoded URL or oai-restapi-con-chat-endpoint,
 ;;     oai-restapi-con-completion-endpoint, org-ai-google-chat-endpoint
-;; -> callback: (oai-restapi--insert-stream-response) or (oai-restapi--insert-single-response)
+;; -> callback: (oai-restapi--insert-stream-response)
+;;           or (oai-restapi--insert-single-response)
 ;;
 ;; Main variables:
 ;; URL = org-ai--get-endpoint()  or oai-restapi-con-chat-endpoint,
@@ -162,6 +149,8 @@ Works for positive ARG now only, negative not supported now."
 
 (defun oai-restapi--fill-region (&optional stream)
   "Fill ai block for not streaming or fill word for streaming.
+If STREAM is non-nil this function  called after insertion of a chink of
+text, otherwise after full response.
 Ignore markdown blocks."
   (interactive)
   ;; (oai--debug "oai-restapi--fill-region %s %s" stream (point))
@@ -184,7 +173,7 @@ Ignore markdown blocks."
     (oai-block-fill-paragraph) ; fill per line.
     ))
 
-(defcustom oai-restapi-fill-paragraph-function 'oai-restapi--fill-region
+(defcustom oai-restapi-fill-paragraph-function #'oai-restapi--fill-region
   "Function that will be called if auto-fill is active."
   :type 'function
   :group 'oai)
@@ -295,7 +284,9 @@ If mode is not chat but completion, appropriate model should be set."
   :group 'oai)
 
 (defcustom oai-restapi-add-max-tokens-recommendation t
-  "Additionally add system recomendation for chat mode about limit.
+  "If non-nil, add to system recomendation about max-token.
+It is recommeded to explicitly repeat to LLM information, such as
+max-token limit.
 Function `oai-restapi--get-lenght-recommendation' is used to create
 prompt."
   :type 'boolean
@@ -602,7 +593,7 @@ not found in tokens."
            ((and oai-restapi-con-token
                  (stringp oai-restapi-con-token)
                  (string-empty-p oai-restapi-con-token))
-            (user-error "`oai-restapi-con-token' is an empty string. Please set"))
+            (user-error "`oai-restapi-con-token' is an empty string.  Please set"))
            (t
             ;; else no `oai-restapi-con-token'
             (user-error "Please set `oai-restapi-con-token' to your OpenAI API token or setup auth-source (see oai readme)"))))))))

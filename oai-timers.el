@@ -30,7 +30,7 @@
 ;;; Code:
 
 (defcustom oai-timers-echo-gap 0.2
-  "Echo update interval."
+  "Echo update interval for notification about waiting."
   :type 'float
   :group 'oai)
 
