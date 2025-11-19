@@ -128,24 +128,24 @@
 ;; (advice-add 'org-fill-element :around #'my/org-fill-element-advice)
 
 
-(defun oai-restapi--forward-paragraph (arg)
-  "Normal with `forward-paragraph' Skipping markdown blocks.
-Works for positive ARG now only, negative not supported now."
-  (print (list "oai-restapi--forward-paragraph" arg))
-  (funcall 'forward-paragraph arg)
-  (or arg (setq arg 1))
-  (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range))
-                    (beg (car r)) ; after header
-                    (end (cadr r))) ; at end line
-    (when (< arg 0) (not (bobp))
-          (when (> end (point))
-            (goto-char beg)
-            (forward-line -1)))
-    (when (> arg 0) (not (eobp))
-        ;; inside or at the first line? if at first line, do nothin, if in the middle of mardkown, then go to the end
-        (unless (save-excursion (forward-line -1) (eq beg (point)))
-          (goto-char end)
-          (forward-line)))))
+;; (defun oai-restapi--forward-paragraph (arg)
+;;   "Normal with `forward-paragraph' Skipping markdown blocks.
+;; Works for positive ARG now only, negative not supported now."
+;;   (print (list "oai-restapi--forward-paragraph" arg))
+;;   (funcall #'forward-paragraph arg)
+;;   (or arg (setq arg 1))
+;;   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range))
+;;                     (beg (car r)) ; after header
+;;                     (end (cadr r))) ; at end line
+;;     (when (< arg 0) (not (bobp))
+;;           (when (> end (point))
+;;             (goto-char beg)
+;;             (forward-line -1)))
+;;     (when (> arg 0) (not (eobp))
+;;         ;; inside or at the first line? if at first line, do nothin, if in the middle of mardkown, then go to the end
+;;         (unless (save-excursion (forward-line -1) (eq beg (point)))
+;;           (goto-char end)
+;;           (forward-line)))))
 
 (defun oai-restapi--fill-region (&optional stream)
   "Fill ai block for not streaming or fill word for streaming.
