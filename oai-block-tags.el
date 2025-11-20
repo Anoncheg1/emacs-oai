@@ -142,7 +142,8 @@ Used to set `org-link-search-must-match-exact-headline' before
                                        (org-link-make-regexps) ; constructor of org-link-types-re, org-link-angle-re, org-link-plain-re, org-link-bracket-re
                                        ;; org-link-types-re
                                        ))
-  "`org-link-any-re' but with one type \"file\" in `org-link-types'." )
+  "`org-link-any-re' but with one type \"file\" in `org-link-types'.
+It have problem, when substring \"```\" enconted, it break regex." )
 
 ;;; -=-= @Backtrace
 
@@ -504,22 +505,23 @@ Steps: find max, min region of special-block/src-block/buffer
   "Return list range if POS (an index) is inside a '```' code block in STR.
 Otherwise return nil.
 Substring '```content' without last '```'."
-  (let ((search-pos 0)
-        (block-boundaries '()))
-    ;; Find all the '```' positions
-    (while (string-match "```" str search-pos)
-      (push (match-beginning 0) block-boundaries)
-      (setq search-pos (match-end 0)))
-    ;; Sort and pair boundaries
-    (setq block-boundaries (sort block-boundaries #'<))
-    (catch 'inside
-      (let ((bounds block-boundaries))
-        (while bounds
-          (let ((start (pop bounds))
-                (end (and bounds (pop bounds))))
-            (when (and end (>= pos start) (< pos end))
-              (throw 'inside block-boundaries)))))
-      nil)))
+  (save-match-data
+    (let ((search-pos 0)
+          (block-boundaries '()))
+      ;; Find all the '```' positions
+      (while (string-match "```" str search-pos)
+        (push (match-beginning 0) block-boundaries)
+        (setq search-pos (match-end 0)))
+      ;; Sort and pair boundaries
+      (setq block-boundaries (sort block-boundaries #'<))
+      (catch 'inside
+        (let ((bounds block-boundaries))
+          (while bounds
+            (let ((start (pop bounds))
+                  (end (and bounds (pop bounds))))
+              (when (and end (>= pos start) (< pos end))
+                (throw 'inside block-boundaries)))))
+        nil))))
 
 ;; (progn (string-match "```" "aaa```bbb```ccc")
 (if-let* ((line "aaa```bbb```ccc")
@@ -872,6 +874,7 @@ Return replacement string."
   ;; `org-link-open' for type and opening,  `org-link-search' for search in current buffer.
   ;; from `org-link-open-from-string'
   ;; - - 1) convert string to Org element
+  (oai--debug "oai-block-tags--get-replacement-for-org-link %s" link-string)
   (let ((link-el (with-temp-buffer
                    (let ((org-inhibit-startup nil))
                      (insert link-string)
@@ -1015,47 +1018,57 @@ Used in `oai-block-tags-mark-md-block-body'."
 ;; - @./name - file
 ;; - @name - <<target>> or #+NAME: name - in current file
 
-(defun oai-block-tags--replace-last-regex-smart (string regexp &optional replacement)
-  "Replace the last match of REGEXP in STRING with REPLACEMENT.
+(defun oai-block-tags--replace-last-regex-smart (str-orig regexp &optional replacement)
+  "Replace the last match of REGEXP in STR-ORIG with REPLACEMENT.
 reserve any extra captured groups.
 Check that found regexp not in markdown block.
-If REPLACEMENT not provided return found string for regexp or nil if not
-found."
+If REPLACEMENT not provided return found str-orig for regexp or nil if not
+found.
+Some regex break when str-orig have \"```\", we implemented fix for that
+by replacing it with rare sequence."
+  ;; (oai--debug "oai-block-tags--replace-last-regex-smart")
   (let ((pos 0)
         (last-pos nil)
-        (last-end nil)
-        ;; (last-group "")
-        )
+        (last-end nil))
     (while (and pos
-                (string-match regexp string pos)
-                (not (oai-block-tags--position-in-markdown-block-str-p string (setq pos (match-beginning 0))))) ; not in markdonw block
+                (string-match regexp str-orig pos)
+                (not (oai-block-tags--position-in-markdown-block-str-p str-orig (setq pos (match-beginning 0))))) ; not in markdonw block
+      (setq pos (match-beginning 0))
+      ;; (print (list "sdasd" pos))
       (setq last-pos pos) ; beg
       (setq last-end (match-end 0)) ; end
+      ;; (print (list "sdasd2" last-end))
       (setq pos last-end) ; move forward
       )
 
     (if replacement
         (if last-pos
-            ;; (replace-match replacement 'fixedcase 'literal string)
-            ;; (if (eq (aref string (1- last-end)) ?\s) ;; if space after match
-                ;; (replace-match replacement 'fixedcase 'literal string 1)
-              ;; 1) replace
-              (concat (substring string 0 last-pos)
-                      replacement
-                      ;; last-group
-                      (substring string last-end))
-          ;; else - return just string
-          string)
+            ;; (replace-match replacement 'fixedcase 'literal str-orig)
+            ;; (if (eq (aref str-orig (1- last-end)) ?\s) ;; if space after match
+            ;; (replace-match replacement 'fixedcase 'literal str-orig 1)
+            ;; 1) replace
+            (concat (substring str-orig 0 last-pos)
+                    replacement
+                    ;; last-group
+                    (substring str-orig last-end))
+          ;; else - return just str-orig
+          str-orig)
       ;; else no replacement
+      ;; (when last-pos (oai--debug "oai-block-tags--replace-last-regex-smart2 c%sc" (match-string 0 str-orig)))
       (if last-pos
           (replace-regexp-in-string "^[` ]*" ""
-                                     (replace-regexp-in-string "[` ]*\$" ""
-                                                               (match-string 0 string))) ;; (substring string last-pos last-end)
-      nil))))
+                                    (replace-regexp-in-string "[` ]*\$" ""
+                                                              (match-string 0 str-orig))) ;; (substring str-orig last-pos last-end)
+        nil))))
 
 (cl-assert
  (string-equal (oai-block-tags--replace-last-regex-smart "asdasd@Backtraceasdasdasd" "\\(@Backtrace\\)" "111")
         "asdasd111asdasdasd"))
+
+(cl-assert
+ (string-equal
+  (oai-block-tags--replace-last-regex-smart "Same code: [[file:~/tmp/emacs::27-30]]```" oai-block--org-link-any-re)
+  "[[file:~/tmp/emacs::27-30]]"))
 
 (cl-assert
  (string-equal (oai-block-tags--replace-last-regex-smart "asda\n```\nvas@Backtraceasdasd\n```\nasd" "\\(@Backtrace\\)" "111")
@@ -1124,12 +1137,18 @@ found."
 Check every type of links if it exist in text, find replacement for the
 fist link and replace link substring with
 `oai-block-tags--replace-last-regex-smart' once.
-Return modified string or the same string."
+Return modified string or the same string.
+Called from:
+- `oai-expand-block' interactive function
+- `oai-restapi-request-prepare'
+- `oai-restapi-request-llm-retries'."
   (oai--debug "oai-block-tags-replace: \"%s\"" string)
   ;; - "@Backtrace" substring exist - replace the last one only
-  ;; *Wrap in markdown*
+  ;; Result will be *Wrapped in markdown*
   (when (string-match oai-block-tags--regexes-backtrace string)
-    (if-let* ((bt (oai-block-tags--get-backtrace-buffer-string)) ; *Backtrace* buffer exist
+    (oai--debug "oai-block-tags-replace: here1")
+    (if-let* ((bt (or (oai-block-tags--get-backtrace-buffer-string)
+                      (user-error "No backtrace buffer for @Backtrace tag."))) ; *Backtrace* buffer exist
               (bt (oai-block-tags--take-n-lines bt oai-block-tags--backtrace-max-lines))
               (bt (concat "\n" (plist-get oai-block-tags--markdown-prefixes :backtrace) "\n"
                           bt
@@ -1138,10 +1157,12 @@ Return modified string or the same string."
         (setq string new-string)))
 
   ;; - Path @/path/file.txt - replace the last one only
-  ;; *Wrap in markdown*
+  ;; Result will be *Wrapped in markdown*
   (when (string-match oai-block-tags--regexes-path string)
+    (oai--debug "oai-block-tags-replace: here2")
     (if-let* ((path-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--regexes-path)) ; find the last
               ;; remove first @ character from link
+
               (path-string (if (> (length path-string) 0)
                                (substring path-string 1)
                              ""))
@@ -1158,6 +1179,7 @@ Return modified string or the same string."
   ;; exist we replace it.
   ;; *Dont Wrap in markdown*
   (when (string-match oai-block--org-link-any-re string) ; exist in text?
+    (oai--debug "oai-block-tags-replace: here3")
     (if-let* ((link (oai-block-tags--replace-last-regex-smart string oai-block--org-link-any-re)) ; find the last
 
               (replacement (concat "\n" (oai-block-tags--get-replacement-for-org-link link) "\n" )) ; add empty line after it.
