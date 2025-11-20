@@ -695,13 +695,13 @@ Useful for small max-tokens.
 - page - around 3-4 paragraphs, 500 words = 600 tokens."
   (when max-tokens
     (cond ((< max-tokens 75)
-           (format "Your asnwer limit is about %d words." (* max-tokens 0.75)))
+           (format "Limit your answer to %d words." (* max-tokens 0.75)))
           ((and (>= max-tokens 75)
                 (< max-tokens 500))
-           (format "Your asnwer limit is about %d sentences." (/ max-tokens 29)))
+           (format "Count lines and limit your answer to %d sentences or %d lines." (/ max-tokens 29) (* (/ max-tokens 29) 3) ))
           ((and (>= max-tokens 500)
                 (<= max-tokens 1000))
-           (format "Your asnwer limit is about %d paragraphs or %d pages." (/ max-tokens 200) (ceiling (/ max-tokens 600.0)))))))
+           (format "Limit your answer to %d paragraphs or %d pages." (/ max-tokens 200) (ceiling (/ max-tokens 600.0)))))))
 
 ;;; -=-= Main
 
