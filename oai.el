@@ -76,21 +76,29 @@
 
 ;; Callback write result to ORG
 
-;; Touch: Mirrors everywhere, but they are flawed.
+;; Other packages:
+;; - Navigation in Dired, Packages, Buffers modes https://github.com/Anoncheg1/firstly-search
+;; - Search with Chinese		https://github.com/Anoncheg1/pinyin-isearch
+;; - Ediff no 3-th window		https://github.com/Anoncheg1/ediffnw
+;; - Dired history			https://github.com/Anoncheg1/dired-hist
+;; - Selected window contrast		https://github.com/Anoncheg1/selected-window-contrast
+;; - Copy link to clipboard		https://github.com/Anoncheg1/org-links
+;; - Solution for "callback hell"	https://github.com/Anoncheg1/emacs-async1
+;; - Restore buffer state		https://github.com/Anoncheg1/emacs-unmodified-buffer1
+;; - outline.el usage			https://github.com/Anoncheg1/emacs-outline-it
+
+;; Donate:
+;; - BTC (Bitcoin) address: 1CcDWSQ2vgqv5LxZuWaHGW52B9fkT5io25
+;; - USDT (Tether) address: TVoXfYMkVYLnQZV3mGZ6GvmumuBfGsZzsN
+;; - TON (Telegram) address: UQC8rjJFCHQkfdp7KmCkTZCb5dGzLFYe2TzsiZpfsnyTFt9D
+
+;; Touch: Pain, water and warm.
 
 ;;; Changes:
 
-;; - DONE: remove websocket
-;; - DONE: additional should be additional
-;; - DONE: :stream nil/t parameter
-;; - DONE: guide for connecting to custom LLM provider.
-;; - DONE: Guide to add custom functions for text post-processing.
-;; - DONE: make oai-block dependent on org and oai-restapi dependent on url only. separate 'oai-block and 'oai-restapi, for now oai-restapi dependes on oai-block and org.
-;; - TODO: rename all to "file-shit" naming convention
 ;; - TODO: make org-ai-variable.el and pass them to -api.el functions as parameters.
 ;; - TODO: provide ability to replace url-http with plz or oai-restapi with llm(plz)
 ;; - TODO: implement "#+PROPERTY: var  foo=1" and  "#+begin_ai :var foo=1" and to past to text in [foo]
-;; - TODO: implement expanders for variables like links and references
 ;; - TODO: implement contant-tags "Fix @problems then document the changes in @/CHANGELOG.md" @url, @file, @folder, @header? (Org)
 
 (require 'oai-debug)
