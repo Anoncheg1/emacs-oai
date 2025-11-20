@@ -284,7 +284,7 @@ about failure."
 ;;   (oai-timers--update-global-progress-reporter failed))
 
 ;;; - Timers Local
-(defun oai-timers--interrupt-current-request (url-buffer &optional interrupt-request-func)
+(defun oai-timers--interrupt-current-request (url-buffer interrupt-request-func)
   "Interrupt every buffer, remove buffer from list, update global timer.
 URL-BUFFER one or several buffers.
 Should be called in target buffer with global timer.
