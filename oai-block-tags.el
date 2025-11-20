@@ -142,8 +142,7 @@ Used to set `org-link-search-must-match-exact-headline' before
                                        (org-link-make-regexps) ; constructor of org-link-types-re, org-link-angle-re, org-link-plain-re, org-link-bracket-re
                                        ;; org-link-types-re
                                        ))
-  "`org-link-any-re' but with one type \"file\" in `org-link-types'.
-It have problem, when substring \"```\" enconted, it break regex." )
+  "`org-link-any-re' but with one type \"file\" in `org-link-types'." )
 
 ;;; -=-= @Backtrace
 
@@ -1023,9 +1022,7 @@ Used in `oai-block-tags-mark-md-block-body'."
 reserve any extra captured groups.
 Check that found regexp not in markdown block.
 If REPLACEMENT not provided return found str-orig for regexp or nil if not
-found.
-Some regex break when str-orig have \"```\", we implemented fix for that
-by replacing it with rare sequence."
+found."
   ;; (oai--debug "oai-block-tags--replace-last-regex-smart")
   (let ((pos 0)
         (last-pos nil)
@@ -1069,6 +1066,8 @@ by replacing it with rare sequence."
  (string-equal
   (oai-block-tags--replace-last-regex-smart "Same code: [[file:~/tmp/emacs::27-30]]```" oai-block--org-link-any-re)
   "[[file:~/tmp/emacs::27-30]]"))
+
+(cl-assert (not (oai-block-tags--replace-last-regex-smart "Same code: ```[[file:~/tmp/emacs::27-30]]```" oai-block--org-link-any-re)))
 
 (cl-assert
  (string-equal (oai-block-tags--replace-last-regex-smart "asda\n```\nvas@Backtraceasdasd\n```\nasd" "\\(@Backtrace\\)" "111")
