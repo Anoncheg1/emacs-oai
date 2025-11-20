@@ -1148,7 +1148,7 @@ Called from:
   (when (string-match oai-block-tags--regexes-backtrace string)
     (oai--debug "oai-block-tags-replace: here1")
     (if-let* ((bt (or (oai-block-tags--get-backtrace-buffer-string)
-                      (user-error "No backtrace buffer for @Backtrace tag."))) ; *Backtrace* buffer exist
+                      (user-error "No backtrace buffer for @Backtrace tag"))) ; *Backtrace* buffer exist
               (bt (oai-block-tags--take-n-lines bt oai-block-tags--backtrace-max-lines))
               (bt (concat "\n" (plist-get oai-block-tags--markdown-prefixes :backtrace) "\n"
                           bt
