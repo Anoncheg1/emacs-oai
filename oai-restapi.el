@@ -152,8 +152,7 @@
 If STREAM is non-nil this function  called after insertion of a chink of
 text, otherwise after full response.
 Ignore markdown blocks.
-TODO: for streaming: save and pass beginin of paragraph.
-TODO: don't wrap tables."
+TODO: for streaming: save and pass beginin of paragraph."
   (interactive)
   (oai--debug "oai-restapi--fill-region %s %s" stream (point))
   (save-excursion
