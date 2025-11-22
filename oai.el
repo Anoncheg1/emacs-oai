@@ -41,7 +41,7 @@
 ;; - Use #+begin_ai..#+end_ai blocks for org-mode
 ;; - Chat with a language model from within an org mode buffer.
 ;; - Call multiple requests from multiple block and buffers.
-;; - See how many in progress now.
+;; - See how many requests in parallel now.
 ;; - Use tags `@Backtrace` @Bt and Org links to insert target in query.
 ;;
 ;; For the Internet connection used built-in libs: url.el and url-http.el.
@@ -82,7 +82,7 @@
 ;; - Ediff no 3-th window	https://github.com/Anoncheg1/ediffnw
 ;; - Dired history		https://github.com/Anoncheg1/dired-hist
 ;; - Selected window contrast	https://github.com/Anoncheg1/selected-window-contrast
-;; - Copy link to clipboard	https://github.com/Anoncheg1/org-links
+;; - Copy link to clipboard	https://github.com/Anoncheg1/emacs-org-links
 ;; - Solution for "callback hell"	https://github.com/Anoncheg1/emacs-async1
 ;; - Restore buffer state	https://github.com/Anoncheg1/emacs-unmodified-buffer1
 ;; - outline.el usage		https://github.com/Anoncheg1/emacs-outline-it
