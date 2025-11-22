@@ -156,24 +156,30 @@ TODO: for streaming: save and pass beginin of paragraph.
 TODO: don't wrap tables."
   (interactive)
   (oai--debug "oai-restapi--fill-region %s %s" stream (point))
-  (if stream
-      ;; if at current line ``` or we are at begining of markdown block in ai block.
-      (let ((case-fold-search t) ; if nil
-            (p (point)))
-        (unless
-            (with-syntax-table org-mode-transpose-word-syntax-table
-              (when (re-search-backward oai-block--ai-block-begin-re nil t)
-                (goto-char p)
-                (when (re-search-backward oai-block--markdown-begin-re (match-end 0) t)
-                  (goto-char p)
-                  (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))))
-          ;; (oai--debug "oai-restapi--fill-region11")
-          (goto-char p)
-          (save-excursion
-            (fill-region-as-paragraph (line-beginning-position) (line-end-position)))))
-    ;; else not stream, single response. We add hack to skip markdown blocks.
-    (oai-block-fill-paragraph) ; fill per line. wrapped in save-excursion inside.
-    ))
+  (save-excursion
+    (if stream
+        ;; if at current line ``` or we are at begining of markdown block in ai block.
+        (let ((case-fold-search t) ; if nil
+              (p (point)))
+          (unless
+              (or (with-syntax-table org-mode-transpose-word-syntax-table
+                    ;; backward for ai block
+                    (when (re-search-backward oai-block--ai-block-begin-re nil t)
+                      (goto-char p)
+                      ;; backward for markdown block "begin"
+                      (when (re-search-backward oai-block--markdown-begin-re (match-end 0) t)
+                        (goto-char p)
+                        ;; backward for markdown block "end" after "begin"
+                        (not (re-search-backward oai-block--markdown-end-re nil t)))))
+                  (progn (goto-char p)
+                         (beginning-of-line)
+                         (or (looking-at "^> ") ; from `oai-block-fill-region-as-paragraph'
+                             (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*"))))
+            (goto-char p)
+            (fill-region-as-paragraph (line-beginning-position) (line-end-position))))
+      ;; else not stream, single response. We add hack to skip markdown blocks.
+      (oai-block-fill-paragraph) ; fill per line. wrapped in save-excursion inside.
+      )))
 
 (defcustom oai-restapi-fill-paragraph-function #'oai-restapi--fill-region
   "Function that will be called if auto-fill is active.
@@ -2116,11 +2122,11 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
                  (list :role 'assistant :content "IDK.")
                  (list :role 'user :content "How to make coffe2?")
                  (list :role 'system :content "other"))
-         (lambda (x) (concat x " wtf")))
+         (lambda (x) (concat x " w11")))
         '[(:role system :content "foo")
           (:role user :content "How to make coffe1?")
           (:role assistant :content "IDK.")
-          (:role user :content "How to make coffe2? wtf")
+          (:role user :content "How to make coffe2? w11")
           (:role system :content "other")]))
 
 ;;; -=-= Others
