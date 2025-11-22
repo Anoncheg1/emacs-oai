@@ -152,7 +152,8 @@
 If STREAM is non-nil this function  called after insertion of a chink of
 text, otherwise after full response.
 Ignore markdown blocks.
-TODO: for streaming: save and pass beginin of paragraph."
+TODO: for streaming: save and pass beginin of paragraph.
+TODO: don't wrap tables."
   (interactive)
   (oai--debug "oai-restapi--fill-region %s %s" stream (point))
   (if stream
@@ -1212,7 +1213,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
               ;; (setq _events _events) ; noqa left unused
               ;; called one time at error or at the end of all receiving.
 
-              (oai--debug "oai-restapi-request *url-retrieve callback*:" _events)
+              (oai--debug "oai-restapi-request *url-retrieve callback*")
 
               (let (oai-restapi--url-buffer-last-position-marker)
                 (oai-restapi--debug-urllib (current-buffer)))

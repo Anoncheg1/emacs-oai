@@ -504,23 +504,56 @@ Argument START and END are limits for searching."
               (org-src-font-lock-fontify-block lang block-begin block-end)
               t)))))))
 
+(defun oai-block--fontify-org-tables (start end)
+  (let (match mbeg)
+    (while (setq match (re-search-forward "^[\s-]*|" end t))
+      ;; (text-property-search-forward 'face 'org-table t))
+      (setq mbeg (match-beginning 0)) ; (prop-match-beginning match))
+      (end-of-line)
+                                        ; (prop-match-end match))
+      (remove-text-properties mbeg (point)
+                              (list 'face '(org-block)))
+
+      (put-text-property mbeg (point)
+                         'face 'org-table)
+      ;; (put-text-property mbeg mend
+      ;;                    'org-table t)
+      )
+    t))
+
 (defun oai-block--font-lock-fontify-ai-subblocks (limit)
   "Fontify markdown subblocks in ai blocks, up to LIMIT.
 This is special fontify function, that return t when match found.
 We insert advice right after `org-fontify-meta-lines-and-blocks-1' witch
 called as a part of Org Font Lock mode configuration of keywords (in
 `org-set-font-lock-defaults' and corresponding font-lock highlighting
-rules in `font-lock-defaults' variable."
+rules in `font-lock-defaults' variable.
+TODO: fontify if there is only end of ai block on page"
   (if oai-block-fontify-markdown
       (let ((case-fold-search t)
-            (ret))
-        (while (and (re-search-forward oai-block--ai-block-begin-re limit t)
+            ret
+            end)
+        (while (and (< (point) limit)
+                    (re-search-forward oai-block--ai-block-begin-re limit t)
                     (< (point) limit))
           (let ((beg (match-end 0)))
-            (when (re-search-forward oai-block--ai-block-end-re nil t)
-              (let ((end (match-beginning 0)))
-                (save-match-data
-                  (setq ret (oai-block--fontify-markdown-subblocks beg end)))))))
+            (if (re-search-forward oai-block--ai-block-end-re nil t)
+                (progn
+                  (setq end (match-beginning 0))
+                  (save-match-data
+                    (setq ret (oai-block--fontify-markdown-subblocks beg end)))
+                  (save-match-data
+                    (setq ret (oai-block--fontify-org-tables beg end)))
+                  )
+              ;; else end of block not found, apply block to the limit
+              (setq end limit)
+              ;; TODO: hardcoded now
+              (save-match-data
+                (setq ret (oai-block--fontify-markdown-subblocks beg end)))
+              (save-match-data
+                (setq ret (oai-block--fontify-org-tables beg end)))
+              (goto-char limit)
+              )))
         ;; required by font lock mode:
         (goto-char limit)
         ret)))
@@ -544,33 +577,40 @@ Executed inside `save-excursion'."
          (let ((line-start (line-beginning-position)) ; may be replace to just (point)
                (line-end (line-end-position)))
            ;; (print (list "my/apply-to-region-lines aa" line-start line-end))
-           (if (< line-start line-end)
-             (apply ,func line-start line-end (list ,@args))
-             ;; else - skip emtpy line
-           (forward-line 1)))))))
+           (when (< line-start line-end)
+             (apply ,func line-start line-end (list ,@args)))
+           (goto-char line-end)
+           (forward-line))))))
 
 (defun oai-block-fill-region-as-paragraph (from to &optional justify nosqueeze squeeze-after)
   "Ignore lines that begin with \"< \".
 For `fill-region-as-paragraph' that applied per lines.
 Argument FROM TO JUSTIFY NOSQUEEZE SQUEEZE-AFTER is arguments of
 fill-region-as-paragraph."
+  (oai--debug "oai-block-fill-region-as-paragraph %s %s" from to)
   (goto-char (min from to))
-  (unless (looking-at "> ")
-    (funcall #'fill-region-as-paragraph from to justify nosqueeze squeeze-after)))
+  (if (not (or (looking-at "> ")
+               (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))
+      (funcall #'fill-region-as-paragraph from to justify nosqueeze squeeze-after)
+    ;; else
+    (goto-char to)))
 
 (defun oai-block-fill-paragraph (&optional justify _region)
   "Fill every line as paragraph in the current AI block.
 Ignore code blocks that start with '```sometext' and end with '```'.
 Optional argument JUSTIFY is parameter of `fill-paragraph'.
 Optional argument REGION todo.
-TODO: use `forward-paragraph' instead of every line."
+TODO: use `forward-paragraph' instead of `forward-line'.
+Was causing freezing."
   (interactive (progn
                  (barf-if-buffer-read-only)
                  (list (when current-prefix-arg 'full) t)))
   (ignore _region)
   ;; inspired by `org-fill-element'
+  (oai--debug "oai-block-fill-paragraph %s %s" (point) (current-buffer))
+
   (with-syntax-table org-mode-transpose-word-syntax-table
-    (let ((element (oai-block-p)))
+    (let ((element (oai-block-p))) ; TODO: replace with last replay only
       (when element
         ;; Determine the boundaries of the content
         (let ( ;; ai block range
@@ -589,25 +629,29 @@ TODO: use `forward-paragraph' instead of every line."
               ;; - search forward for markdkown begining from ai block begining
               (if (re-search-forward "^[ \t\f]*```\\w" end t) ; ex. "    ```elisp"
                   (progn
-                    (setq block-start (copy-marker (line-beginning-position))) ; save markdown block begining
+                    ;; (setq block-start (copy-marker (line-beginning-position))) ; save markdown block begining
+                    (setq block-start (line-beginning-position)) ; save markdown block begining
                     ;; - search forward from current for markdown ending
                     (if (re-search-forward "^[ \t\f]*```[ \t\f]*$" end t) ; ex. "    ```      "
                         (progn
                           (setq block-end (copy-marker (line-beginning-position)))
-                          ;; fill from begining of ai block to begin to markdown block
-                          (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg (marker-position block-start) justify)
+                          ;; from begining of ai block to begin to markdown block
+                          ;; FILL
+                          (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg block-start justify)
                           ;; go to the end of markdown block
                           (goto-char (marker-position block-end))
+                          (set-marker block-end nil)
                           (forward-line 1)
                           (setq beg (point)))
                       ;; else - not found end of block
-                      (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg (marker-position block-start) justify)
-                      (set-marker block-start nil)
+                      ;; FILL
+                      (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg block-start justify)
+                      ;; (set-marker block-start nil)
                       (setq beg end)))
                 ;; else - no markdown block begining - apply to whole block
+                ;; FILL
                 (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg end justify)
                 (setq beg end)))
-            ;; (print "my/oai-fill-paragraph return t")
             t))))))
 
 ;;; provide

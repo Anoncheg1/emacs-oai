@@ -545,8 +545,8 @@ Return non-nil string of markdown block if exist at current position."
       (save-excursion
         (buffer-substring-no-properties
          (progn (goto-char (car range))
-                (forward-line -1)
-                (line-beginning-position))
+                ;; (forward-line -1)
+                (line-beginning-position 0))
          (progn (goto-char (cadr range))
                 ;; (forward-line)
                 (line-end-position))))

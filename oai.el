@@ -302,14 +302,17 @@ messages."
 
 (defun oai-block--set-ai-keywords()
   "Hook, that Insert our fontify functions in Org font lock keywords."
+  ;; add fontify-ai-subblocks - markdown blocks and tables.
   (setq org-font-lock-extra-keywords (oai-block--insert-after
                                       org-font-lock-extra-keywords
                                       (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
                                       '(oai-block--font-lock-fontify-ai-subblocks)))
+  ;; add fontify-links
   (setq org-font-lock-extra-keywords (oai-block--insert-after
                                       org-font-lock-extra-keywords
                                       (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
-                                      '(oai-block-tags--font-lock-fontify-links))))
+                                      '(oai-block-tags--font-lock-fontify-links)))
+  )
 ;;; -=-= Mark block M-h
 (defun oai-mark-at-point (arg)
   "Mark entity at current poin in current buffer.
