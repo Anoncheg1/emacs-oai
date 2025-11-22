@@ -98,8 +98,10 @@
 
 ;; - TODO: make org-ai-variable.el and pass them to -api.el functions as parameters.
 ;; - TODO: provide ability to replace url-http with plz or oai-restapi with llm(plz)
-;; - TODO: implement "#+PROPERTY: var  foo=1" and  "#+begin_ai :var foo=1" and to past to text in [foo]
-;; - TODO: implement contant-tags "Fix @problems then document the changes in @/CHANGELOG.md" @url, @file, @folder, @header? (Org)
+;; - TODO: implement "#+PROPERTY: var foo=1" and "#+begin_ai :var
+;;         foo=1" and to past to text in [foo]
+;; - TODO: implement contant-tags "Fix @problems then document the
+;;         changes in @/CHANGELOG.md" @url, @file, @folder, @header? (Org)
 
 (require 'oai-debug)
 (require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'

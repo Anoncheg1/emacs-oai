@@ -293,7 +293,7 @@ line."
       (setq start (cl-find-if (lambda (x) (> end x)) (reverse regions))))
     (when (and start end)
       (goto-char start)
-      (push-mark end t t)
+      (unless (region-active-p) (push-mark end t t))
       (cons start end))))
 
 (defun oai-forward-section (&optional arg)
@@ -309,7 +309,7 @@ A negative argument ARG = -N means move backward."
     ;; (oai--debug "oai-forward-section1 %s %s" start end)
     (or arg (setq arg 1))
     (if (> arg 0)
-        (progn (push-mark nil t) ; save position
+        (progn (unless (region-active-p) (push-mark nil t)) ; save position
                (goto-char end))
       ;; else - backward
       (let ((prev (cl-find-if (lambda (x) (>= (1- start) x)) (reverse regions))))
@@ -317,10 +317,10 @@ A negative argument ARG = -N means move backward."
         (when  prev ;; (>= (point) start))
           (if (and (> (point) start) ; if at the middle of first section
                    (not prev))
-              (progn (push-mark nil t) ; save position
+              (progn (unless (region-active-p) (push-mark nil t)) ; save position
                      (goto-char start))
             ;; else
-            (push-mark nil t) ; save position
+            (unless (region-active-p) (push-mark nil t)) ; save position
             (goto-char (cl-find-if (lambda (x) (>= (1- start) x)) (reverse regions)))))))))
 
 (defun oai-kill-region-at-point (&optional arg)

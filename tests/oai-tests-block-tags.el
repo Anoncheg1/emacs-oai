@@ -156,7 +156,7 @@ text after"))
       (org-mode)
       (setq buffer-file-name "/mock/org.org")
       (insert "* headline\nasdas\n** sub-headline\n asd")
-      (setq res1 (print (oai-block-tags-replace  "11[[file:/mock/org.org::* headline]]4444")))
+      (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::* headline]]4444"))
       (setq target
             "11
 ```text
@@ -169,7 +169,7 @@ asdas
 
 4444")
       (should (string-equal res1 target))
-      (setq res2 (print (oai-block-tags-replace  "11[[* headline]]4444")))
+      (setq res2 (oai-block-tags-replace  "11[[* headline]]4444"))
       (should (string-equal res2 target))
       (set-buffer-modified-p nil))))
 
@@ -202,7 +202,7 @@ asdas
           (setq res1 (oai-block-tags-replace "11[[file:/mock/org.org::1::* headline]]4444"))
           (should (string-equal target res1))
 
-          (setq res2 (print (oai-block-tags-replace  "11[[1::* headline]]4444")))
+          (setq res2  (oai-block-tags-replace  "11[[1::* headline]]4444"))
           (should (string-equal target res2)))
         ;; (advice-remove 'org-open-file (intern "org-links-org-open-file-advice"))
 
@@ -228,7 +228,7 @@ asdas
 asdas
 ```
 4444")
-        (setq res1 (print (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444")))
+        (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::1-2::* headline]]4444"))
         (should (string-equal res1
                               target))
         ;; (advice-remove 'org-open-file (intern "org-links-org-open-file-advice"))
@@ -270,8 +270,8 @@ asdas
         (insert "* headline\nasdas\n** sub-headline\n asd\nss2")
         (setq buffer-file-name "/mock/org.org")
         (read-only-mode)
-        (setq res1 (print (oai-block-tags--get-replacement-for-org-file-link-in-other-file
-                      "/mock/org.org" "2-3")))
+        (setq res1 (oai-block-tags--get-replacement-for-org-file-link-in-other-file
+                      "/mock/org.org" "2-3"))
 
         (setq target
               "\n```org\nasdas\n** sub-headline\n```")
@@ -283,8 +283,8 @@ asdas
 ss2
 ```
 ")
-        (setq res2 (print (oai-block-tags--get-replacement-for-org-file-link-in-other-file
-                      "/mock/org.org" "*sub-headline")))
+        (setq res2 (oai-block-tags--get-replacement-for-org-file-link-in-other-file
+                      "/mock/org.org" "*sub-headline"))
         (should (string-equal target res2))
 
         ;; (advice-remove 'org-open-file (intern "org-links-org-open-file-advice"))

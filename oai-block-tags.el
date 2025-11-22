@@ -980,7 +980,7 @@ Used in `oai-block-tags-mark-md-block-body'."
   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range limit-begin limit-end))
               (beg (car r))
               (end (cadr r)))
-    (set-mark beg)
+    (push-mark beg t)
     (goto-char end)
     (forward-line -1)
     (end-of-line)
@@ -1346,7 +1346,7 @@ make this function to no relay on oai-block."
         (or (oai-block-tags--markdown-mark-fenced-code-body beg end)
             ;; else - no markdown - mark ai block only
             (progn
-              (set-mark beg)
+              (push-mark beg t)
               (goto-char end)
               (activate-mark)))
         t)
