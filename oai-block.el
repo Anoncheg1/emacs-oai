@@ -505,6 +505,9 @@ Argument START and END are limits for searching."
               t)))))))
 
 (defun oai-block--fontify-org-tables (start end)
+  "Set face for lines like Org tables.
+For current buffer in position between START and END.
+Executed in `font-lock-defaults' chain."
   (let (match mbeg)
     (while (setq match (re-search-forward "^[\s-]*|" end t))
       ;; (text-property-search-forward 'face 'org-table t))
