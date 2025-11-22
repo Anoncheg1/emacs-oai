@@ -745,8 +745,7 @@ STREAM string - as bool, indicates whether to stream the response."
                            (lambda (result) (oai-restapi--insert-stream-response end-marker result t))
                          ;; else - not stream
                          (lambda (result) (oai-restapi--insert-single-response end-marker
-                                                                               (when result
-                                                                                 (concat "[AI]: " (oai-restapi--get-single-response-text result)))
+                                                                               (oai-restapi--get-single-response-text result)
                                                                                t)))
                      ;; else - completion
                      (lambda (result) (oai-restapi--insert-single-response end-marker
@@ -840,6 +839,7 @@ Here used for completion mode in `oai-restapi-request'.
               ;; (when (string-suffix-p "#+end_ai" (buffer-substring-no-properties (point) (line-end-position)))
               ;;   (insert "\n")
               ;;   (backward-char))
+              (insert "[AI]: \n")
               (insert text)
               (newline)
               ;;
