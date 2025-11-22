@@ -508,8 +508,9 @@ Argument START and END are limits for searching."
   "Set face for lines like Org tables.
 For current buffer in position between START and END.
 Executed in `font-lock-defaults' chain."
-  (let (match mbeg)
-    (while (setq match (re-search-forward "^[\s-]*|" end t))
+  (let (mbeg)
+    (goto-char start) ; in case
+    (while (re-search-forward "^[\s-]*|" end t)
       ;; (text-property-search-forward 'face 'org-table t))
       (setq mbeg (match-beginning 0)) ; (prop-match-beginning match))
       (end-of-line)

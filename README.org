@@ -56,8 +56,6 @@ oai-restapi-con-service [[./oai-restapi.el]]
 (setq oai-restapi-con-service 'local)
 #+end_src
 
-org-ai--openai-get-token-auth-source, org-ai--get-endpoint, org-ai--get-headers
-
 Redefine:
 - ~oai-restapi--get-headers~ - If you need some special HTTP headers.
 - ~oai-restapi--get-single-response-text~ and ~oai-restapi--normalize-response~ - if HTTP responses is not standard for ~"stream":false~ and ~"stream":true~ respectively.
@@ -81,6 +79,7 @@ Redefine:
 - :sys-everywhere - string (sys-prompt-for-all-messages) [[./oai.el]]
 - :chat :completion - bool (org-ai--request-type) [[./oai-block.el]]
 - :chain - bool [[./oai-prompt.el]]
+
 * Debugging
 To get full request body and more information set:
 : (setopt oai-debug-buffer "*debug-oai*")
@@ -98,8 +97,7 @@ There are a hook ~oai-restapi-after-chat-insertion-hook~ that accpet two argumen
 
 There is two implementations for hook in oai-optional.el:
 - oai-optional-remove-distant-empty-lines-hook-function
--
-
+- oai-optional-remove-headers-hook-function
 
 Example to remove empty lines after AI answer:
 #+begin_src elisp :results none :exports code :eval no
