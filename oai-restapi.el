@@ -1027,7 +1027,7 @@ specific role."
   (when response ; [DONE] not processed. we use "finish_reason":"stop" instead.
     (let ((normalized (oai-restapi--normalize-response response)) ; list of messages
           (buffer (marker-buffer end-marker))
-          (not-first oai-restapi--currently-chat-got-first-response)
+          ;; (not-first oai-restapi--currently-chat-got-first-response)
           (pos (or oai-restapi--current-insert-position-marker
                    (marker-position end-marker)))
           ;; (c-inside-code-m oai-restapi--currently-inside-code-markers)
@@ -1101,18 +1101,12 @@ specific role."
                                       (setq pos (point)))
                                     ;; - stop notification for waiting
 
-                                    (setq not-first t)
-                                    ;; (when (not not-first) ; first
-                                    ;; (oai--debug "oai-restapi--insert-stream-response: we got first response.")
-                                    ;; (oai-timers--interrupt-current-request url-buffer #'oai-restapi--stop-tracking-url-request)
-                                    ;; )
-
+                                    ;; (setq not-first t)
                                     )
 
                               (stop (progn
                                       ;; (when pos
                                       (goto-char pos)
-
                                       ;; (message "inserting user prompt: %" (string= c-chat-role "user"))
                                       (let ((text "\n\n[ME]: "))
                                         (if insert-role
