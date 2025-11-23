@@ -113,6 +113,27 @@
   :type 'boolean
   :group 'oai)
 
+(defcustom oai-restapi-con-token nil
+  "This is your OpenAI API token.
+If not-nil, store token as a string or may be as a list of key-value:
+\='(:openai token).
+
+You can retrieve it at
+https://platform.openai.com/account/api-keys.
+If  nil, `auth-sources'  file  (with encryption  support)  used to  read
+token.  In such  case the secret should be stored  in the format:
+machine openai password <your token>
+or
+machine openai--0 password <your token>
+machine openai--1 password <your token>"
+  :type '(choice (string :tag "String value")
+                 (plist :tag "Property list (symbol => token string or list of token strings)"
+                        :key-type symbol
+                        :value-type (choice (string :tag "token string")
+                                            (repeat :tag "or list of token strings" string )))
+                 (const :tag "Use auth-source." nil))
+  :group 'oai)
+
 ;; (defun my/org-fill-element-advice (orig-fun &optional justify)
 ;;   "Advice around `org-fill-element`.
 ;; If at headline, skip filling. Otherwise call original function."
@@ -219,27 +240,6 @@ To add service use: (plist-put oai-restapi-con-endpoints :myservice \"http\")."
          :group 'oai)
 
 
-(defcustom oai-restapi-con-token nil
-  "This is your OpenAI API token.
-If not-nil, store token as a string or may be as a list of key-value:
-\='(:openai token).
-
-You can retrieve it at
-https://platform.openai.com/account/api-keys.
-If  nil, `auth-sources'  file  (with encryption  support)  used to  read
-token.  In such  case the secret should be stored  in the format:
-machine openai password <your token>
-or
-machine openai--0 password <your token>
-machine openai--1 password <your token>"
-  :type '(choice (string :tag "String value")
-                 (plist :tag "Property list (symbol => token string or list of token strings)"
-                        :key-type symbol
-                        :value-type (choice (string :tag "token string")
-                                            (repeat :tag "or list of token strings" string )))
-                 (const :tag "Use auth-source." nil))
-  :group 'oai)
-
 (defcustom oai-restapi-con-model '(:openai "gpt-4o-mini"
                                    :github "openai/gpt-4.1")
   "The default model to use.
@@ -290,8 +290,11 @@ If mode is not chat but completion, appropriate model should be set."
   :group 'oai)
 
 (defcustom oai-restapi-default-max-tokens nil
-  "The default maximum number of tokens to generate.  This is what costs money."
-  :type 'string
+  "The default maximum number of tokens to generate.
+This is what costs money."
+  :type '(choice (integer :tag "Integer value")
+                 (string :tag "String value")
+                  (const :tag "None" nil))
   :group 'oai)
 
 (defcustom oai-restapi-add-max-tokens-recommendation t
@@ -1709,6 +1712,7 @@ Called within `url-retrieve' buffer."
                        nil))
                     ;; - Decoding attempt 2.
                     (when errored
+                      (goto-char psave)
                       ;; (oai--debug "oai-restapi--url-request-on-change-function 2.51) errored 1)")
                       (setq line
                             ;; if string splitted in url-buffer for some reason. we look for empty lines as a separateror.
@@ -1716,34 +1720,27 @@ Called within `url-retrieve' buffer."
                              (nreverse
                               (let ((lines (list (buffer-substring-no-properties (point) (line-end-position))))
                                     line-cur)
-                                (while (and (/= (forward-line) 0)
+                                (while (and (= (forward-line) 0)
                                             (progn
                                               (setq line-cur (buffer-substring-no-properties (point) (line-end-position)))
                                               (unless (string-empty-p line-cur)
                                                 (push line-cur lines)))))
                                 lines))))
 
-                      ;; (oai--debug "oai-restapi--url-request-on-change-function 2.5) errored 1)")
+                      (oai--debug "oai-restapi--url-request-on-change-function 2.5) errored 1) %s" line)
                       (setq data (oai-restapi--json-decode-not-streamed line))
-                      ;; (oai--debug "oai-restapi--url-request-on-change-function 2.55) errored 1)")
+                      (oai--debug "oai-restapi--url-request-on-change-function 2.55) errored 1)")
                       (when data
-                          (setq errored nil)
-                        ;; else
-                        ;; (oai--debug "oai-restapi--url-request-on-change-function 2.6) errored 2)"))
-                      ))
-
+                          (setq errored nil)))
+                    (oai--debug "oai-restapi--url-request-on-change-function 2.56) %s" data)
                     ;; (setq org-ai--debug-data (append org-ai--debug-data (list data)))
                     (when data
-                      ;; (oai--debug "oai-restapi--url-request-on-change-function 2.4) %s" data)
-                      ;; (oai--debug "oai-restapi--url-request-on-change-function 2.7) \"%s\"" data)
-                      ;; (goto-char psave)
                       (end-of-line)
                       (set-marker oai-restapi--url-buffer-last-position-marker (point))
                       ;; (oai--debug (format "on change 3) %s" oai-restapi--url-buffer-last-position-marker))
                       (oai--debug "oai-restapi--url-request-on-change-function 2.6)")
                       (funcall oai-restapi--current-url-request-callback data) ; INSERT CALLBACK!
-                      (oai--debug "oai-restapi--url-request-on-change-function 2.7)")
-                      ))
+                      (oai--debug "oai-restapi--url-request-on-change-function 2.7)")))
 
                 ;; - else "[DONE]" string found
                 (progn

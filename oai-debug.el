@@ -28,9 +28,15 @@
 ;;; Code:
 
 (defcustom oai-debug-buffer nil
-  "If non-nil, enable debuging to a debug buffer.
+  "If non-nil, enable debuging to a new buffer with such name.
 Set to something like *debug-oai*.  to enable debugging."
-  :type 'string
+  :type '(choice (const :tag "No debugging" nil)
+                 (string :tag "Name of buffer"))
+  :group 'oai)
+
+(defcustom oai-debug-timestamp t
+  "If non-nil, add timestamp to every debug message."
+  :type 'boolean
   :group 'oai)
 
 
@@ -100,10 +106,6 @@ Return last argument, but should not be used for return value."
                                '((direction . left)
                                  (window . new))))
                             (select-window current-window)))
-             (time (current-time))
-             (time-mili (format "%s.%03d"
-                                (format-time-string "%Y-%m-%d %H:%M:%S" time)
-                                (/ (nth 2 time) 1000)))
              result-string)
 
         (with-current-buffer bu
@@ -144,7 +146,14 @@ Return last argument, but should not be used for return value."
                        (not (string-match-p (regexp-quote oai--debug-filter) result-string)))
                     (setq result-string nil))
             (when result-string
-              (setq result-string (concat time-mili " " result-string))
+              ;; - add timestamp
+              (when oai-debug-timestamp
+                (let* ((time (current-time))
+                       (time-mili (format "%s.%03d"
+                                          (format-time-string "%M:%S" time) ; "%Y-%m-%d %H:%M:%S"
+                                          (/ (nth 2 time) 1000))))
+                  (setq result-string (concat time-mili " " result-string))))
+              ;; - two ways to output: for ert.el and to debug buffer.
               (if (bound-and-true-p ert-enabled)
                   (princ (concat result-string "\n"))
                 ;; else
