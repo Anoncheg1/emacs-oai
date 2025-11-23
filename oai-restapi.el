@@ -718,7 +718,9 @@ Useful for small max-tokens.
 
 (defun oai-restapi-prepare-content (element req-type sys-prompt sys-prompt-for-all-messages max-tokens)
   "Handle Tags, two types of REQ-TYPE and separation of PROMPT and MESSAGES.
-Return messages for chat or string for completion REQ-TYPE"
+Return messages for chat or string for completion REQ-TYPE.  Parameters
+ELEMENT REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES MAX-TOKENS
+described in `oai-restapi-request-prepare'."
   (oai--debug "oai-restapi-prepare-content")
   (let ((content (string-trim (oai-block-get-content element)))) ; string - is block content
     (if (eql req-type 'completion)
@@ -774,8 +776,7 @@ STREAM string - as bool, indicates whether to stream the response."
                        ;; else - not stream
                        (lambda (result) (oai-restapi--insert-single-response end-marker
                                                                              (oai-restapi--get-single-response-text result)
-                                                                             t)))
-                     )))
+                                                                             t))))))
     ;; - Call and save buffer.
     (oai-timers--set
      (oai-restapi-request service model callback
