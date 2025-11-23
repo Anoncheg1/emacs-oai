@@ -106,13 +106,14 @@
 ;; - Force stop stream on C-g
 ;; - use oai-restapi-prepare-content for :chain
 
+;; -=-= includes
 (require 'oai-debug)
 (require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'
 (require 'oai-block)
 (require 'oai-restapi)
 
 ;;; Code:
-;;; -=-= C-c C-c main interface
+;; -=-= C-c C-c main interface
 
 (defcustom oai-agent-call-function #'oai-restapi-request-prepare ; oai-restapi.el
   "Pass processed ai block info to AI assistent or some Emacs agent.

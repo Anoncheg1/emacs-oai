@@ -52,7 +52,7 @@
 
 
 ;;; Code:
-;;; -=-= all
+;; -=-= all
 (require 'org)
 (require 'org-element)
 (require 'org-macs)

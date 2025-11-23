@@ -22,6 +22,8 @@
 ;; along with oai.el.
 ;; If not, see <https://www.gnu.org/licenses/>.
 
+;;; Commentary:
+
 (require 'backtrace) ; for `oai--debug-get-caller' (not used now)
 
 ;;; Code:
