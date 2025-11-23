@@ -32,11 +32,11 @@
 ;; (add-hook 'oai-restapi-after-chat-insertion-hook
 ;;          #'oai-optional-remove-distant-empty-lines-hook-function)
 
-;;; Code:
-
 (require 'cl-lib) ; Ensure cl-lib is loaded for cl-defun and cl-destructuring-bind
 
-;;; - remove-distant-empty-lines hook
+;;; Code:
+
+;; -=-= remove-distant-empty-lines hook
 (cl-defun oai-optional-remove-distant-empty-lines (start end)
   "Remove empty lines in current buffer between START and END.
 Removes an empty line only if another empty line is two lines above
@@ -164,7 +164,7 @@ TYPE _CONTENT BEFORE-POS BUF parameters described in
              (con-end (org-element-property :contents-end context)))
         (oai-optional-remove-distant-empty-lines con-beg con-end)))))
 
-;;; - remove-headers hook
+;; -=-= remove-headers hook
 (defun oai-optional-remove-headers (beg-pos end-pos)
   "Remove Org mode header prefixes, like ^**.
 You may require this, because  LLMs frequently uses markdown for headers
@@ -235,7 +235,7 @@ TYPE _CONTENT BEFORE-POS BUF parameters described in
 ;;   :type '(repeat function)
 ;;   :group 'oai)
 
-;;; - old: fill-paragraph (old, not used)
+;; -=-= old: fill-paragraph (old, not used)
 ;; (defun oai-optional-fill-paragraph (&optional justify region)
 ;;   "Call functions until success.
 ;; Replace single `fill-paragraph-function' with list of functions.
@@ -258,7 +258,7 @@ TYPE _CONTENT BEFORE-POS BUF parameters described in
 ;; (keymap-set org-mode-map \"M-q\" #'oai-optional-fill-paragraph)
 
 
-;;; - old: remove-distant-empty-lines (old version)
+;; -=-= old: remove-distant-empty-lines (old version)
 ;; (cl-defun oai-optional-remove-distant-empty-lines (start end)
 ;;   "Remove empty lines in current buffer between START and END.
 ;; Removes an empty line only if another empty line is two lines above it.

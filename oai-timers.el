@@ -28,7 +28,7 @@
 ;; `oai-restapi--interrupt-url-request'
 
 ;;; Code:
-
+;; -=-= variables
 (defcustom oai-timers-echo-gap 0.2
   "Echo update interval for notification about waiting."
   :type 'float
@@ -72,7 +72,7 @@ Intented for usage with `oai-block--copy-header-marker' and keep pairs of
 Should be used for interactive interrup of request only.
 `eq' is good for buffers, for markers we should use `equal'")
 
-;;; - variable-dict
+;; -=-= variable-dict
 (defun oai-timers--get-variable (key)
   "Get variable (one or first) for KEY.
 Get header-marker (variable) for url-buffer (key).
@@ -175,7 +175,7 @@ Argument VALUE is Header-marker."
 ;; (defun oai-timers--clear-variables () ; too simple
 ;;   (setq oai-timers--element-marker-variable-dict nil))
 
-;;; - Timers Global
+;; -=-= Timers Global
 (defun oai-timers--stop-global-progress-reporter (&optional failed)
   "Stop global timer of progress reporter for restart or at success.
 Don't clear list of url-buffers.
@@ -283,7 +283,7 @@ about failure."
 ;;           (setq oai-timers--current-timer-remaining-ticks 0)))))
 ;;   (oai-timers--update-global-progress-reporter failed))
 
-;;; - Timers Local
+;; -=-= Timers Local
 (defun oai-timers--interrupt-current-request (url-buffer interrupt-request-func)
   "Interrupt every buffer, remove buffer from list, update global timer.
 URL-BUFFER one or several buffers.
@@ -343,7 +343,7 @@ Called from
 
 
 
-;;; - Main - constructor
+;; -=-= Main - constructor
 (defun oai-timers--progress-reporter-run (interrupt-request-func &optional duration)
   "Start or update progress notification.
 1) Save pair (HEADER-MARKER->URL-BUFFER)
@@ -445,6 +445,5 @@ value."
 
 ;;   )
 
-;;; provide
 (provide 'oai-timers)
 ;;; oai-timers.el ends here

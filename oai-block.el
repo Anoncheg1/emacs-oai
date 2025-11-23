@@ -25,12 +25,6 @@
 ;; Licensed under the GNU Affero General Public License, version 3 (AGPLv3)
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
-;;; Changelog
-;; - DONE: complete is short for completion
-;; - DONE: oai-block-get-info fail if there is nothing in block.
-;; - DONE: rename all CONTEXT to ELEMENT because context cause confusing (Org terms).
-;; - DONE: rename all except interface functions to "oai-block-" prefix.
-
 ;;; Commentary:
 
 ;; Defines functions for dealing with #+begin_ai..#+end_ai special blocks
@@ -49,6 +43,13 @@
 ;; (org-element-property :contents-begin  (oai-block-p)) return next line after #+begin
 ;; (org-element-property :contents-end  (oai-block-p)) return #+end line position
 ;; may be fixed with org-element-put-property, but it is not KISS.
+
+;; Changelog
+;; - DONE: complete is short for completion
+;; - DONE: oai-block-get-info fail if there is nothing in block.
+;; - DONE: rename all CONTEXT to ELEMENT because context cause confusing (Org terms).
+;; - DONE: rename all except interface functions to "oai-block-" prefix.
+
 
 ;;; Code:
 ;;; -=-= all
@@ -269,7 +270,7 @@ line."
 
 
 
-;;; -=-= Interactive
+;; -=-= Interactive
 
 (defun oai-mark-last-region ()
   "Mark the last prompt in an oai block."
@@ -332,7 +333,7 @@ The numeric ARG can be used for killing the last n."
                 (cl-destructuring-bind (start . end) region
                   (kill-region end start)))))
 
-;;; -=-= Markers
+;; -=-= Markers
 
 (defun oai-block--get-content-end-marker (&optional element)
   "Return a marker for the :contents-end property of ELEMENT.
@@ -353,7 +354,7 @@ Use ELEMENT only in current moment in element buffer."
           (forward-line -1)
           (copy-marker (point))))))
 
-;;; -=-= Result
+;; -=-= Result
 
 (defun oai-block-insert-result-message (message header-marker)
   "Insert MESSAGE to #+RESULT of block in buffer of HEADER-MARKER."
@@ -484,7 +485,7 @@ the rest of the result."
 	   (progn (forward-line) (org-babel-result-end))))))))
 
 
-;;; -=-= Markdown block, fontify mostly
+;; -=-= Markdown block, fontify mostly
 
 (defun oai-block--fontify-markdown-subblocks (start end)
   "Fontify ```language ... ``` fenced mardown code blocks.
@@ -565,7 +566,7 @@ TODO: fontify if there is only end of ai block on page"
   (nconc (take (1+ pos) list) (list element) (nthcdr (1+ pos) list)))
 
 
-;;; -=-=-= Fill-region, paragraph
+;; -=-= Fill-region, paragraph
 
 (defmacro oai-block--apply-to-region-lines (func start end &rest args)
   "Apply FUNC to each line in region from START to END with ARGS.
@@ -655,6 +656,5 @@ Was causing freezing."
                 (setq beg end)))
             t))))))
 
-;;; provide
 (provide 'oai-block)
 ;;; oai-block.el ends here

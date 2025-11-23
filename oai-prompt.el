@@ -22,8 +22,6 @@
 ;; Licensed under the GNU Affero General Public License, version 3 (AGPLv3)
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
-;;; Changelog
-
 ;;; Commentary:
 ;;
 ;; `oai-agent-call-function' -> `oai-prompt-request-switch' -> `oai-prompt-request-chain'
@@ -51,16 +49,14 @@
 ;; user: Research 3-th part and what was missed before, summarize
 ;;       results give final answer.
 
-;;
-;;; Code:
-;;; -=-= all
+;; -=-= includes
 (require 'oai-block)
 (require 'oai-restapi)
 (require 'oai-async1)
 (require 'oai-timers)
 
-
-
+;;; Code:
+;; -=-= all
 (defvar oai-prompt-chain-list
   (list "Give very short research plan with three parts to find answer; do only the first part of the plan. Note any missed points and correct before moving on."
         "Complete the second part of plan only."

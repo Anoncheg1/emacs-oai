@@ -21,12 +21,11 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with oai.el.
 ;; If not, see <https://www.gnu.org/licenses/>.
-;;; Commentary:
 
 (require 'backtrace) ; for `oai--debug-get-caller' (not used now)
 
 ;;; Code:
-
+;; -=-= customization and function
 (defcustom oai-debug-buffer nil
   "If non-nil, enable debuging to a new buffer with such name.
 Set to something like *debug-oai*.  to enable debugging."
@@ -79,6 +78,7 @@ Always return string."
       (format "%s\n" args)
     (concat (prin1-to-string args) "\n")))
 
+;; -=-= Main
 (defun oai--debug (&rest args)
   "If firt argument of ARGS is a stringwith %s than behave like format.
 Otherwise format every to string and concatenate.
@@ -160,7 +160,7 @@ Return last argument, but should not be used for return value."
                 (insert result-string))))))))
   (car (reverse args)))
 
-
+;; -=-= Helping function
 (defun oai-debug--prettify-json-string (json-string)
   "Convert a compact JSON string to a prettified JSON string.
 This function uses a temporary buffer to perform the prettification.

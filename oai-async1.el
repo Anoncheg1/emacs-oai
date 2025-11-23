@@ -122,8 +122,9 @@
 
 ;; Battlefield example: ehttps://github.com/Anoncheg1/oai/blob/main/oai-prompt.el
 
-;; TODO: make :aggregator to be able to set many of them. (or it is not necessary?)
-;; TODO: add :catch for error handling. (or it is not necessory?)
+;;; TODO:
+;; - make :aggregator to be able to set many of them. (or it is not necessary?)
+;; - add :catch for error handling. (or it is not necessory?)
 
 ;;; Code:
 
@@ -275,7 +276,6 @@ Returns result of the first function in the chain."
     (funcall chain-step initial-data 0)))
 
 
-;;; provide
 (provide 'oai-async1)
 
 ;;; oai-async1.el ends here

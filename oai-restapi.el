@@ -23,12 +23,6 @@
 ;; Licensed under the GNU Affero General Public License, version 3 (AGPLv3)
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
-;;; Changelog:
-;; - BUG: shut network process when timer expire - kill buffer, remove callback.
-;; - TODO: rename all functions to convention
-;; - TODO: escape #+end_ai after insert of text in block
-;; - TODO: add support for several backends, curl, request.el
-
 ;;; Commentary:
 
 ;; Get info block from #begin_ai and call url-retrieve.  Asynchronous
@@ -68,7 +62,7 @@
 ;; - :prompt content-string
 ;; - (setq text  (decode-coding-string (oai-restapi--get-single-response-text result)
 ;;                                     'utf-8))
-;;
+
 ;; How requests forced to stop with C-g?
 
 ;; We save url-buffer with header marker with
@@ -92,7 +86,13 @@
 ;; (json-read-from-string), we specify plist as target, so we use
 ;; (plist-get data 'choices) instead of (alist-get 'choices data)
 
-;;; -=-= includes
+;;; TODO:
+;; - BUG: shut network process when timer expire - kill buffer, remove callback.
+;; - escape #+end_ai after insert of text in block
+;; - add support for several backends, curl, request.el
+;; - better stoping streaming with C-g
+
+;; -=-= includes
 (require 'org)
 (require 'org-element)
 (require 'url)
@@ -107,7 +107,7 @@
 (require 'oai-async1) ; for `oai-async1-plist-get'
 
 ;;; Code:
-;;; -=-= Constants, variables
+;; -=-= Constants, variables
 (defcustom oai-restapi-jump-to-end-of-block t
   "If non-nil, jump to the end of the block after inserting the completion."
   :type 'boolean
@@ -419,7 +419,7 @@ Used for hook only.")
 ;; (make-oai-restapi--response :payload "role") ; error
 ;; (make-oai-restapi--response :type nil :payload "role") ; #s(oai-restapi--response nil "role")
 ;; (make-oai-restapi--response :type 'role :payload nil) ; #s(oai-restapi--response role nil)
-;;; -=-= org-ai--debug-data (obsolate)
+;; -=-= org-ai--debug-data (obsolate)
 ;; (defvar org-ai--debug-data nil)
 ;; (defvar org-ai--debug-data-raw nil)
 
@@ -431,7 +431,7 @@ Used for hook only.")
 ;;    (goto-char (cadr (nth n org-ai--debug-data-raw)))
 ;;    (beginning-of-line)))
 
-;;; -=-= Debugging
+;; -=-= Debugging
 
 (defun oai-restapi--debug-urllib (source-buf)
   "Copy `url-http' buffer with response to our debugging buffer.
@@ -451,7 +451,7 @@ Argument SOURCE-BUF url-http response buffer."
             (insert stri)
             (newline)))))))
 
-;;; -=-= Show error
+;; -=-= Show error
 (defcustom oai-restapi-show-error-function 'oai-block-insert-result-message
   "Function to display error in oai-restapi about internal and remote errors.
 Available choices include:
@@ -495,7 +495,7 @@ Argument _HEADER-MARKER not used."
           t))
     (error nil)))
 
-;;; -=-= Get constant functions
+;; -=-= Get constant functions
 (defun oai-restapi--check-model (model endpoint)
   "Check if the model name is somehow mistyped.
 MODEL is the model name.  ENDPOINT is the API endpoint."
@@ -714,7 +714,28 @@ Useful for small max-tokens.
                 (<= max-tokens 1000))
            (format "Limit your answer to %d paragraphs or %d pages." (/ max-tokens 200) (ceiling (/ max-tokens 600.0)))))))
 
-;;; -=-= Main
+;; -=-= Prepare content
+
+(defun oai-restapi-prepare-content (element req-type sys-prompt sys-prompt-for-all-messages max-tokens)
+  "Handle Tags, two types of REQ-TYPE and separation of PROMPT and MESSAGES.
+Return messages for chat or string for completion REQ-TYPE"
+  (oai--debug "oai-restapi-prepare-content")
+  (let ((content (string-trim (oai-block-get-content element)))) ; string - is block content
+    (if (eql req-type 'completion)
+        (setq content (oai-block-tags-replace content))
+      ;; else
+      ;; - split content to messages
+      (setq content (oai-restapi--collect-chat-messages content
+                                                        sys-prompt
+                                                        sys-prompt-for-all-messages
+                                                        (when oai-restapi-add-max-tokens-recommendation
+                                                          (oai-restapi--get-lenght-recommendation max-tokens))))
+      ;; replace tags at last "[ME]:" only
+      (setq content (oai-restapi--modify-last-user-content content #'oai-block-tags-replace)))
+    content)) ; string or messages
+
+
+;; -=-= Main
 
 ;; org-ai-stream-completion - old
 (defun oai-restapi-request-prepare (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
@@ -740,49 +761,38 @@ SERVICE symbol or string - is the AI cloud service such as openai or
   azure-openai.
 STREAM string - as bool, indicates whether to stream the response."
   (oai--debug "oai-restapi-request-prepare")
-  (let* (
-         (content (string-trim (oai-block-get-content element))) ; string - is block content
-         (messages (unless (eql req-type 'completion)
-                     ;; - split content to messages
-                     (oai-restapi--collect-chat-messages content
-                                                           sys-prompt
-                                                           sys-prompt-for-all-messages
-                                                           (if oai-restapi-add-max-tokens-recommendation
-                                                               (oai-restapi--get-lenght-recommendation max-tokens))))) ; oai-block.el
+  (let* ((content (oai-restapi-prepare-content element req-type sys-prompt sys-prompt-for-all-messages max-tokens))
          (end-marker (oai-block--get-content-end-marker element))
-
-         (callback (if messages ; chat - ; set to oai-restapi--current-url-request-callback
-                       (if stream
-                           (lambda (result) (oai-restapi--insert-stream-response end-marker result t))
-                         ;; else - not stream
-                         (lambda (result) (oai-restapi--insert-single-response end-marker
-                                                                               (oai-restapi--get-single-response-text result)
-                                                                               t)))
-                     ;; else - completion
-                     (lambda (result) (oai-restapi--insert-single-response end-marker
-                                                                              (oai-restapi--get-single-response-text result)
-                                                                              nil)))))
-    (oai--debug "oai-restapi-request-prepare messages1" messages)
-    (setq messages (oai-restapi--modify-last-user-content messages #'oai-block-tags-replace))
-    (oai--debug "oai-restapi-request-prepare messages2" messages)
+         (callback (if (eql req-type 'completion) ; chat - ; set to oai-restapi--current-url-request-callback
+                       ;; completion mode
+                       (lambda (result) (oai-restapi--insert-single-response end-marker
+                                                                             (oai-restapi--get-single-response-text result)
+                                                                             nil))
+                     ;; else - chat mode
+                     (if stream
+                         (lambda (result) (oai-restapi--insert-stream-response end-marker result t))
+                       ;; else - not stream
+                       (lambda (result) (oai-restapi--insert-single-response end-marker
+                                                                             (oai-restapi--get-single-response-text result)
+                                                                             t)))
+                     )))
     ;; - Call and save buffer.
     (oai-timers--set
      (oai-restapi-request service model callback
-                         :prompt content ; if completion
-                         :messages messages
-                         :max-tokens max-tokens
-                         :temperature temperature
-                         :top-p top-p
-                         :frequency-penalty frequency-penalty
-                         :presence-penalty presence-penalty
-                         :stream stream)
+                          :prompt (when (eql req-type 'completion) content) ; if completion
+                          :messages (when (not (eql req-type 'completion)) content) ; chat
+                          :max-tokens max-tokens
+                          :temperature temperature
+                          :top-p top-p
+                          :frequency-penalty frequency-penalty
+                          :presence-penalty presence-penalty
+                          :stream stream)
      (oai-block-get-header-marker element))
-
     ;; - run timer that show /-\ looping, notification of status
     (oai-timers--progress-reporter-run
      #'oai-restapi--interrupt-url-request)))
 
-;;; -=-= Normalize, oai-restapi-request
+;; -=-= Normalize, oai-restapi-request
 
 ;; Together.xyz 2025
 ;; '(id "nz7KyaB-3NKUce-9539d1912ce8b148" object "chat.completion" created 1750575101 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt []
@@ -1257,7 +1267,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
           (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t)))
       url-request-buffer)))
 
-;;; -=-= oai-restapi-request-llm
+;; -=-= oai-restapi-request-llm
 (cl-defun oai-restapi-request-llm (service model callback &optional &key prompt messages max-tokens temperature top-p frequency-penalty presence-penalty)
   "Simplified version of `oai-restapi-request' without stream support.
 Used for building agents or chain of requests.
@@ -1287,7 +1297,6 @@ see `oai-restapi-request-prepare'."
                                'utf-8)))
     (oai--debug "oai-restapi-request-llm prompt: %s" prompt)
     (oai--debug "oai-restapi-request-llm messages: %s" messages)
-    ;; (oai--debug "oai-restapi-request-llm messages2: %s" (oai-restapi--modify-last-user-content messages #'oai-block-tags-replace))
     (oai--debug "oai-restapi-request-llm endpoint: %s %s" endpoint (type-of endpoint))
     (oai--debug "oai-restapi-request-llm request-data:" (oai-debug--prettify-json-string url-request-data))
 
@@ -1486,7 +1495,7 @@ We store url-buf with marker of header in oai-timers.el"
           (oai-timers--set url-buffer header-marker)
           (oai--debug "oai-restapi-request-llm-retries4" oai-timers--element-marker-variable-dict))))))
 
-;;; -=-= error, payload, url-request-on-change-function
+;; -=-= error, payload, url-request-on-change-function
 
 (defun oai-restapi--maybe-show-openai-request-error ()
   "If the API request returned an error, show it.
@@ -1781,7 +1790,7 @@ Called within `url-retrieve' buffer."
 ;;   (org-ai--progress-reporter-global-cancel (current-buffer))
 ;;   )
 
-;;; -=-= Reporter & Requests interrupt functions
+;; -=-= Reporter & Requests interrupt functions
 ;; 1) `oai-timers--progress-reporter-run' - start global timer
 ;; 2) `oai-timers--interrupt-current-request' - interrupt, called to stop tracking on-changes or kill buffer
 ;; When  we kill  one buffer  and if  no others  we report  failure or
@@ -1875,7 +1884,7 @@ over."
 
 
 
-;;; -=-= chat-messages collect/stringify
+;; -=-= chat-messages collect/stringify
 
 (defun oai-restapi--collect-chat-messages (content-string &optional default-system-prompt persistant-sys-prompts max-token-recommendation)
   "Split `CONTENT-STRING' to [SYS]:, [ME]:, [AI]:, [AI_REASON]: markers.
@@ -2091,7 +2100,7 @@ inside the assembled prompt string."
    (cl-assert (equal (oai-restapi--response-type test-val1) 'text))
    (cl-assert (string-equal (decode-coding-string (oai-restapi--response-payload test-val1) 'utf-8) "It seems ")))
 
-;;; -=-= Last user message
+;; -=-= Last user message
 
 (defun oai-restapi--find-last-user-index (vec)
   "Return the index of the last element in VEC whose :role is \='user, or nil."
@@ -2138,7 +2147,7 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
           (:role user :content "How to make coffe2? w11")
           (:role system :content "other")]))
 
-;;; -=-= Others
+;; -=-= Others
 
 ;; (defun oai-restapi--stream-supported (service model)
 ;;   "Check if the stream is supported by the service and model.
@@ -2170,5 +2179,4 @@ Used in `oai-open-request-buffer'."
     nil))
 
 (provide 'oai-restapi)
-
 ;;; oai-restapi.el ends here

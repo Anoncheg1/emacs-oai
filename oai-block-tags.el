@@ -21,6 +21,7 @@
 
 ;; Licensed under the GNU Affero General Public License, version 3 (AGPLv3)
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
+
 ;;; Commentary:
 ;; How this works?
 ;; We appply `oai-block-tags-replace' to text of last user request, this way:
@@ -47,15 +48,15 @@
 ;; *Position and line number*
 ;; - `line-number-at-pos'
 ;; - `oai-block-tags--line-num-to-positon'
-;;
-;;; -=-= includes
+
+;; -=-= includes
 (require 'org)
 (require 'ol)
 (require 'oai-debug)
 (require 'org-links nil 'noerror)
 
 ;;; Code:
-;;; -=-= variables
+;; -=-= variables
 ;; (defvar oai-block-tags--regexes '(
 ;;                                ;; :backtrace "@Backtrace`?\\([^a-zA-Z]\\|$\\)"
 ;;                                ;; :backtrace "\\(`?@Backtrace`?\\)\\([^a-zA-Z\"']\\|$\\)"
@@ -144,7 +145,7 @@ Used to set `org-link-search-must-match-exact-headline' before
                                        ))
   "`org-link-any-re' but with one type \"file\" in `org-link-types'." )
 
-;;; -=-= @Backtrace
+;; -=-= @Backtrace
 
 (defun oai-block-tags--take-n-lines (string n)
   "Return a string with the first N lines from STRING.
@@ -172,7 +173,7 @@ Nil if buffer does not exist."
       (with-current-buffer buf
         (string-trim (substring-no-properties (buffer-string)))))))
 
-;;; -=-= Links: Files & Directories
+;; -=-= Links: Files & Directories
 
 (defvar oai-block-tags-get-directory-switches "-AltGg")
 
@@ -295,7 +296,7 @@ PATH-STRING may be path to file or a directory."
                                             ;; else
                                             (org-file-contents path-string)))) ; oai-block-tags--read-file-to-string-safe
 
-;;; -=-= help functions: blocks
+;; -=-= help functions: blocks
 (defun oai-block-tags--get-org-block-element ()
   "Return Org block element at current position in current buffer.
 Same logic as in `oai-block-tags--get-org-block-region'."
@@ -424,7 +425,7 @@ Works for markdown block only inside some org block"
 
 ;; (re-search-backward oai-block--markdown-begin-re (or limit-begin nil) t)
 
-;;; -=-= help functions: get content for blocks
+;; -=-= help functions: get content for blocks
 
 ;; (defun oai-block-tags--get-org-content-m-block (&optional element)
 ;;   "Return markdown block for LLM for current ELEMENT at current position.
@@ -559,7 +560,7 @@ Return non-nil string of markdown block if exist at current position."
       (substring line (car range) (cadr range)))))
 
 
-;;; -=-= help function: line number for position
+;; -=-= help function: line number for position
 
 (defun oai-block-tags--line-num-to-positon (line-num &optional end-flag buffer)
   "Return the buffer position at the beginning of LINE-NUM in BUFFER or nil.
@@ -577,7 +578,7 @@ Returns nil if LINE-NUM is out of range."
 ;; - test:
 ;; (print (list (line-beginning-position) (oai-block-tags--line-num-to-positon (line-number-at-pos (point)))))
 
-;;; -=-= help functions: find targets of Links and get content
+;; -=-= help functions: find targets of Links and get content
 
 (defun oai-block-tags--path-is-current-buffer-p (path)
   "Return non-nil if PATH references the file currently visited by this buffer.
@@ -965,7 +966,7 @@ Return replacement string."
 ;; [[file:oai-block-tags.el::`(ref)']]]
 ;; (oai-block-tags--get-replacement-for-org-link  "[[xx]]")
 
-;;; -=-= help functions: markdown blocks
+;; -=-= help functions: markdown blocks
 
 (defun oai-block-tags--markdown-mark-fenced-code-body (&optional limit-begin limit-end)
   "Mark content inside Markdown fenced code block (```), excluding header/footer.
@@ -1011,7 +1012,7 @@ Used in `oai-block-tags-mark-md-block-body'."
 ;;          (limit-end (org-element-property :contents-end element)))
 ;;     (oai-block-tags--markdown-mark-fenced-code-body-get-range limit-begin limit-end)))
 
-;;; -=-= Replace links in text
+;; -=-= Replace links in text
 ;; Supported:
 ;; - @Backtrace
 ;; - @/path/file.txt
@@ -1285,7 +1286,7 @@ Called from:
           (error "error in loading of oai-block-tags.el 3")))
 
 
-;;; -=-= Fontify @Backtrace & @path & [[links]]
+;; -=-= Fontify @Backtrace & @path & [[links]]
 
 (defun oai-block-tags--font-lock-fontify-links (limit)
   "Fontify Org links in #+begin_ai ... #+end_ai blocks, up to LIMIT.
@@ -1331,7 +1332,7 @@ TODO: maybe we should use something like
         (goto-char limit)
         ret)))
 
-;;; -=-= key to select block "C-c h" (similar to "M-h")
+;; -=-= key to select block "C-c h" (similar to "M-h")
 
 (defun oai-block-tags-mark-md-block-body ()
   "Mark content of Markdown code block, or fallback to `org-mark-element'.

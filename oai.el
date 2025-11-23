@@ -1,5 +1,8 @@
 ;;; oai.el --- AI-LLM blocks for org-mode -*- lexical-binding: t; -*-
 
+;; Copyright (C) 2023-2025 Robert Krahn
+;; Copyright (C) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
+
 ;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
 ;; Keywords: org, comm, url, link
 ;; URL: https://github.com/Anoncheg1/emacs-oai
@@ -8,8 +11,6 @@
 ;; Package-Requires: ((emacs "29.1"))
 ;; Optional dependency: ((org-links "0.2"))
 ;; SPDX-License-Identifier: AGPL-3.0-or-later
-;; Copyright (C) 2023-2025 Robert Krahn
-;; Copyright (C) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
 
 ;;; License
 
@@ -94,15 +95,17 @@
 
 ;; Touch: Pain, water and warm.
 
-;;; Changes:
+;;; TODO:
 
-;; - TODO: make org-ai-variable.el and pass them to -api.el functions as parameters.
-;; - TODO: provide ability to replace url-http with plz or oai-restapi with llm(plz)
-;; - TODO: implement "#+PROPERTY: var foo=1" and "#+begin_ai :var
-;;         foo=1" and to past to text in [foo]
-;; - TODO: implement contant-tags "Fix @problems then document the
+;; - make org-ai-variable.el and pass them to -api.el functions as parameters.
+;; - provide ability to replace url-http with plz or oai-restapi with llm(plz)
+;; - implement "#+PROPERTY: var foo=1" and "#+begin_ai :var
+;;       foo=1" and to past to text in [foo]
+;; - implement contant-tags "Fix @problems then document the
 ;;         changes in @/CHANGELOG.md" @url, @file, @folder, @header? (Org)
-;; - TODO: Force stop stream on C-g
+;; - Force stop stream on C-g
+;; - use oai-restapi-prepare-content for :chain
+
 (require 'oai-debug)
 (require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'
 (require 'oai-block)
@@ -168,7 +171,7 @@ With respect to specified default values here."
                                           model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
                                           )))))
 
-;;; -=-= key M-x: oai-expand-block
+;; -=-= key M-x: oai-expand-block
 (defun oai-expand-block-deep ()
   "Output almost RAW information about request with headers and messages."
   (seq-let (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream) (oai-parse-org-header)
@@ -228,7 +231,7 @@ messages."
        (funcall oai-restapi-show-error-function (error-message-string err)
                 (oai-block-get-header-marker element))))))
 
-;;; -=-= key C-g: keyboard quit
+;; -=-= key C-g: keyboard quit
 
 ;; (defvar org-ai-talk--reading-process)
 (defun oai-keyboard-quit ()
@@ -274,7 +277,7 @@ messages."
 ;;   "Remove the advice that cancels current request when `keyboard-quit' is called."
 ;;   (advice-remove 'keyboard-quit #'oai-keyboard-quit)) ; here
 
-;;; -=-= M-x oai-toggle-debug
+;; -=-= M-x oai-toggle-debug
 ;;;###autoload
 (defun oai-toggle-debug ()
   "Enable/disable debug."
@@ -288,7 +291,7 @@ messages."
     (setq oai-debug-buffer   "*debug-oai*")
     (message "Enable oai debugging")))
 
-;;; -=-= Fontify Markdown blocks and Tags - function for hook
+;; -=-= Fontify Markdown blocks and Tags - function for hook
 
 (defun oai-block--set-ai-keywords()
   "Hook, that Insert our fontify functions in Org font lock keywords."
@@ -303,7 +306,7 @@ messages."
                                       (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
                                       '(oai-block-tags--font-lock-fontify-links))))
 
-;;; -=-= Mark block M-h
+;; -=-= Mark block M-h
 (defun oai-mark-at-point (arg)
   "Mark entity at current poin in current buffer.
 Mark Mardkown block or whole ai block.  If universal argument ARG is
@@ -313,7 +316,7 @@ non-nil, then mark one chat message."
       (oai-mark-region-at-point)
     ;; else
     (oai-block-tags-mark-md-block-body)))
-;;; -=-= Minor mode
+;; -=-= Minor mode
 
 (defvar oai-mode-map (make-sparse-keymap)
   "Keymap for `oai-mode'.")
@@ -373,7 +376,7 @@ non-nil, then mark one chat message."
   ;; - else - no element - call original Org key
   (call-interactively (lookup-key org-mode-map (kbd "C-c ?")))))
 
-;;; -=-= Minor mode - string line
+;; -=-= Minor mode - string line
 (defvar oai-mode-line-string "")
 
 (defun oai-update-mode-line (count)
@@ -388,7 +391,7 @@ non-nil, then mark one chat message."
   ;;                   'face (if (> count 0) 'error 'default))
   )
 
-;;; - Global mode (old)
+;; -=-= Global mode (old)
 ;; (defvar org-ai-global-prefix-map (make-sparse-keymap)
 ;;   "Keymap for `org-ai-global-mode'.")
 
@@ -420,8 +423,5 @@ non-nil, then mark one chat message."
 ;;   :keymap org-ai-global-mode-map
 ;;   :group 'oai)
 
-
-
-;;; provide
 (provide 'oai)
 ;;; oai.el ends here
