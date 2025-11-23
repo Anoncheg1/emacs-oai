@@ -169,17 +169,6 @@ With respect to specified default values here."
                                           model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
                                           )))))
 
-
-(defun oai-ctrl-c-ctrl-c-2 ()
-  "Remove result and parse ai block header parameters."
-  (interactive)
-  (oai-block-remove-result) ; remove result block
-  ;; (condition-case err ; for `oai-block-tags-replace'
-  (apply oai-agent-call-function (oai-parse-org-header))) ; call
-    ;; (user-error
-    ;;  (funcall oai-restapi-show-error-function (error-message-string err)
-    ;;           (oai-block-get-header-marker (oai-block-p))))))
-
 ;;; -=-= key M-x: oai-expand-block
 (defun oai-expand-block-deep ()
   "Output almost RAW information about request with headers and messages."
