@@ -150,7 +150,7 @@ Return last argument, but should not be used for return value."
               (when oai-debug-timestamp
                 (let* ((time (current-time))
                        (time-mili (format "%s.%03d"
-                                          (format-time-string "%M:%S" time) ; "%Y-%m-%d %H:%M:%S"
+                                          (format-time-string "%M:%S" time)
                                           (/ (nth 2 time) 1000))))
                   (setq result-string (concat time-mili " " result-string))))
               ;; - two ways to output: for ert.el and to debug buffer.

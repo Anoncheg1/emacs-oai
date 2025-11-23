@@ -547,8 +547,7 @@ TODO: fontify if there is only end of ai block on page"
                   (save-match-data
                     (setq ret (oai-block--fontify-markdown-subblocks beg end)))
                   (save-match-data
-                    (setq ret (oai-block--fontify-org-tables beg end)))
-                  )
+                    (setq ret (oai-block--fontify-org-tables beg end))))
               ;; else end of block not found, apply block to the limit
               (setq end limit)
               ;; TODO: hardcoded now
@@ -556,8 +555,7 @@ TODO: fontify if there is only end of ai block on page"
                 (setq ret (oai-block--fontify-markdown-subblocks beg end)))
               (save-match-data
                 (setq ret (oai-block--fontify-org-tables beg end)))
-              (goto-char limit)
-              )))
+              (goto-char limit))))
         ;; required by font lock mode:
         (goto-char limit)
         ret)))
