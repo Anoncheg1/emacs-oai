@@ -119,9 +119,11 @@ TODO: pass callback for writing."
   :group 'oai)
 
 (defun oai-ctrl-c-ctrl-c ()
-  "Main command for #+begin_ai.  Org specification."
+  "Remove result and parse ai block header parameters.
+Returning t is Org requirement."
   (when (oai-block-p) ; oai-block.el
-    (oai-ctrl-c-ctrl-c-2) ; call here
+    (oai-block-remove-result)
+    (apply oai-agent-call-function (oai-parse-org-header))
     t))
 
 (defun oai-parse-org-header ()
