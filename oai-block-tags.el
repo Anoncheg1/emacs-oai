@@ -522,6 +522,7 @@ Substring '```content' without last '```'."
                 (throw 'inside block-boundaries)))))
         nil))))
 
+;; Tests:
 ;; (progn (string-match "```" "aaa```bbb```ccc")
 (if-let* ((line "aaa```bbb```ccc")
           (range (oai-block-tags--position-in-markdown-block-str-p line 5))
@@ -1253,8 +1254,7 @@ Called from:
 ;;            (follow (org-link-get-parameter type :follow))
 ;;            (option (org-element-property :search-option link))) ;; after ::
 ;;       (print (list type path option follow)))
-
-;; - just output test, too hard to compare with something.
+;; Test
 (let* ((temp-dir (make-temp-file "my-tmp-dir-" t))     ;; Create temp directory
        (file1 (expand-file-name "file1.txt" temp-dir)) ;; Known file name
        (file2 (expand-file-name "file2.el" temp-dir))

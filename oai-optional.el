@@ -147,18 +147,18 @@ contains [ME]:"
                  (buffer-substring-no-properties                           (point-min)
                                                                            (point-max)))))
 
-(defun oai-optional-remove-distant-empty-lines-hook-function (type _content before-pos buf)
+(defun oai-optional-remove-distant-empty-lines-hook-function (type _content before-pos _stream)
   "Remove empty lines when there is too many of them.
 TYPE _CONTENT BEFORE-POS BUF parameters described in
 `oai-restapi-after-chat-insertion-hook' hook."
   (ignore _content)
-  (oai--debug "IN A HOOK oai-optional-remove-distant-empty-lines-hook-function: %s %s %s %s"
-              before-pos
-              (point)
-              type
-              (type-of type))
-  (when (equal type 'end)
-    (with-current-buffer buf
+  (save-excursion
+    (oai--debug "IN A HOOK oai-optional-remove-distant-empty-lines-hook-function: %s %s %s %s"
+                before-pos
+                (point)
+                type
+                (type-of type))
+    (when (equal type 'end)
       (let* ((context (oai-block-p))
              (con-beg (org-element-property :contents-begin context))
              (con-end (org-element-property :contents-end context)))
@@ -176,7 +176,7 @@ user-configured prefixes."
   (replace-regexp-in-region org-outline-regexp-bol "" beg-pos end-pos))
 
 
-(defun oai-optional-remove-headers-hook-function (type _content before-pos buf)
+(defun oai-optional-remove-headers-hook-function (type _content before-pos _stream)
   "Ready for usage in `oai-restapi-after-chat-insertion-hook'.
 Remove Org headers between BEFORE-POS and current position in BUF buffer.
 TYPE _CONTENT BEFORE-POS BUF parameters described in
@@ -187,11 +187,10 @@ TYPE _CONTENT BEFORE-POS BUF parameters described in
               type
               (type-of type))
   (when (member type '(text end))
-    (with-current-buffer buf
-      (let ((line-beg (save-excursion
-                        (goto-char before-pos)
-                        (line-beginning-position))))
-        (oai-optional-remove-headers line-beg (point))))))
+    (save-excursion
+      (let ((p (point))
+            (line-beg (progn (goto-char before-pos) (line-beginning-position))))
+        (oai-optional-remove-headers line-beg p)))))
 
 ;; - Test: oai-optional-remove-headers-for-hook
 (with-temp-buffer
@@ -208,7 +207,7 @@ TYPE _CONTENT BEFORE-POS BUF parameters described in
     (setq p2 (point))
     (insert "** Something Importent2\n")
     (goto-char p2)
-    (oai-optional-remove-headers-hook-function 'end "" p1 (current-buffer))
+    (oai-optional-remove-headers-hook-function 'end "" p1 nil)
     (setq res (string-split (buffer-substring-no-properties (point-min) (point-max)) "\n"))
     (cl-assert
      (string-equal

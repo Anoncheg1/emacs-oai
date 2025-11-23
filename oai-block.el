@@ -583,7 +583,6 @@ Executed inside `save-excursion'."
            ;; (print (list "my/apply-to-region-lines aa" line-start line-end))
            (when (< line-start line-end)
              (apply ,func line-start line-end (list ,@args)))
-           (goto-char line-end)
            (forward-line))))))
 
 (defun oai-block-fill-region-as-paragraph (from to &optional justify nosqueeze squeeze-after)

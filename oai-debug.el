@@ -100,6 +100,10 @@ Return last argument, but should not be used for return value."
                                '((direction . left)
                                  (window . new))))
                             (select-window current-window)))
+             (time (current-time))
+             (time-mili (format "%s.%03d"
+                                (format-time-string "%Y-%m-%d %H:%M:%S" time)
+                                (/ (nth 2 time) 1000)))
              result-string)
 
         (with-current-buffer bu
@@ -140,6 +144,7 @@ Return last argument, but should not be used for return value."
                        (not (string-match-p (regexp-quote oai--debug-filter) result-string)))
                     (setq result-string nil))
             (when result-string
+              (setq result-string (concat time-mili " " result-string))
               (if (bound-and-true-p ert-enabled)
                   (princ (concat result-string "\n"))
                 ;; else

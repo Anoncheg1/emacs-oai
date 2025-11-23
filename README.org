@@ -60,6 +60,17 @@ oai-restapi-con-service [[./oai-restapi.el]]
 Redefine:
 - ~oai-restapi--get-headers~ - If you need some special HTTP headers.
 - ~oai-restapi--get-single-response-text~ and ~oai-restapi--normalize-response~ - if HTTP responses is not standard for ~"stream":false~ and ~"stream":true~ respectively.
+** Fintification configuration
+To enable all Org fintifications in ai blocks:
+: (setq org-protecting-blocks (delete "ai" org-protecting-blocks))
+: (org-restart-font-lock)
+
+To disable all fontifications:
+: (advice-add 'oai-block--set-ai-keywords :override (lambda () t))
+
+** Auto-fill
+To set use custom function or disable auto-fill by setting it to ~nil~:
+: M-x customize-variable RET oai-restapi-fill-function
 
 * Supported “[AI]:” in-text prefixes
 - SYS-EVERYWHERE
@@ -91,10 +102,10 @@ Built-in url.el have ability to output request and resonse headers, for that you
 * Extension guide
 ** How to add post-processing for text
 There are a hook ~oai-restapi-after-chat-insertion-hook~ that accpet two arguments (par1 par2)
-- type :: simbol \='role, \='text or'end,
-- role-text :: text or role name,
-- pos :: position before text insertion
-- buffer :: target buffer with ai block for third position.
+- type :: simbol \='role, \='text or'end.
+- role-text :: text or role name.
+- pos :: position before text insertion.
+- stream :: stream mode or a single insertion.
 
 There is two implementations for hook in oai-optional.el:
 - oai-optional-remove-distant-empty-lines-hook-function
@@ -104,15 +115,14 @@ Example to remove empty lines after AI answer:
 #+begin_src elisp :results none :exports code :eval no
 (require 'oai-optional) ; for `oai-optional-remove-distant-empty-lines'
 
-(defun my/ai-postprocess (type _content _pos buf)
+(defun my/ai-postprocess (type _content _pos _stream)
   (ignore _content _pos)
-  (with-current-buffer buf
     (when (equal type 'end)
       (save-excursion
         (let* ((context (oai-block-p))
                (con-beg (org-element-property :contents-begin context))
                (con-end (org-element-property :contents-end context)))
-          (oai-optional-remove-distant-empty-lines con-beg con-end))))))
+          (oai-optional-remove-distant-empty-lines con-beg con-end)))))
 
 (add-hook 'oai-restapi-after-chat-insertion-hook #'my/ai-postprocess)
 #+end_src

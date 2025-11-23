@@ -98,7 +98,7 @@
 (require 'url)
 (require 'url-http)
 (require 'cl-lib)
-(require 'gv)
+(require 'gv) ; for setf
 (require 'json)
 (require 'oai-debug)
 (require 'oai-block-tags)
@@ -110,11 +110,6 @@
 ;;; -=-= Constants, variables
 (defcustom oai-restapi-jump-to-end-of-block t
   "If non-nil, jump to the end of the block after inserting the completion."
-  :type 'boolean
-  :group 'oai)
-
-(defcustom oai-restapi-auto-fill t
-  "If non-nil, will fill paragraphs when inserting completions."
   :type 'boolean
   :group 'oai)
 
@@ -147,13 +142,14 @@
 ;;           (goto-char end)
 ;;           (forward-line)))))
 
-(defun oai-restapi--fill-region (&optional stream)
-  "Fill ai block for not streaming or fill word for streaming.
+(defun oai-restapi--fill-region (&optional _pos stream)
+  "Fill ai block for not streaming and for streaming.
 If STREAM is non-nil this function  called after insertion of a chink of
-text, otherwise after full response.
-Ignore markdown blocks.
+text, otherwise after insertion of full response.
+Ignore markdown blocks, quoted text and Org tables.
 TODO: for streaming: save and pass beginin of paragraph."
   (interactive)
+  (ignore _pos)
   (oai--debug "oai-restapi--fill-region %s %s" stream (point))
   (save-excursion
     (if stream
@@ -180,13 +176,17 @@ TODO: for streaming: save and pass beginin of paragraph."
       (oai-block-fill-paragraph) ; fill per line. wrapped in save-excursion inside.
       )))
 
-(defcustom oai-restapi-fill-paragraph-function #'oai-restapi--fill-region
-  "Function that will be called if auto-fill is active.
-Should check that position is not inside markdown block and string is
-not quoted with \"> \".
-Should be executed in save-excursion to preserve relative point
-position."
-  :type 'function
+
+(defcustom oai-restapi-fill-function #'oai-restapi--fill-region
+  "If non-nil this function will be called after insertion of text.
+Current buffer is buffer with ai block with position of pointer right
+after insertion of text.
+Accept parameters: POS before insertion and and STREAM boolean flag.
+Should check that position is not inside markdown block
+and string is not quoted with \"> \".  Should be executed in
+save-excursion to preserve relative point position."
+  :type '(choice (const :tag "None" nil)
+                 (function :tag "Function"))
   :group 'oai)
 
 (defcustom oai-restapi-con-service 'openai
@@ -377,11 +377,13 @@ that is why defined as lambda with marker.")
   "Hook that is called when a chat response is inserted.
 Note this is called for every stream response so it will typically only
 contain fragments.
+For STREAM executed for every word and one time with TYPE=\'end.
+For non-STREAM executed one time with TYPE=\'end.
 Arguments: type, role-text, pos, buffer
-- type - simbol \='role, \='text or'end,
-- role-text - text or role name,
-- pos - position before text insertion
-- buffer - target buffer with ai block for third position.")
+- TYPE - simbol \='role, \='text or'end,
+- ROLE-TEXT - text or role name,
+- POS - position before text insertion
+- STREAM - stream mode or a single insertion.")
 
 (defvar-local oai-restapi--current-insert-position-marker nil
   "Where to insert the result.")
@@ -850,12 +852,12 @@ Here used for completion mode in `oai-restapi-request'.
               (newline)
               ;;
               ;; - "auto-fill"
-              (when oai-restapi-auto-fill
+              (when oai-restapi-fill-function
                 (undo-boundary)
-                (funcall oai-restapi-fill-paragraph-function nil)))
+                (funcall oai-restapi-fill-function pos nil))
 
               (condition-case hook-error
-                  (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos buffer)
+                  (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos nil)
                 (error
                  (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
               (when final
@@ -863,7 +865,7 @@ Here used for completion mode in `oai-restapi-request'.
                 (undo-boundary))
               ;; (setq pos (point))
               ;; (set-marker end-marker (point))
-              ))
+              )))
 
             ;; ;; - save in url buffer. for what?
             ;; (setq oai-restapi--current-insert-position-marker pos)
@@ -1025,7 +1027,7 @@ Save variables:
 `oai-restapi--currently-chat-got-first-response'
 `oai-restapi--current-chat-role' in current buffer.
 Called within url-buffer.
-If response is multiline `oai-restapi-fill-paragraph-function' may not
+If response is multiline `oai-restapi-fill-function' may not
 work properly.
 Argument INSERT-ROLE provided just in case we will need to insert with
 specific role."
@@ -1080,7 +1082,7 @@ specific role."
                                             (insert "\n[SYS]: ")))
 
                                           (condition-case hook-error
-                                              (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'role role pos buffer)
+                                              (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'role role pos t)
                                             (error
                                              (message "Error during \"after-chat-insertion-hook\" for role: %s" hook-error)))
 
@@ -1091,19 +1093,16 @@ specific role."
                                       ;; (when (and (not not-first) (string-prefix-p "```" text))
                                       ;;   (setq text (concat text "\n")))
                                       ;; (oai--debug response)
-                                      ;; (oai--debug text)
                                       (goto-char pos)
-                                      (print (list "oai-restapi--insert-stream-response3" text))
                                       (insert text)
                                       ;; - "auto-fill" if not in code block
-                                      (when oai-restapi-auto-fill
-                                        (funcall oai-restapi-fill-paragraph-function t))
+                                      (when oai-restapi-fill-function
+                                        (funcall oai-restapi-fill-function pos t))
 
                                       (condition-case hook-error
-                                          (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'text text pos buffer)
+                                          (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'text text pos t)
                                         (error
                                          (message "Error during \"after-chat-insertion-hook\" for text: %s" hook-error)))
-
                                       (setq pos (point)))
                                     ;; - stop notification for waiting
 
@@ -1121,7 +1120,7 @@ specific role."
                                           (setq text ""))
 
                                         (condition-case hook-error
-                                            (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos buffer)
+                                            (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos t)
                                           (error
                                            (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
                                         (setq pos (point)))
@@ -1213,19 +1212,19 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
            (url-retrieve ; <- - - - - - - - -  MAIN
             endpoint
             (lambda (_events)
+              ;; "Called within url-request-buffer after `after-change-functions'"
               (ignore _events)
-              "Called within url-request-buffer after `after-change-functions'"
               ;; (setq _events _events) ; noqa left unused
               ;; called one time at error or at the end of all receiving.
 
               (oai--debug "oai-restapi-request *url-retrieve callback*")
 
-              (let (oai-restapi--url-buffer-last-position-marker)
-                (oai-restapi--debug-urllib (current-buffer)))
+              ;; (let (oai-restapi--url-buffer-last-position-marker)
+              ;;   (oai-restapi--debug-urllib (current-buffer)))
 
-              (unless (oai-restapi--maybe-show-openai-request-error) ; TODO: change to RESULT by global customizable option ; maybe use _events: (:error (error http 400)
-              ;; Called for not stream, call `oai-restapi--current-url-request-callback'
-                (oai-restapi--url-request-on-change-function nil nil nil))
+              (oai-restapi--maybe-show-openai-request-error) ; TODO: change to RESULT by global customizable option ; maybe use _events: (:error (error http 400)
+                ;; Called for not stream, call `oai-restapi--current-url-request-callback'
+              (oai-restapi--url-request-on-change-function nil nil nil)
 
 
               ;; finally stop track buffer, error or not
@@ -1494,51 +1493,50 @@ Return t if error happen, otherwise nil.
 If C\\-g was used return nil.
 Should be executed in url-buffer only."
   (oai--debug "oai-restapi--maybe-show-openai-request-error1")
-
-
-  (let ((http-code (url-http-symbol-value-in-buffer 'url-http-response-status (current-buffer))) ; should be integer, but may not be
-        (http-data (if (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
-                       ;; get data after HTTP headers from current url buffer
-                            (progn
-                              (string-trim (buffer-substring-no-properties url-http-end-of-headers
-                                                                           (point-max))))
+  (save-excursion ; ??
+    (let ((http-code (url-http-symbol-value-in-buffer 'url-http-response-status (current-buffer))) ; should be integer, but may not be
+          (http-data (if (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
+                         ;; get data after HTTP headers from current url buffer
+                         (progn
+                           (string-trim (buffer-substring-no-properties url-http-end-of-headers
+                                                                        (point-max))))
                        ;; else
                        ""))
-        (http-header-first-line (buffer-substring-no-properties (point-min)
-                                                                (save-excursion
-                                                                  (goto-char (point-min))
-                                                                  (line-end-position))))
-        ret)
-    (unless (numberp http-code)
-      (setq http-code nil))
-    (oai--debug "oai-restapi--maybe-show-openai-request-error2 %s" http-code)
-    (when (boundp 'url-http-end-of-headers)
+          (http-header-first-line (buffer-substring-no-properties (point-min)
+                                                                  (save-excursion
+                                                                    (goto-char (point-min))
+                                                                    (line-end-position))))
+          ret)
+      (unless (numberp http-code)
+        (setq http-code nil))
+      (oai--debug "oai-restapi--maybe-show-openai-request-error2 %s" http-code)
+      (when (boundp 'url-http-end-of-headers)
         (oai--debug "oai-restapi--maybe-show-openai-request-error22 %s " url-http-end-of-headers))
-    (setq ret
-          (or
-           (when (and http-code (/= http-code 200))
-             (oai--debug "oai-restapi--maybe-show-openai-request-error3")
-             (funcall oai-restapi-show-error-function (format "HTTP Error from the service: %s %s \n %s" http-code http-data http-header-first-line)
-                      (oai-timers--get-variable (current-buffer))) ; header-marker
-             t)
-           (when (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
-             (goto-char url-http-end-of-headers)
-             (condition-case nil
-                 (when-let* ((body (json-read))
-                             (err (or (alist-get 'error body)
-                                      (plist-get body 'error)))
-                             (message (or (alist-get 'message err)
-                                          (plist-get err 'message)))
-                             (message (if (and message (not (string-blank-p message)))
-                                          message
-                                        (json-encode err))))
-                   (funcall oai-restapi-show-error-function (concat (format "%s\n" http-header-first-line)
-                                                                    "Error from the service API:\n\t" message)
-                            (oai-timers--get-variable (current-buffer))) ; header-marker
-                   )
-               (error nil)))))
-    (oai--debug "oai-restapi--maybe-show-openai-request-error3 %s" ret)
-    ret))
+      (setq ret
+            (or
+             (when (and http-code (/= http-code 200))
+               (oai--debug "oai-restapi--maybe-show-openai-request-error3")
+               (funcall oai-restapi-show-error-function (format "HTTP Error from the service: %s %s \n %s" http-code http-data http-header-first-line)
+                        (oai-timers--get-variable (current-buffer))) ; header-marker
+               t)
+             (when (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
+               (goto-char url-http-end-of-headers)
+               (condition-case nil
+                   (when-let* ((body (json-read))
+                               (err (or (alist-get 'error body)
+                                        (plist-get body 'error)))
+                               (message (or (alist-get 'message err)
+                                            (plist-get err 'message)))
+                               (message (if (and message (not (string-blank-p message)))
+                                            message
+                                          (json-encode err))))
+                     (funcall oai-restapi-show-error-function (concat (format "%s\n" http-header-first-line)
+                                                                      "Error from the service API:\n\t" message)
+                              (oai-timers--get-variable (current-buffer))) ; header-marker
+                     )
+                 (error nil)))))
+      (oai--debug "oai-restapi--maybe-show-openai-request-error3 %s" ret)
+      ret)))
 
 
 (cl-defun oai-restapi--payload (&optional &key service model prompt messages max-tokens temperature top-p frequency-penalty presence-penalty stream)
@@ -1668,7 +1666,7 @@ Called within `url-retrieve' buffer."
         (when oai-restapi--current-request-is-streamed
           (let ((errored nil)
                 psave
-                line)
+                line1)
             ;; loop per chunks separated by empty line
             (while (and (not errored) ; we decode chunks until unable to decode one, this mean that chunk should be received first.
                         (search-forward "data: " nil t)) ; set cursor after "data: {" on "{"
@@ -1679,29 +1677,24 @@ Called within `url-retrieve' buffer."
               ;;                        (buffer-substring (line-beginning-position) (line-end-position)))) ; check for splitline
               ;; ( split-line
               (setq psave (point))
-              (setq line
-                    ;; if string splitted in url-buffer for some reason. we look for empty lines as a separateror.
-                    (string-join
-                     (nreverse
-                      (let ((lines (list (buffer-substring-no-properties (point) (line-end-position))))
-                            line)
-                        (while (/= (forward-line) 0)
-                          (setq line (buffer-substring-no-properties (point) (line-end-position)))
-                          (unless (string-empty-p line)
-                            (push line lines)))
-                        lines))))
+
               (oai--debug "oai-restapi--url-request-on-change-function 2.3) %s %s" (point) oai-restapi--url-buffer-last-position-marker)
-              (goto-char psave)
+
               ;; (let ((line (buffer-substring-no-properties (point) (line-end-position))))
               ;; (oai--debug "oai-restapi--url-request-on-change-function 2.3) in: %s %s" (point) line)
-              (oai--debug "oai-restapi--url-request-on-change-function 2.4) \"%s\"" (buffer-substring-no-properties (point) (line-end-position)))
+
               ;; (oai--debug "on change 2.2) line: %s" line)
               ;; (message "...found data: %s" line)
-              (if (and line (not (string= line "[DONE]")))
+              (setq line1 (buffer-substring-no-properties (point) (line-end-position)))
+
+              (if (and line1 (not (string= line1 "[DONE]")))
                   (let ((json-object-type 'plist)
                         (json-key-type 'symbol)
                         (json-array-type 'vector)
-                        data)
+                        data
+                        line)
+                    (oai--debug "oai-restapi--url-request-on-change-function 2.4) \"%s\""
+                                (buffer-substring-no-properties (point) (line-end-position)))
                     ;; (data (json-read-from-string line)) ; (setq data
                     ;; (with-current-buffer (get-buffer-create tmp-buf t) ; faster
                     ;; - Decoding attempt 1.
@@ -1716,25 +1709,45 @@ Called within `url-retrieve' buffer."
                        nil))
                     ;; - Decoding attempt 2.
                     (when errored
-                      (oai--debug "oai-restapi--url-request-on-change-function 2.5) errored 1)")
+                      ;; (oai--debug "oai-restapi--url-request-on-change-function 2.51) errored 1)")
+                      (setq line
+                            ;; if string splitted in url-buffer for some reason. we look for empty lines as a separateror.
+                            (string-join
+                             (nreverse
+                              (let ((lines (list (buffer-substring-no-properties (point) (line-end-position))))
+                                    line-cur)
+                                (while (and (/= (forward-line) 0)
+                                            (progn
+                                              (setq line-cur (buffer-substring-no-properties (point) (line-end-position)))
+                                              (unless (string-empty-p line-cur)
+                                                (push line-cur lines)))))
+                                lines))))
+
+                      ;; (oai--debug "oai-restapi--url-request-on-change-function 2.5) errored 1)")
                       (setq data (oai-restapi--json-decode-not-streamed line))
-                      (if data
+                      ;; (oai--debug "oai-restapi--url-request-on-change-function 2.55) errored 1)")
+                      (when data
                           (setq errored nil)
                         ;; else
-                        (oai--debug "oai-restapi--url-request-on-change-function 2.6) errored 2)")))
+                        ;; (oai--debug "oai-restapi--url-request-on-change-function 2.6) errored 2)"))
+                      ))
 
                     ;; (setq org-ai--debug-data (append org-ai--debug-data (list data)))
                     (when data
                       ;; (oai--debug "oai-restapi--url-request-on-change-function 2.4) %s" data)
-                      (oai--debug "oai-restapi--url-request-on-change-function 2.7) \"%s\"" data)
+                      ;; (oai--debug "oai-restapi--url-request-on-change-function 2.7) \"%s\"" data)
+                      ;; (goto-char psave)
                       (end-of-line)
                       (set-marker oai-restapi--url-buffer-last-position-marker (point))
                       ;; (oai--debug (format "on change 3) %s" oai-restapi--url-buffer-last-position-marker))
+                      (oai--debug "oai-restapi--url-request-on-change-function 2.6)")
                       (funcall oai-restapi--current-url-request-callback data) ; INSERT CALLBACK!
+                      (oai--debug "oai-restapi--url-request-on-change-function 2.7)")
                       ))
 
                 ;; - else "[DONE]" string found
                 (progn
+                  (goto-char psave)
                   ;; (end-of-line)
                   (set-marker oai-restapi--url-buffer-last-position-marker (point))
                   ;; (setq oai-restapi--url-buffer-last-position-marker nil)
