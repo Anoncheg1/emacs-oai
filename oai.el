@@ -139,13 +139,12 @@ With respect to specified default values here."
                          (oai-block--get-sys :info info ; oai-block.el
                                              :default oai-restapi-default-chat-system-prompt)))) ; oai-restapi.el variable
     ;; - Process Org params and call agent
-    ;; (print (list "here31" info))
     (oai-block--let-params info
                            ;; format: (variable optional-default type)
                            ((service oai-restapi-con-service string) ; oai-restapi.el
                             (model (let ((m (oai-restapi--get-values oai-restapi-con-model service)))
                                        (if (not m)
-                                         (user-error "Model not specified.?"))
+                                         (user-error "Model not specified"))
                                        ;; else
                                        (car m))
                                    :type string) ; oai-restapi.el

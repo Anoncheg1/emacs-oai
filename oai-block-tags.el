@@ -644,7 +644,7 @@ Works in any mode buffers.
                                          (line-end-position)))
             :lang (oai-block-tags--filepath-to-language major-mode))))
    (t
-    (user-error "No outline, function or paragraph was found to get a block.?"))))
+    (user-error "No outline, function or paragraph was found to get a block"))))
 
 
 ;; Test: outline
