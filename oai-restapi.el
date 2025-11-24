@@ -867,16 +867,17 @@ Here used for completion mode in `oai-restapi-request'.
               (insert text)
               (newline)
               ;;
-              ;; - "auto-fill"
-              (when oai-restapi-fill-function
-                (undo-boundary)
-                (funcall oai-restapi-fill-function pos nil))
+
 
               (condition-case hook-error
                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos nil)
                 (error
                  (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
               (when final
+                ;; - "auto-fill"
+                (when oai-restapi-fill-function
+                  (undo-boundary)
+                  (funcall oai-restapi-fill-function pos nil))
                 (org-element-cache-reset)
                 (undo-boundary))
               ;; (setq pos (point))
