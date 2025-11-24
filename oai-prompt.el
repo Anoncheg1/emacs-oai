@@ -145,9 +145,11 @@ answers except of the first one are already in block-content."
 
 
 
-(defun oai-prompt-request-switch (&rest args)
+(defun oai-prompt-request-prepare-chain (&rest args)
   "Check if there is :chain at ai block parameters and call chain function.
-For assiging to `oai-agent-call-function' with all normal ARGS."
+For assiging to `oai-agent-call-function' with all normal ARGS.
+Return t if we replace default call implementation
+`oai-restapi-request-prepare'."
   ;; element = (nth 1 args)
   (when (not (eql 'x (alist-get :chain (oai-block-get-info (nth 1 args)) 'x)))
       (apply #'oai-prompt-request-chain args)

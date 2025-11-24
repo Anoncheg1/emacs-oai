@@ -105,20 +105,24 @@
 ;;         changes in @/CHANGELOG.md" @url, @file, @folder, @header? (Org)
 ;; - Force stop stream on C-g
 ;; - use oai-restapi-prepare-content for :chain
+;; - Think about to pass callback for writing to chain implementations
+;;    and main implementation, to make it more general.
 
 ;; -=-= includes
 (require 'oai-debug)
 (require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'
 (require 'oai-block)
 (require 'oai-restapi)
+(require 'oai-prompt)
+
 
 ;;; Code:
 ;; -=-= C-c C-c main interface
 
-(defcustom oai-agent-call-function #'oai-restapi-request-prepare ; oai-restapi.el
+(defcustom oai-agent-call-function #'oai-prompt-request-prepare-chain ; oai-restapi.el
   "Pass processed ai block info to AI assistent or some Emacs agent.
 See `oai-call-block' and `oai-restapi-request-prepare' for parameters.
-TODO: pass callback for writing."
+`oai-prompt-request-prepare-chain'."
   :type 'function
   :group 'oai)
 
@@ -127,7 +131,9 @@ TODO: pass callback for writing."
 Returning t is Org requirement."
   (when (oai-block-p) ; oai-block.el
     (oai-block-remove-result)
-    (apply oai-agent-call-function (oai-parse-org-header))
+    (let ((args (oai-parse-org-header)))
+      (unless (apply oai-agent-call-function args) ;; call implementation for :chain
+        (apply #'oai-restapi-request-prepare args))) ;; call normal
     t))
 
 (defun oai-parse-org-header ()

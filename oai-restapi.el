@@ -778,7 +778,7 @@ STREAM string - as bool, indicates whether to stream the response."
                        ;; else - not stream
                        (lambda (result) (oai-restapi--insert-single-response end-marker
                                                                              (oai-restapi--get-single-response-text result)
-                                                                             t))))))
+                                                                             t 'final))))))
     ;; - Call and save buffer.
     (oai-timers--set
      (oai-restapi-request service model callback
