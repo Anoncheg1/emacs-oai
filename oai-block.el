@@ -57,11 +57,15 @@
 (require 'org-element)
 (require 'org-macs)
 (require 'cl-macs) ; for `cl-letf', cl-defun, cl-loop, cl-case
+(require 'oai-debug)
 
 (defcustom oai-block-fontify-markdown t
   "If non-nil, enabling of fontinfication for ```lang blocks."
   :type 'boolean
   :group 'oai)
+
+(defcustom oai-block-fontify-org-tables-flag t
+  "If non-nil, enabling of fontinfication for Org tables.")
 
 (defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
 (defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")
@@ -535,7 +539,7 @@ called as a part of Org Font Lock mode configuration of keywords (in
 `org-set-font-lock-defaults' and corresponding font-lock highlighting
 rules in `font-lock-defaults' variable.
 TODO: fontify if there is only end of ai block on page"
-  (if oai-block-fontify-markdown
+
       (let ((case-fold-search t)
             ret
             end)
@@ -546,21 +550,25 @@ TODO: fontify if there is only end of ai block on page"
             (if (re-search-forward oai-block--ai-block-end-re nil t)
                 (progn
                   (setq end (match-beginning 0))
-                  (save-match-data
-                    (setq ret (oai-block--fontify-markdown-subblocks beg end)))
-                  (save-match-data
-                    (setq ret (oai-block--fontify-org-tables beg end))))
+                  (when oai-block-fontify-markdown
+                    (save-match-data
+                      (setq ret (oai-block--fontify-markdown-subblocks beg end))))
+                  (when oai-block-fontify-org-tables-flag
+                    (save-match-data
+                      (setq ret (oai-block--fontify-org-tables beg end)))))
               ;; else end of block not found, apply block to the limit
               (setq end limit)
               ;; TODO: hardcoded now
-              (save-match-data
-                (setq ret (oai-block--fontify-markdown-subblocks beg end)))
-              (save-match-data
-                (setq ret (oai-block--fontify-org-tables beg end)))
+              (when oai-block-fontify-markdown
+                (save-match-data
+                  (setq ret (oai-block--fontify-markdown-subblocks beg end))))
+              (when oai-block-fontify-org-tables-flag
+                    (save-match-data
+                      (setq ret (oai-block--fontify-org-tables beg end))))
               (goto-char limit))))
         ;; required by font lock mode:
         (goto-char limit)
-        ret)))
+        ret))
 
 (defun oai-block--insert-after (list pos element)
   "Insert ELEMENT at after position POS in LIST."
