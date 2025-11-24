@@ -56,6 +56,7 @@
 (require 'org)
 (require 'org-element)
 (require 'org-macs)
+(require 'cl-macs) ; for `cl-letf', cl-defun, cl-loop, cl-case
 
 (defcustom oai-block-fontify-markdown t
   "If non-nil, enabling of fontinfication for ```lang blocks."
@@ -572,17 +573,18 @@ TODO: fontify if there is only end of ai block on page"
   "Apply FUNC to each line in region from START to END with ARGS.
 START and END is a pointer.  FUNC is called with
 \(line-start line-end . ARGS) for each line.
-Executed inside `save-excursion'."
+Executed inside `save-excursion'.
+FUNC should place  point to to the  next line after execution  if end at
+the end of the line."
   `(let ((end-marker (copy-marker ,end)))
      (save-excursion
        (goto-char ,start)
        (while (< (point) (marker-position end-marker))
          (let ((line-start (line-beginning-position)) ; may be replace to just (point)
                (line-end (line-end-position)))
-           ;; (print (list "my/apply-to-region-lines aa" line-start line-end))
-           (when (< line-start line-end)
-             (apply ,func line-start line-end (list ,@args)))
-           (forward-line))))))
+           (if (< line-start line-end) ; not empty line
+               (apply ,func line-start line-end (list ,@args))
+             (forward-line)))))))
 
 (defun oai-block-fill-region-as-paragraph (from to &optional justify nosqueeze squeeze-after)
   "Ignore lines that begin with \"< \".
@@ -595,7 +597,9 @@ fill-region-as-paragraph."
                (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))
       (funcall #'fill-region-as-paragraph from to justify nosqueeze squeeze-after)
     ;; else
-    (goto-char to)))
+    (goto-char to)
+    (unless (bolp)
+      (forward-line))))
 
 (defun oai-block-fill-paragraph (&optional justify _region)
   "Fill every line as paragraph in the current AI block.
@@ -655,6 +659,24 @@ Was causing freezing."
                 (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg end justify)
                 (setq beg end)))
             t))))))
+
+;; (defun oai-block-test (beginning end)
+;;   (interactive "r")
+;;   (if (use-region-p)
+;;       (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beginning end nil)))
+
+(cl-assert
+ (with-temp-buffer
+   (progn
+     (org-mode)
+     (setq fill-column 10)
+     (insert "Some.\n")
+     (insert "Some text here asdasdasdasd asda asd asd asd asd asd asd as d\n")
+     (insert "Some.\n")
+     (goto-char 1)
+     (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph (point-min) (point-max) nil)
+     (let ((strings (string-split (buffer-substring-no-properties (point-min) (point-max)) "\n")))
+       (< (length (nth 1 strings)) 10)))))
 
 (provide 'oai-block)
 ;;; oai-block.el ends here
