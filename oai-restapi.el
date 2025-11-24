@@ -419,6 +419,8 @@ Used for hook only.")
 ;; (make-oai-restapi--response :payload "role") ; error
 ;; (make-oai-restapi--response :type nil :payload "role") ; #s(oai-restapi--response nil "role")
 ;; (make-oai-restapi--response :type 'role :payload nil) ; #s(oai-restapi--response role nil)
+;; (oai-restapi--response-type (make-oai-restapi--response :type 'role :payload "asd")) ; 'role
+;; (oai-restapi--response-payload (make-oai-restapi--response :type 'role :payload "asd")) ; "asd"
 ;; -=-= org-ai--debug-data (obsolate)
 ;; (defvar org-ai--debug-data nil)
 ;; (defvar org-ai--debug-data-raw nil)
@@ -931,7 +933,8 @@ Here used for completion mode in `oai-restapi-request'.
 ;;              index 0)]))
 (defun oai-restapi--normalize-response (response)
   "This function normalizes JSON data in OpenAI-style but with some differences.
-RESPONSE is one JSON message of the stream response."
+RESPONSE is one JSON message of the stream response.
+Return list or responses, with every response as `oai-restapi--response'."
   ;; (oai--debug "response:" response)
   (if-let ((error-message (plist-get response 'error)))
       (list (make-oai-restapi--response :type 'error :payload (or (plist-get response 'message) error-message)))
@@ -1279,7 +1282,7 @@ Call CALLBACK at receive.  Call CALLBACK with nil if error.
 One of argument PROMPT and MESSAGES used as main payload.
 For MAX-TOKENS, TEMPERATURE, TOP-P, FREQUENCY-PENALTY, PRESENCE-PENALTY,
 see `oai-restapi-request-prepare'."
-  (oai--debug "oai-restapi-request-llm00 %s %s %s" (current-buffer) service oai-restapi-con-token)
+  (oai--debug "oai-restapi-request-llm 1) %s %s %s" (current-buffer) service oai-restapi-con-token)
   (let ((url-request-extra-headers (oai-restapi--get-headers service))
         (url-request-method "POST")
         (endpoint (oai-restapi--get-endpoint messages service))
@@ -1296,57 +1299,77 @@ see `oai-restapi-request-prepare'."
 					              :service service
 					              :stream nil))
                                'utf-8)))
-    (oai--debug "oai-restapi-request-llm prompt: %s" prompt)
-    (oai--debug "oai-restapi-request-llm messages: %s" messages)
-    (oai--debug "oai-restapi-request-llm endpoint: %s %s" endpoint (type-of endpoint))
-    (oai--debug "oai-restapi-request-llm request-data:" (oai-debug--prettify-json-string url-request-data))
+    (oai--debug "oai-restapi-request-llm 2) prompt: %s" prompt)
+    (oai--debug "oai-restapi-request-llm 3) messages: %s" messages)
+    (oai--debug "oai-restapi-request-llm 4) endpoint: %s %s" endpoint (type-of endpoint))
+    (oai--debug "oai-restapi-request-llm 5) request-data:" (oai-debug--prettify-json-string url-request-data))
 
-    (let* ((url-request-buffer
-           (url-retrieve ; <- - - - - - - - -  MAIN
-            endpoint
-            (lambda (_events)
-              (ignore _events)
-              "oai-restapi-request-llm main callback."
-              (oai--debug "oai-restapi-request-llm *url-retrieve callback*:" _events)
-              (let (oai-restapi--url-buffer-last-position-marker)
-                (oai-restapi--debug-urllib (current-buffer)))
+    ;; (setq url-request-buffer
+    (url-retrieve ; <- - - - - - - - -  MAIN
+     endpoint
+     (lambda (_events)
+       (ignore _events)
+       "oai-restapi-request-llm main callback."
+       (oai--debug "oai-restapi-request-llm 6) *url-retrieve callback*:" _events)
+       ;; debug
+       (let (oai-restapi--url-buffer-last-position-marker)
+         (oai-restapi--debug-urllib (current-buffer)))
+       ;;
+       (if (oai-restapi--maybe-show-openai-request-error) ; TODO: change to RESULT by global customizable option
+           (funcall callback nil) ; signal error to callback
+         ;; else - read from url-buffer
+         (when (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
+           ;; (save-excursion
+           (goto-char url-http-end-of-headers)
+           (oai--debug "oai-restapi-request-llm 7) " url-http-end-of-headers)
 
-              (if (oai-restapi--maybe-show-openai-request-error) ; TODO: change to RESULT by global customizable option
-                  (funcall callback nil) ; signal error to callback
-                ;; else - read from url-buffer
-                (when (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
-                  (goto-char url-http-end-of-headers)
-                  (let ((json-object-type 'plist)
-                        (json-key-type 'symbol)
-                        (json-array-type 'vector))
-                    (condition-case _err
-                        ;; (let* ((res1 (buffer-substring-no-properties (point) (point-max)))
-                        ;;       (res2 (json-read-from-string res1))
-                        ;;       (res3 (oai-restapi--normalize-response res2))
-                        ;;       (res4 (nth 1 res3))
-                        ;;       (res5 (oai-restapi--response-payload res4))
-                        ;;       (res (decode-coding-string res5 'utf-8))
-                        ;;       )
-                        ;;   (print (list "HERE6" res3 ))
-                        ;;   (print (list "HERE6h7" callback))
-                        ;;   ;; to prevent catching error to here
-                        ;;   (run-at-time 0 nil callback res)
-                        ;;   )
-                        ;; (message "no HERE7 error")
-                        (funcall callback (decode-coding-string (oai-restapi--response-payload (nth 1
-                                                                                               (oai-restapi--normalize-response
-                                                                                                (json-read-from-string
-                                                                                                 (buffer-substring-no-properties (point) (point-max))))))
-                                                                'utf-8))
-                      (error
-                       nil
-                       ;; (message "HERE7 error")
-                       ;; (funcall callback nil) ; signal error to callback
-                       ))))))))
+           (let ((data (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max)))))
+             (when data
+               (funcall callback (oai-restapi--get-single-response-text data))))))))))
+            ;; - Done or Error
+            ;; (oai--debug "on change 2)")
+            ;; (funcall oai-restapi--current-url-request-callback nil))
+
+            ;;       (let ((json-object-type 'plist)
+            ;;             (json-key-type 'symbol)
+            ;;             (json-array-type 'vector)
+            ;;             (line (buffer-substring-no-properties (point) (point-max))))
+            ;;         (oai--debug "oai-restapi-request-llm 8) " line)
+            ;;         ;; (condition-case _err
+            ;;             ;; (let* ((res1 (buffer-substring-no-properties (point) (point-max)))
+            ;;             ;;       (res2 (json-read-from-string res1))
+            ;;             ;;       (res3 (oai-restapi--normalize-response res2))
+            ;;             ;;       (res4 (nth 1 res3))
+            ;;             ;;       (res5 (oai-restapi--response-payload res4))
+            ;;             ;;       (res (decode-coding-string res5 'utf-8))
+            ;;             ;;       )
+            ;;             ;;   (print (list "HERE6" res3 ))
+            ;;             ;;   (print (list "HERE6h7" callback))
+            ;;             ;;   ;; to prevent catching error to here
+            ;;             ;;   (run-at-time 0 nil callback res)
+            ;;             ;;   )
+            ;;             ;; (message "no HERE7 error")
+            ;;             ;; (oai--debug "oai-restapi-request-llm 6) normalize: %s"
+            ;;             ;;             (oai-restapi--normalize-response
+            ;;             ;;              (json-read-from-string
+            ;;             ;;               (buffer-substring-no-properties (point) (point-max)))))
+            ;;             (oai--debug "oai-restapi-request-llm 9) decoded: %s"
+            ;;                         (oai-restapi--normalize-response (json-read-from-string line)))
+            ;;                                               'utf-8))
+            ;;             (funcall callback (decode-coding-string (oai-restapi--response-payload (oai-restapi--normalize-response
+            ;;                                                                                     (json-read-from-string
+            ;;                                                                                      line)))
+            ;;                                                     'utf-8))
+            ;;           ;; (error
+            ;;           ;;  nil
+            ;;           ;;  ;; (message "HERE7 error")
+            ;;           ;;  ;; (funcall callback nil) ; signal error to callback
+            ;;           ;;  )
+            ;;           ))))))
            ;; (timeout (or timeout oai-timers-duration))
            ;; (waiter (run-with-timer 3 0 (lambda(b) (print b)) b))
-          )
-      url-request-buffer)))
+
+      ;; url-request-buffer))
 
 ;; - Test!
 ;; (let ((service 'together)
@@ -1714,24 +1737,24 @@ Called within `url-retrieve' buffer."
                                                 (push line-cur lines)))))
                                 lines))))
 
-                      ;; (oai--debug "oai-restapi--url-request-on-change-function 2.5) errored 1) %s" line)
-                      ;; (setq data (oai-restapi--json-decode-not-streamed line))
+                      (oai--debug "oai-restapi--url-request-on-change-function 7)  - Decoding attempt 2: %s" line)
+                      (setq data (oai-restapi--json-decode-not-streamed line))
                       (when data
                         (setq errored nil)))
-                    (oai--debug "oai-restapi--url-request-on-change-function 7) data? %s" data)
+                    (oai--debug "oai-restapi--url-request-on-change-function 8) data? %s" data)
                     ;; (setq org-ai--debug-data (append org-ai--debug-data (list data)))
                     (when data
                                         ; save only if data or DONE
                       (end-of-line)
                       (set-marker oai-restapi--url-buffer-last-position-marker (point))
                       ;; (oai--debug (format "on change 3) %s" oai-restapi--url-buffer-last-position-marker))
-                      (oai--debug "oai-restapi--url-request-on-change-function 8) - request-callback")
+                      (oai--debug "oai-restapi--url-request-on-change-function 9) - request-callback")
                       (funcall oai-restapi--current-url-request-callback data) ; INSERT CALLBACK!
                       ))
 
                 ;; - else "[DONE]" string found
                 (progn
-                  (oai--debug "oai-restapi--url-request-on-change-function 9) DONE %s %s" (point) (point-max))
+                  (oai--debug "oai-restapi--url-request-on-change-function 10) DONE %s %s" (point) (point-max))
                   ;; (end-of-line)
                   (set-marker oai-restapi--url-buffer-last-position-marker (point))
                   ;; remove itself
@@ -1743,7 +1766,7 @@ Called within `url-retrieve' buffer."
         ;; - Not-streamed
         ;; response is a single JSON object
         (when (not oai-restapi--current-request-is-streamed)
-          (oai--debug "oai-restapi--url-request-on-change-function 10) %s %s" (point) (point-max))
+          (oai--debug "oai-restapi--url-request-on-change-function 11) %s %s" (point) (point-max))
           (let ((data (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max)))))
             (when data
               ;; (oai--debug "on change 1)")

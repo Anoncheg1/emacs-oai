@@ -387,6 +387,7 @@
     ;; set vars,functions used in `oai-restapi--url-request-on-change-function'
     (let ((oai-restapi--current-url-request-callback 'oai-tests-restapi--callback)
           (oai-restapi--current-request-is-streamed t)
+          (callback-test nil)
           ;; oai-debug-buffer
           (callback-n-test 0)
           (payload-str (concat "data: {\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"delta\":{\"content\":\"Text"
@@ -404,9 +405,12 @@
       (goto-char (point-min))
       (setq url-http-end-of-headers (point-min)) ; should set globally, checked by `boundp'
       (oai-restapi--url-request-on-change-function nil nil nil)
-      (print callback-test)
-      (setq data (aref (plist-get callback-test 'choices) 0))
-      (setq data (plist-get (plist-get data 'delta) 'content))
+      ;; (print callback-test)))
+      ;; (print (plist-get callback-test 'choices))))
+      ;; (print (list "aa" (plist-get (plist-get (aref (plist-get callback-test 'choices) 0) 'message) 'content) "bb"))))
+      ;; (print (oai-restapi--response-payload (nth 1 (oai-restapi--normalize-response callback-test))))))
+      (setq data (decode-coding-string (oai-restapi--response-payload (nth 0 (oai-restapi--normalize-response callback-test))) 'utf-8))
+      ;; (print (list (length data) data))))
       ;; ;; (print (list "data2" (length data) data ))
       ;; (should (string-equal "Text ÿ"  data)
       (should (= (length data) 7))
