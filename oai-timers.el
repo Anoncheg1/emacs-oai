@@ -226,7 +226,7 @@ about failure."
     (oai--debug "oai-timers--update-global-progress-reporter2, count: %s count-live: %s" count count-live)
     (let ((count (length (oai-timers--get-all-keys))))
       (unless oai-timers--oai-update-mode-line
-        (error "Oai.el should be loaded to use oai-timers--update-global-progress-reporter function"))
+        (error "oai.el should be loaded to use oai-timers--update-global-progress-reporter function"))
       (funcall oai-timers--oai-update-mode-line count)
       (when (eql count 0)
         (oai-timers--stop-global-progress-reporter failed)))))
@@ -295,10 +295,7 @@ Called from
 `oai-restapi--url-request-on-change-function' for  not stream after  reply or
 \"DONE\" string found for stream.
 `oai-restapi-stop-url-request'."
-  (oai--debug "oai-timers--interrupt-current-request"
-                 url-buffer
-                 interrupt-request-func
-                 (buffer-live-p url-buffer))
+  (oai--debug "oai-timers--interrupt-current-request %s %s %s" (buffer-live-p url-buffer) interrupt-request-func url-buffer)
 
   (if (sequencep url-buffer) ;; if several
       (mapc (lambda (b)
