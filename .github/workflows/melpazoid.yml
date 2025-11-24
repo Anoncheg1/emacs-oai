@@ -42,7 +42,7 @@ jobs:
          emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block-tags.el -l oai-block.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el -l ./tests/oai-tests-restapi.el -f ert-run-tests-batch-and-exit
       - name: Tests integration1
         run: |
-         emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l ./tests/oai-tests-block.el -l oai-block-tags.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el -l oai.el -l ./tests/oai-tests-integration1.el -f ert-run-tests-batch-and-exit
+         emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l ./tests/oai-tests-block.el -l oai-block-tags.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el -l oai-prompt.el -l oai.el -l ./tests/oai-tests-integration1.el -f ert-run-tests-batch-and-exit
       - name: Tests integration2
         run: |
          emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l oai-block-tags.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el -l oai-prompt.el -l oai.el -l ./tests/oai-tests-integration2.el -f ert-run-tests-batch-and-exit
