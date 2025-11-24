@@ -25,7 +25,6 @@
 ;; (eval-buffer)
 ;; (ert t)
 ;;
-;; (setq ert-debug-on-error t)
 
 ;;; - require
 
@@ -34,6 +33,7 @@
 
 (require 'oai-block)
 (require 'ert)             ; Testing framework
+(defvar ert-enabled nil)
 ;;; - Helper function to set up a temporary Org buffer for testing.
 ;; It inserts content and optional Org properties, then returns the
 ;; parsed Oai block element and its parameters alist.

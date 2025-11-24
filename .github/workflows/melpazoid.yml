@@ -32,7 +32,7 @@ jobs:
          emacs -Q --batch -l ert.el -l oai-timers.el -l ./tests/oai-tests-timers.el -f ert-run-tests-batch-and-exit
       - name: Tests block
         run: |
-         emacs -Q --batch -l ert.el -l oai-block.el -l ./tests/oai-tests-block.el -f ert-run-tests-batch-and-exit
+         emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l ./tests/oai-tests-block.el -f ert-run-tests-batch-and-exit
       - name: Tests block tags
         run: |
          git clone --depth=1 https://github.com/Anoncheg1/emacs-org-links.git

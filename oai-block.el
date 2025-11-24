@@ -64,7 +64,7 @@
   :type 'boolean
   :group 'oai)
 
-(defcustom oai-block-fontify-org-tables-flag t
+(defcustom oai-block-fontify-org-tables-flag nil
   "If non-nil, enabling of fontinfication for Org tables.")
 
 (defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
@@ -491,7 +491,6 @@ the rest of the result."
 
 
 ;; -=-= Markdown block, fontify mostly
-
 (defun oai-block--fontify-markdown-subblocks (start end)
   "Fontify ```language ... ``` fenced mardown code blocks.
 We search for begining of block, then for end of block, then fontify
@@ -502,11 +501,25 @@ Argument START and END are limits for searching."
     (while (and (< (point) end)
                 (re-search-forward oai-block--markdown-begin-re end t))
       (let* ((lang (match-string 1))
-             (block-begin (match-end 0)))
+             (block-begin (match-end 0))
+             (block-begin-begin (match-beginning 0)))
         ;; (print (list "re-search-forward4" (point) end))
         (when (re-search-forward oai-block--markdown-end-re end t)
-          (let ((block-end (match-beginning 0)))
+          (let ((block-end (match-beginning 0))
+                (block-end-end (match-end 0)))
             (when (fboundp (org-src-get-lang-mode lang)) ; for org-src-font-lock-fontify-block
+              ;; - fontify begin and end of markdown block
+              (remove-text-properties block-begin-begin block-begin
+                                      (list 'face '(org-block)))
+              (remove-text-properties block-end block-end-end
+                                      (list 'face '(org-block)))
+              (add-text-properties
+	       block-begin-begin block-begin
+	       '(face org-block-begin-line))
+              (add-text-properties
+	       block-end block-end-end
+	       '(face org-block-end-line))
+              ;; - fontify code inside markdown block
               (org-src-font-lock-fontify-block lang block-begin block-end)
               t)))))))
 
