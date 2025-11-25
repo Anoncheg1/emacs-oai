@@ -945,16 +945,16 @@ Return list or responses, with every response as `oai-restapi--response'."
           (list (make-oai-restapi--response :type 'role :payload role))))
        ((string= response-type "content_block_start")
         (when-let* ((text (plist-get (plist-get response 'content_block) 'text))
-                    (text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8)))
+                    (text (when text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8))))
           (list (make-oai-restapi--response :type 'text :payload text))))
        ((string= response-type "content_block_delta")
         (when-let* ((text (plist-get (plist-get response 'delta) 'text))
-                    (text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8)))
+                    (text (when text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8))))
           (list (make-oai-restapi--response :type 'text :payload text))))
        ((string= response-type "content_block_stop") nil)
        ((string= response-type "message_delta")
         (when-let* ((stop-reason (plist-get (plist-get response 'delta) 'stop_reason))
-                    (stop-reason (decode-coding-string (encode-coding-string stop-reason 'utf-8 't) 'utf-8)))
+                    (stop-reason (when stop-reason (decode-coding-string (encode-coding-string stop-reason 'utf-8 't) 'utf-8))))
           (list (make-oai-restapi--response :type 'stop :payload stop-reason))))
        ((string= response-type "message_stop") nil)
 
@@ -968,12 +968,12 @@ Return list or responses, with every response as `oai-restapi--response'."
                    (delta (plist-get choice 'delta))
                    (role (or (plist-get delta 'role) (plist-get message 'role)))
                    (text (or (plist-get delta 'content) (plist-get message 'content)))
-                   (text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8))
                    (finish-reason (plist-get choice 'finish_reason)))
               (append
                (when role
                  (list (make-oai-restapi--response :type 'role :payload role)))
                (when text
+                 (setq text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8))
                  (list (make-oai-restapi--response :type 'text :payload text)))
                (when finish-reason
                  (list (make-oai-restapi--response :type 'stop :payload finish-reason))))))))
@@ -985,7 +985,7 @@ Return list or responses, with every response as `oai-restapi--response'."
         (let* ((choices (plist-get response 'choices))
                (choice (aref choices 0))
                (text (plist-get (plist-get choice 'message) 'content))
-               (text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8))
+               (text (when text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8)))
                (role (plist-get (plist-get choice 'message) 'role))
                (finish-reason (or (plist-get choice 'finish_reason) 'stop)))
           (list (make-oai-restapi--response :type 'role :payload role)
@@ -1002,9 +1002,9 @@ Return list or responses, with every response as `oai-restapi--response'."
                                                "assistant_reason"
                                              role)))
                                    (text (plist-get (plist-get choice 'delta) 'content))
-                                   (text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8))
+                                   (text (when text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8)))
                                    (reasoning-text (plist-get delta 'reasoning_content))
-                                   (reasoning-text (decode-coding-string (encode-coding-string reasoning-text 'utf-8 't) 'utf-8))
+                                   (reasoning-text (when reasoning-text (decode-coding-string (encode-coding-string reasoning-text 'utf-8 't) 'utf-8)))
                                    (finish-reason (plist-get choice 'finish_reason))
                                    (result nil))
                               (when finish-reason
@@ -1116,10 +1116,10 @@ specific role."
                                          (message "Error during \"after-chat-insertion-hook\" for text: %s" hook-error)))
                                       (setq pos (point))
                                     ;; (setq not-first t)
-                                    )
+                                    ))
 
                               (stop (progn ; payload = stop_reason
-                                      ;; (when pos
+                                      (oai--debug "oai-restapi--insert-stream-response stop_reason: %s" payload)
                                       (goto-char pos)
                                       ;; (message "inserting user prompt: %" (string= c-chat-role "user"))
                                       (let ((text "\n\n[ME]: "))
