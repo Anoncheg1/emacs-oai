@@ -1718,8 +1718,8 @@ Called within `url-retrieve' buffer."
                                                 (push line-cur lines)))))
                                 lines))))
 
-                      (oai--debug "oai-restapi--url-request-on-change-function 7)  - Decoding attempt 2: %s" line)
-                      ;; (setq data (oai-restapi--json-decode-not-streamed line))
+                      (oai--debug "oai-restapi--url-request-on-change-function 7) - Decoding attempt 2: %s" line)
+                      (setq data (oai-restapi--json-decode-not-streamed line))
                       (when data
                         (setq errored nil)))
                     (oai--debug "oai-restapi--url-request-on-change-function 8) data? %s" data)

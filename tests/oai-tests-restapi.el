@@ -408,7 +408,7 @@
       ;; (print callback-test)))
       ;; (print (plist-get callback-test 'choices))))
       ;; (print (list "aa" (plist-get (plist-get (aref (plist-get callback-test 'choices) 0) 'message) 'content) "bb"))))
-      ;; (print (oai-restapi--response-payload (nth 1 (oai-restapi--normalize-response callback-test))))))
+      ;; (print (oai-restapi--normalize-response callback-test))))
       (setq data (decode-coding-string (oai-restapi--response-payload (nth 0 (oai-restapi--normalize-response callback-test))) 'utf-8))
       ;; (print (list (length data) data))))
       ;; ;; (print (list "data2" (length data) data ))
