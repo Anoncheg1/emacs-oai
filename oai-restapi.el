@@ -853,16 +853,9 @@ Here used for completion mode in `oai-restapi-request'.
                 (delete-char -1))
               (newline)
               (newline)
-              ;; (goto-char (1- pos))
-              ;; ;; - Make sure we have enough space at end of block, don't write on same line
-              ;; (when (string-suffix-p "#+end_ai" (buffer-substring-no-properties (point) (line-end-position)))
-              ;;   (insert "\n")
-              ;;   (backward-char))
               (insert "[AI]: \n")
               (insert text)
               (newline)
-              ;;
-
 
               (condition-case hook-error
                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos nil)
@@ -1119,9 +1112,8 @@ specific role."
                                     ))
 
                               (stop (progn ; payload = stop_reason
-                                      (oai--debug "oai-restapi--insert-stream-response stop_reason: %s" payload)
+                                      (oai--debug "oai-restapi--insert-stream-response3 stop_reason: %s" payload)
                                       (goto-char pos)
-                                      ;; (message "inserting user prompt: %" (string= c-chat-role "user"))
                                       (let ((text "\n\n[ME]: "))
                                         (if insert-role
                                             (insert text)
