@@ -302,12 +302,14 @@ ss
 (defun oai-block-tags--compose-block-for-path-full (path-string)
   "Return file or directory in prepared mardown block.
 PATH-STRING may be path to file or a directory."
+  (oai--debug "oai-block-tags--compose-block-for-path-full %s" path-string)
   (oai-block-tags--compose-block-for-path path-string
                                           (if (file-directory-p path-string)
                                               (oai-block-tags--get-directory-content path-string)
                                             ;; else
                                             (org-file-contents path-string)))) ; oai-block-tags--read-file-to-string-safe
 
+;; (oai-block-tags--compose-block-for-path-full "/home/g/sources/nongnu/Makefile")
 ;; -=-= help functions: blocks
 (defun oai-block-tags--get-org-block-element ()
   "Return Org block element at current position in current buffer.
@@ -719,7 +721,7 @@ Move pointer to the end of block."
               el ; current element in loop
               type ; type of current element in loop
               )
-          (push "```text" replacement-list)
+          (push "\n```text" replacement-list)
           ;; Loop over headlines, to process every blocks and org elements to markdown for LLM
           (while (< (point) (org-element-property :end element))
             ;; supported sub-elements: headline, blocks
@@ -1184,7 +1186,7 @@ Called from:
               (path-string (if (> (length path-string) 0)
                                (substring path-string 1)
                              ""))
-              (replacement (concat "\n" (oai-block-tags--compose-block-for-path-full path-string) "\n"))
+              (replacement (concat (oai-block-tags--compose-block-for-path-full path-string) "\n"))
               (new-string (oai-block-tags--replace-last-regex-smart string
                                                                     oai-block-tags--regexes-path
                                                                     replacement)))
@@ -1200,7 +1202,7 @@ Called from:
     (oai--debug "oai-block-tags-replace: here3")
     (if-let* ((link (oai-block-tags--replace-last-regex-smart string oai-block--org-link-any-re)) ; find the last
 
-              (replacement (concat "\n" (oai-block-tags--get-replacement-for-org-link link) "\n" )) ; add empty line after it.
+              (replacement (concat (oai-block-tags--get-replacement-for-org-link link) "\n" )) ; add empty line after it.
               (new-string (oai-block-tags--replace-last-regex-smart string
                                                                     oai-block--org-link-any-re
                                                                     replacement)))
@@ -1285,6 +1287,7 @@ Called from:
         (insert "import os"))
       ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
       ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)) "\n" ) "\\n"))
+      ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
       (if (not (string-equal "ssvv \nHere file1.txt:\n```text\nContents for file1\n```\n bbb"
                     (oai-block-tags-replace (format "ssvv `@%s` bbb" file1))))
           (error "error in loading of oai-block-tags.el 1"))
@@ -1298,6 +1301,7 @@ Called from:
       ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
 ;; "ssvv \\nssssss\\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
 ;;                           "ssvv \n\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
+      ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
       (if (not (string-equal "ssvv \nHere file3.py:\n```python\nimport os\n```\n bbb"
                              (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3))))
           (error "error in loading of oai-block-tags.el 3")))
