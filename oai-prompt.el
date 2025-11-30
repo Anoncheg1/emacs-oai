@@ -225,7 +225,7 @@ SERVICE, STREAM see `oai-restapi-request-prepare'."
           (callbackmy (lambda (data callback)
                         "Called in (current-buffer)."
                         (when data ; if not data it is fail
-                          (oai--debug "calbackmy %s %s" oai-timers--element-marker-variable-dict (current-buffer))
+                          (oai--debug "calbackmy %s %s %s" oai-timers--element-marker-variable-dict (current-buffer) data)
                           (oai-restapi--insert-single-response end-marker data nil)
                           (run-at-time 0 nil callback data))))
           (calbafin (lambda (data _callback)

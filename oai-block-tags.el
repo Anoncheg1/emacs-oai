@@ -66,9 +66,9 @@
 (defvar oai-block-tags--regexes-backtrace "\\(`?@\\(Backtrace\\|B\\)`?\\)\\([^a-zA-Z\"']\\|$\\)")
 (defvar oai-block-tags--regexes-path "`?@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*`?")
 
-(defvar oai-block-tags--markdown-prefixes '(:backtrace "```elisp-backtrace"
-                                            :path-directory "```ls-output"
-                                            :path-file  "```"))
+(defvar oai-block-tags--markdown-prefixes '(:backtrace "elisp-backtrace"
+                                            :path-directory "ls-output")
+  "Right after ``` markdown block begining.")
 (defvar oai-block-tags--markdown-postfix "\n```\n")
 
 (defvar oai-block-tags--backtrace-max-lines 12
@@ -252,23 +252,34 @@ mode line."
 (cl-assert
  (string-equal (oai-block-tags--filepath-to-language "a.txt") "text"))
 
+(cl-defun oai-block-tags--compose-m-block (content &optional &key lang header)
+  "Return markdown block for LLM with CONTENT.
+Markdown block marked as auto language If optional argument LANG is
+not provided.
+HEADER is a line above mardown to describe it for LLM, should not have
+new line characters at edges."
+  (concat (when header (concat "\n" header))
+          (when content (concat "\n```" (or lang "auto") "\n"
+                                (string-replace "```" "\\`\\`\\`" content)
+                                "\n```"))))
+
+;; (oai-block-tags--compose-m-block "aaa" :lang "bbb" :header "ccc")
+
+
 (defun oai-block-tags--compose-block-for-path (path-string content)
   "Return mardown block with description.
 PATH-STRING may be path to directory or to a file.
 For provided PATH-STRING and CONTENT string, return string that will be
 good understood by AI."
-  (concat
-   "Here " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder" "") ":\n"
-   ;; prefix
-   (if (file-directory-p path-string)
-       (plist-get oai-block-tags--markdown-prefixes :path-directory)
-     ;; else - not derectory
-     (concat
-      (plist-get oai-block-tags--markdown-prefixes :path-file) ; "```"
-      (oai-block-tags--filepath-to-language path-string))) ; "elisp"
-   "\n"
+  (oai-block-tags--compose-m-block
+   ;; content:
    content
-   "\n```"))
+   :lang (if (file-directory-p path-string)
+             (plist-get oai-block-tags--markdown-prefixes :path-directory)
+           ;; else file
+           (oai-block-tags--filepath-to-language path-string))
+   :header (concat "Here " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder" ":"))
+  ))
 
 (cl-assert
  (string-equal
@@ -282,7 +293,8 @@ good understood by AI."
 
 (cl-assert
  (string-equal (oai-block-tags--compose-block-for-path "a.el" "ss")
-"Here a.el:
+"
+Here a.el:
 ```elisp
 ss
 ```"))
@@ -455,19 +467,6 @@ Works for markdown block only inside some org block"
 ;;      (string-trim (buffer-substring-no-properties beg end))
 ;;      ;; - 3 - Footer ```
 ;;      "\n```")))
-
-(cl-defun oai-block-tags--compose-m-block (content &optional &key lang header)
-  "Return markdown block for LLM with CONTENT.
-Markdown block marked as auto language If optional argument LANG is
-not provided.
-HEADER is a line above mardown to describe it for LLM, should not have
-new line characters at edges."
-  (concat (when header (concat "\n" header))
-          (when content (concat "\n```" (or lang "auto") "\n"
-                                (string-replace "```" "\\`\\`\\`" content)
-                                "\n```"))))
-
-;; (oai-block-tags--compose-m-block "aaa" :lang "bbb" :header "ccc")
 
 (defun oai-block-tags--get-org-content-m-block (&optional element)
   "Return markdown block for blocks in Org mode at current position.
@@ -754,10 +753,16 @@ Move pointer to the end of block."
           (apply #'concat (reverse replacement-list))))
        ;; - (2) case - Markdown block
        ((oai-block-tags--get-m-block))
+       ;; - case - Org Block
+       ((member type  oai-block-tags-org-blocks-types)
+        (oai-block-tags--get-org-content-m-block element))
+       ;; - case - Org element with :end
+       ((if-let ((end (org-element-property :end element)))
+            (oai-block-tags--compose-m-block (buffer-substring-no-properties (line-beginning-position) end))))
        ;; (oai-block-tags--markdown-block-range
        ;; - (3) case -  Org block (or ai block)
        (t
-        (oai-block-tags--get-org-content-m-block))))))
+        (user-error "Cant get content at point for link")))))) ; should not happen in Org mode.
 
 (cl-assert
  (string-equal
@@ -860,6 +865,14 @@ Called for file type.
     (with-current-buffer value
       (oai-block-tags--get-replacement-for-org-link (concat "[[" option "]]")))))
 
+(defun oai-block-tags--string-is-integer (str)
+  "Return num if STR is an integer, nil otherwise."
+  (when (stringp str)
+    (let ((val (string-to-number str)))
+      (when (and (string= (number-to-string val) str) ; check direct conversion
+                 (not (string-match-p "\\." str)))
+        val))))     ; disallow decimals
+
 
 (defun oai-block-tags--get-replacement-for-org-link (link-string)
   "Return string that explain LINK-STRING for LLM or nil.
@@ -898,15 +911,19 @@ Return replacement string."
            ;; (print (list "option" option))
            (oai--debug "oai-block-tags--get-replacement-for-org-link 3.1) %s %s" (oai-block-tags--path-is-current-buffer-p path) path)
            ;; cases: 1) no option
-           ;;        2) in this buf + option
-           ;;        3) not in this buf + option
+           ;;        2) in this buf + option is fuzzy or NUM-NUM (org-links handl it well.)
+           ;;        3) in this buf + option is number
+           ;;        4) not in this buf + option
 
            (if (and option
                     (not (string-empty-p option)))
                (if (oai-block-tags--path-is-current-buffer-p path)
-                   ;; case 2) recursion call without path
-                   (oai-block-tags--get-replacement-for-org-link (concat "[[" option "]]")) ; recursive call
-                 ;; - else case 3) <other-file>
+                   (if-let ((num (oai-block-tags--string-is-integer option)))
+                       ;; case 2) PATH::NUM
+                       (progn (org-goto-line num) (oai-block-tags--get-content-at-point))
+                     ;; else case 3) recursion call without path
+                     (oai-block-tags--get-replacement-for-org-link (concat "[[" option "]]"))) ; recursive call
+                 ;; - else case 4) <other-file>
                  (oai-block-tags--get-replacement-for-org-file-link-in-other-file path option))
              ;; else case 1) - no ::, only path
              (oai-block-tags--compose-block-for-path-full path))))
@@ -1151,7 +1168,7 @@ Called from:
     (if-let* ((bt (or (oai-block-tags--get-backtrace-buffer-string)
                       (user-error "No backtrace buffer for @Backtrace tag"))) ; *Backtrace* buffer exist
               (bt (oai-block-tags--take-n-lines bt oai-block-tags--backtrace-max-lines))
-              (bt (concat "\n" (plist-get oai-block-tags--markdown-prefixes :backtrace) "\n"
+              (bt (concat "\n```" (plist-get oai-block-tags--markdown-prefixes :backtrace) "\n"
                           bt
                           oai-block-tags--markdown-postfix)) ; prepare string
               (new-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--regexes-backtrace bt))) ; insert backtrace
@@ -1288,6 +1305,24 @@ Called from:
 
 ;; -=-= Fontify @Backtrace & @path & [[links]]
 
+(defun oai-block-tags--is-special (pos &optional lim-beg lim-end)
+  "Check if POS in markdown block, quoted or is a table.
+Side-effect: set pointer position to POS."
+  (goto-char pos)
+  (prog1 (or
+          ;; not markdown blocks
+          ;; backward for markdown block "begin"
+          (when (re-search-backward oai-block--markdown-begin-re lim-beg t)
+            (goto-char pos)
+            ;; backward for markdown block "end" after "begin"
+            (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))
+          ;; not quotes
+          (progn (goto-char pos)
+                 (beginning-of-line)
+                 (or (looking-at "^> ") ; from `oai-block-fill-region-as-paragraph'
+                     (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
+    (goto-char pos)))
+
 (defun oai-block-tags--font-lock-fontify-links (limit)
   "Fontify Org links in #+begin_ai ... #+end_ai blocks, up to LIMIT.
 This is special fontify function, that return t when match found.
@@ -1298,36 +1333,50 @@ TODO: maybe we should use something like
 `oai-block-tags--position-in-markdown-block-str-p'"
   (if oai-block-fontify-markdown
       (let ((case-fold-search t)
-            (ret))
+            ret)
+        ;; (print limit)
         (while (and (re-search-forward oai-block--ai-block-begin-re limit t)
                     (< (point) limit))
-          (let ((beg (match-end 0)))
+          (let ((beg (match-end 0))
+                end lbeg lend)
             (when (re-search-forward oai-block--ai-block-end-re nil t)
-              (let ((end (match-beginning 0)))
-                (save-match-data
-                  ;; fontify Org links [[..]]
-                  ;; (message beg)
-                  ;; - [[link][]]
-                  (progn
-                    (goto-char beg)
-                    (while (re-search-forward oai-block--org-link-any-re end t)
-                      (goto-char (match-beginning 0))
-                      (setq ret (org-activate-links end))))
-                  ;; - @Backtrace
-                  (progn
-                    (goto-char beg)
-                    (while (re-search-forward oai-block-tags--regexes-backtrace limit t)
-                      (add-face-text-property (match-beginning 0) (match-end 0) 'org-link)
-                      (setq ret t)))
-                  ;; - @/tmp/
-                  (progn
-                    (goto-char beg)
-                    (while (re-search-forward oai-block-tags--regexes-path limit t)
-                      (add-face-text-property (match-beginning 0) (match-end 0) 'org-link)
-                      (setq ret t)))
-                  ;; fontify markdown sub-blocks
-                  ;; (oai-block--fontify-markdown-subblocks beg end)
-                  )))))
+              (setq end (match-beginning 0))
+              ;; (print (list beg limit))
+              (save-match-data
+                ;; fontify Org links [[..]]
+                ;; (message beg)
+                ;; - [[link][]]
+                (progn
+                  (goto-char beg)
+                  (while (re-search-forward oai-block--org-link-any-re end t)
+                    (setq lbeg (match-beginning 0))
+                    (setq lend (match-end 0))
+                    (print (list lbeg beg end (oai-block-tags--is-special lbeg beg end)))
+                    (unless (oai-block-tags--is-special lbeg beg end)
+                      (setq ret (org-activate-links lend)))
+                    (goto-char lend))
+                  )
+                ;; - @Backtrace
+                (progn
+                  (goto-char beg)
+                  (while (re-search-forward oai-block-tags--regexes-backtrace end t)
+                    (setq lbeg (match-beginning 0))
+                    (setq lend (match-end 0))
+                    (unless (oai-block-tags--is-special lbeg beg end)
+                      (add-face-text-property lbeg lend 'org-link)
+                      (setq ret t))
+                    (goto-char lend)))
+                ;; ;; - @/tmp/
+                (progn
+                  (goto-char beg)
+                  (while (re-search-forward oai-block-tags--regexes-path end t)
+                    (setq lbeg (match-beginning 0))
+                    (setq lend (match-end 0))
+                    (unless (oai-block-tags--is-special lbeg beg end)
+                      (add-face-text-property lbeg lend 'org-link)
+                      (setq ret t))
+                    (goto-char lend)))
+                ))))
         ;; required by font lock mode:
         (goto-char limit)
         ret)))

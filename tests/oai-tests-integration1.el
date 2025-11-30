@@ -26,7 +26,7 @@
 ;; emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l oai-tests-block.el -l oai-tests-integration1.el -f ert-run-tests-batch-and-exit
 
 
-(require 'oai-tests-block)
+(require 'oai-tests-block) ; for `oai-test-setup-buffer'
 (require 'oai)
 (require 'ert)
 
@@ -57,11 +57,17 @@ PROC is process object.  _STRING is data received."
   ;; Try :host nil or "127.0.0.1" for clarity
   :host "127.0.0.1"
   :server t
-  :filter 'oai-tests--my-http-server-handler)
+  :filter 'oai-tests--my-http-server-handler))
 
+
+
+  ;; - test:
+  ;; (delete-process "my-http-server")
+  ;; (advice-remove 'make-network-process #'my-make-network-process-advice)
+  ;; (oai-tests--create-http-service)
 ;; (make-network-process :name "localhost" :host "127.0.0.1" :service 9239 :nowait t)
 
-;; (delete-process "my-http-server")
+
 
   ;; (with-current-buffer (url-retrieve-synchronously "http://localhost:9239/")
   ;;   (prog1 (buffer-string)(kill-buffer)))
@@ -78,7 +84,7 @@ PROC is process object.  _STRING is data received."
   ;;    (goto-char (point-min))
   ;;    ;; (re-search-forward "\r\n\r\n")
   ;;    (message "Server replied: %s" (buffer-substring (point-min) (point-max)))))
-  )
+  ;; )
 
 
 ;;; - Integration test: oai-restapi-request-prepare
@@ -117,11 +123,11 @@ PROC is process object.  _STRING is data received."
                                        ;; (print (list "wtf" (buffer-substring-no-properties (point-min) (point-max) )
                                        ;; (message "A:%S\nB:%S"
                                        ;; (print (list "oai-restapi-after-chat-insertion-hook" oai-restapi-after-chat-insertion-hook))
-                                       ;; (message "A:%S\nB:%S" (buffer-substring-no-properties (point-min) (point-max) )
+                                       ;; (message "AAAAAAAA: %s" (buffer-substring-no-properties (point-min) (point-max)))
                                        ;;          "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]: \n#+end_ai")
                                        (should (string-equal
                                                 (buffer-substring-no-properties (point-min) (point-max) )
-                                                "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]: \n#+end_ai")
+                                                "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n[ME]: \n#+end_ai")
                                                ))
                          (delete-process "my-http-server"))
                  temp-buffer)))
@@ -147,8 +153,10 @@ PROC is process object.  _STRING is data received."
       ;; (print (point))
       (let ((oai-restapi-con-endpoints (list :test "http://localhost:9239/v1/chat/completions"))
             (oai-restapi-con-token "test")
-            (oai-timers-duration 30))
-        (print (list "oai-timers-duration" oai-timers-duration (current-buffer)))
+            (oai-timers-duration 10))
+        ;; (oai-restapi--get-headers "test"))
+        ;; (print (list "oai-timers-duration" oai-timers-duration (current-buffer))))))
+
         ;; (plist-put oai-restapi-con-endpoints :test "http://localhost:9239/v1/chat/completions")
                                         ; delete http service if error, but not suppress
         (condition-case err

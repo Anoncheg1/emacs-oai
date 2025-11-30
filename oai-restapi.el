@@ -177,19 +177,21 @@ Ignore markdown blocks, quoted text and Org tables."
         (let ((case-fold-search t) ; if nil
               (p (point)))
           (unless
+              ;; not markdown blocks
               (or (with-syntax-table org-mode-transpose-word-syntax-table
                     ;; backward for ai block
                     (when (re-search-backward oai-block--ai-block-begin-re nil t)
                       (goto-char p)
-                      ;; backward for markdown block "begin"
+                      ;; backward for markdown block "begin". Same logic as in finction `oai-block-tags--is-special'
                       (when (re-search-backward oai-block--markdown-begin-re (match-end 0) t)
                         (goto-char p)
                         ;; backward for markdown block "end" after "begin"
                         (not (re-search-backward oai-block--markdown-end-re nil t)))))
+                  ;; not quotes and not tables
                   (progn (goto-char p)
                          (beginning-of-line)
                          (or (looking-at "^> ") ; from `oai-block-fill-region-as-paragraph'
-                             (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*"))))
+                             (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
             (goto-char p)
             (fill-region-as-paragraph (line-beginning-position) (line-end-position))))
       ;; else not stream, single response. We add hack to skip markdown blocks.
@@ -834,8 +836,11 @@ Here used for completion mode in `oai-restapi-request'.
   `oai-restapi--get-single-response-text'.
 - END-MARKER is a buffer and position at the end of block.
 - FINAL wherer to finalize, also applied if no text provided."
-  (oai--debug "oai-restapi--insert-single-response end-marker, text:" end-marker
-                                                 text "")
+  (oai--debug "oai-restapi--insert-single-response end-marker, text:"
+              end-marker
+              text
+              (when text
+                (string-match "\n" text)))
     (let ((buffer (marker-buffer end-marker))
           (pos (marker-position end-marker)))
       (oai--debug "oai-restapi--insert-single-response buffer,pos:" buffer pos "")
@@ -853,8 +858,12 @@ Here used for completion mode in `oai-restapi-request'.
                 (delete-char -1))
               (newline)
               (newline)
-              (insert "[AI]: \n")
-              (insert text)
+              (insert "[AI]: "
+                      (if (string-match "\n" text) ; multiline answer we start with a new line.
+                          "\n"
+                        ;; else
+                        "")
+                      text)
               (newline)
 
               (condition-case hook-error
@@ -884,7 +893,7 @@ Here used for completion mode in `oai-restapi-request'.
               (save-excursion
                 ;; - go  to the end of previous line and open new one
                 (goto-char pos)
-                (insert "[ME]: \n")
+                (insert "\n[ME]: \n")
                 (setq pos (point)))
               (set-marker end-marker (point)))
             (when oai-restapi-jump-to-end-of-block
@@ -1412,10 +1421,10 @@ We store url-buf with marker of header in oai-timers.el"
                                       0
                                       (lambda ()
                                         "Suppress errors, they don't visible."
-                                        (oai--debug "timer of oai-restapi-request-llm-retries, left-retries: %s" left-retries)
-                                        (oai--debug "timer of oai-restapi-request-llm-retries, buf1: %s" (oai-timers--get-keys-for-variable header-marker))
-                                        (oai--debug "timer of oai-restapi-request-llm-retries, buf2: %s" (seq-find (lambda (x) (buffer-live-p  x))
-                                                                                                                  (oai-timers--get-keys-for-variable header-marker)))
+                                        (oai--debug "timer of oai-restapi-request-llm-retries"
+                                                    left-retries
+                                                    (oai-timers--get-keys-for-variable header-marker)
+                                                    (seq-find (lambda (x) (buffer-live-p  x)) (oai-timers--get-keys-for-variable header-marker)))
                                         ;; - get url-buffer to check if it hanging.
                                         (let ((urlbuf (seq-find (lambda (x) (buffer-live-p x))
                                                                 (oai-timers--get-keys-for-variable header-marker))))
