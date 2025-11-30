@@ -60,12 +60,14 @@
 (require 'oai-debug)
 
 (defcustom oai-block-fontify-markdown-flag t
-  "Non-nil means, enabling of fontinfication for ```lang blocks."
+  "Non-nil means enable fontinfication for ```lang blocks."
   :type 'boolean
   :group 'oai)
 
 (defcustom oai-block-fontify-org-tables-flag nil
-  "Non-nil means, enabling of fontinfication for Org tables.")
+  "Non-nil means enable fontinfication for Org tables."
+  :type 'boolean
+  :group 'oai)
 
 (defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
 (defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")

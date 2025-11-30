@@ -1355,7 +1355,7 @@ TODO: maybe we should use something like
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
                 (print (list lbeg beg end (oai-block-tags--is-special lbeg beg)))
-                (unless (oai-block-tags--is-special lbeg beg end)
+                (unless (oai-block-tags--is-special lbeg beg)
                   (setq ret (org-activate-links lend)))
                 (goto-char lend)))
             ;; - @Backtrace
