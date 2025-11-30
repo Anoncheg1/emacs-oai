@@ -153,7 +153,7 @@ and INFO-ALIST is the parameters from its header."
 
 
 (ert-deftest oai-tests-integration2-test1 ()
-  "oai-restapi-request-llm-retries"
+  ":chain test with `oai-restapi-request-llm-retries'."
   ;; - 1) Run HTTP-SERVICE
   (condition-case nil
       (oai-tests--stop-http-service)
@@ -171,7 +171,7 @@ and INFO-ALIST is the parameters from its header."
             (oai-restapi-con-token "test")
             (oai-timers-duration 3)
             (oai-timers-retries 3)
-            (oai-agent-call-function #'my/oai-switch)
+            ;; (oai-agent-call-function #'my/oai-switch)
             (stub-retries 0)
             )
 
@@ -252,7 +252,7 @@ and INFO-ALIST is the parameters from its header."
 
 
 (ert-deftest oai-tests-integration2-test2 ()
-  "oai-restapi-request-llm-retries"
+  ":chain with `oai-restapi-request-llm-retries'"
   ;; - 1) Run HTTP-SERVICE
   (condition-case nil
       (oai-tests--stop-http-service)
@@ -270,7 +270,7 @@ and INFO-ALIST is the parameters from its header."
             (oai-restapi-con-token "test")
             (oai-timers-duration 3)
             (oai-timers-retries 3)
-            (oai-agent-call-function #'my/oai-switch)
+            ;; (oai-agent-call-function #'my/oai-switch)
             (stub-retries 0)
             )
         (unwind-protect
