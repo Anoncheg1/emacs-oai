@@ -226,7 +226,7 @@ about failure."
     (oai--debug "oai-timers--update-global-progress-reporter2, count: %s count-live: %s" count count-live)
     (let ((count (length (oai-timers--get-all-keys))))
       (unless oai-timers--oai-update-mode-line
-        (error "oai.el should be loaded to use oai-timers--update-global-progress-reporter function"))
+        (error "Library oai.el should be loaded to use oai-timers--update-global-progress-reporter function"))
       (funcall oai-timers--oai-update-mode-line count)
       (when (eql count 0)
         (oai-timers--stop-global-progress-reporter failed)))))

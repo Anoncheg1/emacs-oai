@@ -278,8 +278,7 @@ good understood by AI."
              (plist-get oai-block-tags--markdown-prefixes :path-directory)
            ;; else file
            (oai-block-tags--filepath-to-language path-string))
-   :header (concat "Here " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder:" ":"))
-  ))
+   :header (concat "Here " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder:" ":"))))
 
 (cl-assert
  (string-equal
@@ -1309,8 +1308,9 @@ Called from:
 
 ;; -=-= Fontify @Backtrace & @path & [[links]]
 
-(defun oai-block-tags--is-special (pos &optional lim-beg lim-end)
+(defun oai-block-tags--is-special (pos &optional lim-beg)
   "Check if POS in markdown block, quoted or is a table.
+Optional argument LIM-BEG is ai block begining position.
 Side-effect: set pointer position to POS."
   (goto-char pos)
   (prog1 (or
@@ -1335,55 +1335,52 @@ goto to the begining firstly function `org-activate-links' used to
 highlight any link.
 TODO: maybe we should use something like
 `oai-block-tags--position-in-markdown-block-str-p'"
-  (if oai-block-fontify-markdown
-      (let ((case-fold-search t)
-            ret)
-        ;; (print limit)
-        (while (and (re-search-forward oai-block--ai-block-begin-re limit t)
-                    (< (point) limit))
-          (let ((beg (match-end 0))
-                end lbeg lend)
-            (when (re-search-forward oai-block--ai-block-end-re nil t)
-              (setq end (match-beginning 0))
-              ;; (print (list beg limit))
-              (save-match-data
-                ;; fontify Org links [[..]]
-                ;; (message beg)
-                ;; - [[link][]]
-                (progn
-                  (goto-char beg)
-                  (while (re-search-forward oai-block--org-link-any-re end t)
-                    (setq lbeg (match-beginning 0))
-                    (setq lend (match-end 0))
-                    (print (list lbeg beg end (oai-block-tags--is-special lbeg beg end)))
-                    (unless (oai-block-tags--is-special lbeg beg end)
-                      (setq ret (org-activate-links lend)))
-                    (goto-char lend))
-                  )
-                ;; - @Backtrace
-                (progn
-                  (goto-char beg)
-                  (while (re-search-forward oai-block-tags--regexes-backtrace end t)
-                    (setq lbeg (match-beginning 0))
-                    (setq lend (match-end 0))
-                    (unless (oai-block-tags--is-special lbeg beg end)
-                      (add-face-text-property lbeg lend 'org-link)
-                      (setq ret t))
-                    (goto-char lend)))
-                ;; ;; - @/tmp/
-                (progn
-                  (goto-char beg)
-                  (while (re-search-forward oai-block-tags--regexes-path end t)
-                    (setq lbeg (match-beginning 0))
-                    (setq lend (match-end 0))
-                    (unless (oai-block-tags--is-special lbeg beg end)
-                      (add-face-text-property lbeg lend 'org-link)
-                      (setq ret t))
-                    (goto-char lend)))
-                ))))
-        ;; required by font lock mode:
-        (goto-char limit)
-        ret)))
+  (let ((case-fold-search t)
+        ret)
+    ;; (print limit)
+    (while (and (re-search-forward oai-block--ai-block-begin-re limit t)
+                (< (point) limit))
+      (let ((beg (match-end 0))
+            end lbeg lend)
+        (when (re-search-forward oai-block--ai-block-end-re nil t)
+          (setq end (match-beginning 0))
+          ;; (print (list beg limit))
+          (save-match-data
+            ;; fontify Org links [[..]]
+            ;; (message beg)
+            ;; - [[link][]]
+            (progn
+              (goto-char beg)
+              (while (re-search-forward oai-block--org-link-any-re end t)
+                (setq lbeg (match-beginning 0))
+                (setq lend (match-end 0))
+                (print (list lbeg beg end (oai-block-tags--is-special lbeg beg)))
+                (unless (oai-block-tags--is-special lbeg beg end)
+                  (setq ret (org-activate-links lend)))
+                (goto-char lend)))
+            ;; - @Backtrace
+            (progn
+              (goto-char beg)
+              (while (re-search-forward oai-block-tags--regexes-backtrace end t)
+                (setq lbeg (match-beginning 0))
+                (setq lend (match-end 0))
+                (unless (oai-block-tags--is-special lbeg beg)
+                  (add-face-text-property lbeg lend 'org-link)
+                  (setq ret t))
+                (goto-char lend)))
+            ;; ;; - @/tmp/
+            (progn
+              (goto-char beg)
+              (while (re-search-forward oai-block-tags--regexes-path end t)
+                (setq lbeg (match-beginning 0))
+                (setq lend (match-end 0))
+                (unless (oai-block-tags--is-special lbeg beg)
+                  (add-face-text-property lbeg lend 'org-link)
+                  (setq ret t))
+                (goto-char lend)))))))
+    ;; required by font lock mode:
+    (goto-char limit)
+    ret))
 
 ;; -=-= key to select block "C-c h" (similar to "M-h")
 

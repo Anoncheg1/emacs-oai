@@ -56,16 +56,16 @@
 (require 'org)
 (require 'org-element)
 (require 'org-macs)
-(require 'cl-macs) ; for `cl-letf', cl-defun, cl-loop, cl-case
+(require 'cl-lib) ; for `cl-letf', cl-defun, cl-loop, cl-case
 (require 'oai-debug)
 
-(defcustom oai-block-fontify-markdown t
-  "If non-nil, enabling of fontinfication for ```lang blocks."
+(defcustom oai-block-fontify-markdown-flag t
+  "Non-nil means, enabling of fontinfication for ```lang blocks."
   :type 'boolean
   :group 'oai)
 
 (defcustom oai-block-fontify-org-tables-flag nil
-  "If non-nil, enabling of fontinfication for Org tables.")
+  "Non-nil means, enabling of fontinfication for Org tables.")
 
 (defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
 (defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")
@@ -563,7 +563,7 @@ TODO: fontify if there is only end of ai block on page"
             (if (re-search-forward oai-block--ai-block-end-re nil t)
                 (progn
                   (setq end (match-beginning 0))
-                  (when oai-block-fontify-markdown
+                  (when oai-block-fontify-markdown-flag
                     (save-match-data
                       (setq ret (oai-block--fontify-markdown-subblocks beg end))))
                   (when oai-block-fontify-org-tables-flag
@@ -572,7 +572,7 @@ TODO: fontify if there is only end of ai block on page"
               ;; else end of block not found, apply block to the limit
               (setq end limit)
               ;; TODO: hardcoded now
-              (when oai-block-fontify-markdown
+              (when oai-block-fontify-markdown-flag
                 (save-match-data
                   (setq ret (oai-block--fontify-markdown-subblocks beg end))))
               (when oai-block-fontify-org-tables-flag

@@ -1763,8 +1763,7 @@ Called within `url-retrieve' buffer."
               (funcall oai-restapi--current-url-request-callback data))
             ;; - Done or Error
             ;; (oai--debug "on change 2)")
-            (funcall oai-restapi--current-url-request-callback nil)))
-        )))
+            (funcall oai-restapi--current-url-request-callback nil))))))
 
 
 ;; (defun org-ai--kill-query-process ()
