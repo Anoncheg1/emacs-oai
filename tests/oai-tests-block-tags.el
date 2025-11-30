@@ -139,13 +139,20 @@ text after"))
 ;;; - Test: oai-block-tags--get-replacement-for-org-link - dir
 (ert-deftest oai-tests-block-tags--get-replacement-for-org-link-dir ()
   ""
-  (should (let ((oai-block-tags-use-simple-directory-content t))
-            (and
-             (eq 0 (string-match "Here . folder" (oai-block-tags--get-replacement-for-org-link "file:./")))
-             (eq 0 (string-match "Here . folder" (oai-block-tags--get-replacement-for-org-link "[[./]]")))
-             (eq 0 (string-match "Here . folder" (oai-block-tags--get-replacement-for-org-link "[[file:./]]")))
-             (eq 0 (string-match "Here . folder" (oai-block-tags--get-replacement-for-org-link "[[file:.]]")))
-             ))))
+  (let ((oai-block-tags-use-simple-directory-content t)
+                res)
+    (setq res (oai-block-tags--get-replacement-for-org-link "file:./"))
+    (setq res (string-match "Here . folder" res))
+    (should (eq 1 res))
+    (setq res (oai-block-tags--get-replacement-for-org-link "[[./]]"))
+    (setq res (string-match "Here . folder" res))
+    (should (eq 1 res))
+    (setq res (oai-block-tags--get-replacement-for-org-link "[[file:./]]"))
+    (setq res (string-match "Here . folder" res))
+    (should (eq 1 res))
+    (setq res (oai-block-tags--get-replacement-for-org-link "[[file:.]]"))
+    (setq res (string-match "Here . folder" res))
+    (should (eq 1 res))))
 
 ;;; - Test: oai-block-tags-replace
 (ert-deftest oai-tests-block-tags--replace-org-links-norm-header ()
@@ -222,7 +229,6 @@ asdas
         (insert "* headline\nasdas\n** sub-headline\n asd")
 
         (setq target "11
-
 ```org
 * headline
 asdas
@@ -277,7 +283,8 @@ asdas
               "\n```org\nasdas\n** sub-headline\n```")
         (should (string-equal target res1))
         (setq target
-              "```text
+              "
+```text
 ## sub-headline
  asd
 ss2
@@ -337,7 +344,8 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
                          (regex-pattern "ssvv \nHere test[^ ]+ folder:\n```ls-output\n  /tmp/test[^ ]+:\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file1.txt\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file2.txt\n\n```\n bbb")
                          ;; (dired-listing-switches "-AlthG")
                          )
-                     ;; (print (oai-block-tags-replace (format "ssvv `@%s` bbb" temp-dir)))
+                     ;; (print res)))
+                     ;; LINES of regex-pattern:
                      (should (string-match-p "ssvv " (nth 0 res)))
                      (should (string-match-p "Here test[^ ]+ folder:" (nth 1 res)))
                      (should (string-match-p "```ls-output" (nth 2 res)))

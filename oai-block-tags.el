@@ -278,7 +278,7 @@ good understood by AI."
              (plist-get oai-block-tags--markdown-prefixes :path-directory)
            ;; else file
            (oai-block-tags--filepath-to-language path-string))
-   :header (concat "Here " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder" ":"))
+   :header (concat "Here " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder:" ":"))
   ))
 
 (cl-assert
