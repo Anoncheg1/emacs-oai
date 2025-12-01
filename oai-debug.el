@@ -119,8 +119,9 @@ Return last argument, but should not be used for return value."
           ;; ;; - scroll debug buffer down
           (when (and bu-window (not (bound-and-true-p ert-enabled)))
               (with-selected-window (get-buffer-window bu)
-                (with-no-warnings
-                  (end-of-buffer nil))
+                ;; (with-no-warnings
+                  (end-of-buffer nil)
+                  ;; )
                 ;; (recenter '(t))
                 ))
           ;; ;; - output caller function ( working, but too heavy)

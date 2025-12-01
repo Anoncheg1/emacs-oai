@@ -27,7 +27,7 @@
 ;; Licensed under the GNU Affero General Public License, version 3 (AGPLv3)
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
-;;; - includes
+;; -=-= includes
 
 (require 'oai-block-tags)
 ;; (print (list "vvvvvvvvvvvvvvvvvvvvvv1" (bound-and-true-p debug)))
@@ -42,7 +42,7 @@
 ;; to execute all tests. Individual tests can be run with (ert 'test-name).
 ;;; Code:
 ;; (setopt oai-debug-buffer "*debug-oai*")
-;;; - Tests --------------------------------------------------------
+;; -=-= Tests --------------------------------------------------------
 (ert-deftest oai-tests-block-tags--read-file-to-string-safe--read-ok ()
   "Should read a regular readable file and return its contents."
   (let ((tmpfile (make-temp-file "oai-test")))
@@ -91,7 +91,7 @@
                    "abc")))
       (delete-file tmpfile))))
 
-;;; - Tests: oai-block-tags--markdown-fenced-code-body-get-range
+;; -=-= Tests: oai-block-tags--markdown-fenced-code-body-get-range
 (ert-deftest oai-tests-block-tags--markdown-mark-fenced-code-body-get-range1 ()
   "Test fenced code detection."
   (let ((payload "text before
@@ -136,7 +136,7 @@ text after"))
         (equal range nil)))))
 )
 
-;;; - Test: oai-block-tags--get-replacement-for-org-link - dir
+;; -=-= Test: oai-block-tags--get-replacement-for-org-link - dir
 (ert-deftest oai-tests-block-tags--get-replacement-for-org-link-dir ()
   ""
   (let ((oai-block-tags-use-simple-directory-content t)
@@ -154,7 +154,7 @@ text after"))
     (setq res (string-match "Here . folder" res))
     (should (eq 1 res))))
 
-;;; - Test: oai-block-tags-replace
+;; -=-= Test: oai-block-tags-replace
 (ert-deftest oai-tests-block-tags--replace-org-links-norm-header ()
   (let ((kill-buffer-query-functions)
         res1 res2
@@ -263,7 +263,7 @@ asdas
 
 
 
-;;; - Test: get-replacement-for-org-file-link-in-other-file
+;; -=-= Test: get-replacement-for-org-file-link-in-other-file
 (when (require 'org-links nil 'noerror)
   (ert-deftest oai-tests-block-tags--get-replacement-for-org-file-link-in-other-file ()
     (let ((kill-buffer-query-functions)
@@ -298,7 +298,7 @@ ss2
         (set-buffer-modified-p nil)
         ))))
 
-;;; - tags tests
+;; -=-= tags tests
 (ert-deftest oai-tests-block-tags--replace-test ()
     (let* ((temp-file (make-temp-file "mytest"))
            (res
@@ -320,7 +320,7 @@ ss2
       (should (string-equal "bb." (nth 5 res)))))
 
 
-;;; - Test: oai-block-tags-replace - for directory
+;; -=-= Test: oai-block-tags-replace - for directory
 (defmacro with-temp-files (filenames &rest body)
   "Create a temporary directory, populate it with FILENAMES (as empty files),
 run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
@@ -357,7 +357,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
                      (should (string-match-p "^ bbb$" (nth 8 res))))))
 
 
-;;; - Test: oai-block-tags--get-org-block-region
+;; -=-= Test: oai-block-tags--get-org-block-region
 (ert-deftest oai-tests-block-tags--get-org-block-region ()
   (let (kill-buffer-query-functions
         org-execute-file-search-functions)
@@ -384,7 +384,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
         (should (= (cadr res) 192 )))
       )))
 
-;;; - Test: oai-block-tags mark-block
+;; -=-= Test: oai-block-tags mark-block
 (ert-deftest oai-tests-block-tags--mark-block ()
   (let (kill-buffer-query-functions
         org-execute-file-search-functions)
@@ -425,7 +425,28 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (should (= 100 (region-beginning)))
       (should (= 101 (region-end))))))
 
-;;; provide
+;; -=-= Test: oai-block-tags--filepath-to-language
+(ert-deftest oai-tests-oai-block-tags--filepath-to-language ()
+(should
+ (string-equal (oai-block-tags--filepath-to-language 'emacs-lisp-mode) "elisp"))
+(should
+ (string-equal (oai-block-tags--filepath-to-language "emacs-lisp-mode") "elisp"))
+(should
+ (string-equal (oai-block-tags--filepath-to-language "/tmp/a.el") "elisp"))
+(should
+ (string-equal (oai-block-tags--filepath-to-language "/tmp/a.py") "python"))
+(should
+ (string-equal (oai-block-tags--filepath-to-language "asaas") "auto")) ;unknwon
+(should
+ (string-equal (oai-block-tags--filepath-to-language "/tmp/a.elfff") "auto")) ;unknwon
+(should
+ (string-equal (oai-block-tags--filepath-to-language "/tmp/txt") "auto")) ;unknwon
+(should
+ (string-equal (oai-block-tags--filepath-to-language "/tmp/a.org") "org"))
+(should
+ (string-equal (oai-block-tags--filepath-to-language "a.txt") "text")))
+
+;; -=-= provide
 (provide 'oai-tests-block-tags)
 
 ;;; oai-tests-block-tags.el ends here

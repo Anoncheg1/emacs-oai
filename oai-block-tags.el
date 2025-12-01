@@ -233,25 +233,6 @@ mode line."
              mode-string)
         "auto")))
 
-(cl-assert
- (string-equal (oai-block-tags--filepath-to-language 'emacs-lisp-mode) "elisp"))
-(cl-assert
- (string-equal (oai-block-tags--filepath-to-language "emacs-lisp-mode") "elisp"))
-(cl-assert
- (string-equal (oai-block-tags--filepath-to-language "/tmp/a.el") "elisp"))
-(cl-assert
- (string-equal (oai-block-tags--filepath-to-language "/tmp/a.py") "python"))
-(cl-assert
- (string-equal (oai-block-tags--filepath-to-language "asaas") "auto")) ;unknwon
-(cl-assert
- (string-equal (oai-block-tags--filepath-to-language "/tmp/a.elfff") "auto")) ;unknwon
-(cl-assert
- (string-equal (oai-block-tags--filepath-to-language "/tmp/txt") "auto")) ;unknwon
-(cl-assert
- (string-equal (oai-block-tags--filepath-to-language "/tmp/a.org") "org"))
-(cl-assert
- (string-equal (oai-block-tags--filepath-to-language "a.txt") "text"))
-
 (cl-defun oai-block-tags--compose-m-block (content &optional &key lang header)
   "Return markdown block for LLM with CONTENT.
 Markdown block marked as auto language If optional argument LANG is
