@@ -474,11 +474,11 @@ Or provide your own function."
 ;;   :group 'oai)
 
 
-(defun oai-restapi--show-error (error-message &optional _header-marker)
+(defun oai-restapi--show-error (error-message &optional header-marker)
   "Show an error message in a buffer.
 ERROR-MESSAGE is the error message to show.
 Argument _HEADER-MARKER not used."
-  (ignore _header-marker)
+  (ignore header-marker)
   ;; (setq _header-marker _header-marker) ; for melpazoid
   (condition-case nil
       (let ((buf (get-buffer-create "*oai error*")))
@@ -1221,10 +1221,10 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
     (let ((url-request-buffer
            (url-retrieve ; <- - - - - - - - -  MAIN
             endpoint
-            (lambda (_events)
+            (lambda (events)
               ;; "Called within url-request-buffer after `after-change-functions'"
-              ;; (ignore _events)
-              (setq _events _events) ; for melpazoid
+              (ignore events)
+              ;; (setq _events _events) ; for melpazoid
               ;; (setq _events _events) ; noqa left unused
               ;; called one time at error or at the end of all receiving.
 
@@ -1300,9 +1300,9 @@ see `oai-restapi-request-prepare'."
     ;; (setq url-request-buffer
     (url-retrieve ; <- - - - - - - - -  MAIN
      endpoint
-     (lambda (_events)
-       ;; (ignore _events)
-       (setq _events _events) ; for melpazoid
+     (lambda (events)
+       (ignore events)
+       ;; (setq _events _events) ; for melpazoid
        "oai-restapi-request-llm main callback."
        (oai--debug "oai-restapi-request-llm 6) *url-retrieve callback*:" _events)
        ;; debug
