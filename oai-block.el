@@ -371,13 +371,13 @@ Use ELEMENT only in current moment in element buffer."
       (goto-char header-marker)
       (oai-block-insert-result message))))
 
-(defun oai-block-insert-result (result &optional result-params hash _exec-time)
+(defun oai-block-insert-result (result &optional result-params hash exec-time)
   "Modified `org-babel-insert-result' function.
 Insert RESULT into the current buffer.
 TODO: EXEC-TIME.
 Optional argument RESULT-PARAMS not used.
 Optional argument HASH not used."
-  (ignore _exec-time)
+  (ignore exec-time)
   (when (stringp result)
     (setq result (substring-no-properties result)))
   (save-excursion
@@ -625,7 +625,7 @@ fill-region-as-paragraph."
     (unless (bolp)
       (forward-line))))
 
-(defun oai-block-fill-paragraph (&optional justify _region)
+(defun oai-block-fill-paragraph (&optional justify region)
   "Fill every line as paragraph in the current AI block.
 Ignore code blocks that start with '```sometext' and end with '```'.
 Optional argument JUSTIFY is parameter of `fill-paragraph'.
@@ -635,7 +635,7 @@ Was causing freezing."
   (interactive (progn
                  (barf-if-buffer-read-only)
                  (list (when current-prefix-arg 'full) t)))
-  (ignore _region)
+  (ignore region)
   ;; inspired by `org-fill-element'
   (oai--debug "oai-block-fill-paragraph %s %s" (point) (current-buffer))
 

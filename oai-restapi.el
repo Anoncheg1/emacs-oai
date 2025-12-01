@@ -167,7 +167,10 @@ machine openai--1 password <your token>"
   "Fill ai block for not streaming and for streaming.
 If STREAM is non-nil this function  called after insertion of a chink of
 text, otherwise after insertion of full response.
-Ignore markdown blocks, quoted text and Org tables."
+Ignore markdown blocks, quoted text and Org tables.
+Optional argument POS position before insertion not used, TODO: set to
+to begin of paragraph."
+
   (interactive)
   (ignore pos)
   ;; (setq _pos _pos) ; for melpazoid

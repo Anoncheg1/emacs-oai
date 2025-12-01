@@ -69,8 +69,8 @@ contains [ME]:"
         ;; Iterate through the list with indices to check previous and next lines efficiently.
         (dotimes (i (length line-data-list))
           ;; Use cl-destructuring-bind for clear access to current line's data
-          (seq-let (current-line-pos current-is-blank _current-text) (nth i line-data-list)
-            (ignore _current-text)
+          (seq-let (current-line-pos current-is-blank current-text) (nth i line-data-list)
+            (ignore current-text)
           ;; (cl-destructuring-bind (current-line-pos current-is-blank current-text)
           ;;     (nth i line-data-list)
             (let* (
@@ -147,11 +147,11 @@ contains [ME]:"
                  (buffer-substring-no-properties                           (point-min)
                                                                            (point-max)))))
 
-(defun oai-optional-remove-distant-empty-lines-hook-function (type _content before-pos _stream)
+(defun oai-optional-remove-distant-empty-lines-hook-function (type content before-pos stream)
   "Remove empty lines when there is too many of them.
 TYPE _CONTENT BEFORE-POS BUF parameters described in
 `oai-restapi-after-chat-insertion-hook' hook."
-  (ignore _content)
+  (ignore content stream)
   (save-excursion
     (oai--debug "IN A HOOK oai-optional-remove-distant-empty-lines-hook-function: %s %s %s %s"
                 before-pos

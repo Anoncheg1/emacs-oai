@@ -193,9 +193,8 @@ SERVICE, STREAM see `oai-restapi-request-prepare'."
 
     (let (
           (call (lambda (step) ; called 3 times
-                  (lambda (_data callback)
-                    (ignore _data)
-                    (setq _data _data)
+                  (lambda (data callback)
+                    (ignore data)
                     (oai--debug "oai-prompt-request-chain1 step %s" step) ; 0, 1, 2
                     (oai--debug "oai-prompt-request-chain1 buffer %s" (current-buffer))
                     (oai--debug "oai-prompt-request-chain1 max-tokens %s header-marker %s sys-prompt %s" max-tokens header-marker sys-prompt)
@@ -229,9 +228,9 @@ SERVICE, STREAM see `oai-restapi-request-prepare'."
                           (oai--debug "calbackmy %s %s %s" oai-timers--element-marker-variable-dict (current-buffer) data)
                           (oai-restapi--insert-single-response end-marker data nil)
                           (run-at-time 0 nil callback data))))
-          (calbafin (lambda (data _callback)
-                      (ignore _callback)
-                      (setq _callback _callback)
+          (calbafin (lambda (data callback)
+                      (ignore callback)
+                      ;; (setq _callback _callback)
                       (when data ; if not data it is fail
                         (oai--debug "calbafin")
                         (oai-restapi--insert-single-response end-marker data nil 'final)
