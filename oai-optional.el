@@ -150,7 +150,8 @@ contains [ME]:"
 (defun oai-optional-remove-distant-empty-lines-hook-function (type content before-pos stream)
   "Remove empty lines when there is too many of them.
 TYPE _CONTENT BEFORE-POS BUF parameters described in
-`oai-restapi-after-chat-insertion-hook' hook."
+`oai-restapi-after-chat-insertion-hook' hook.
+Argument STREAM not used."
   (ignore content stream)
   (save-excursion
     (oai--debug "IN A HOOK oai-optional-remove-distant-empty-lines-hook-function: %s %s %s %s"
