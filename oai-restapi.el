@@ -1301,10 +1301,8 @@ see `oai-restapi-request-prepare'."
     (url-retrieve ; <- - - - - - - - -  MAIN
      endpoint
      (lambda (events)
-       (ignore events)
-       ;; (setq _events _events) ; for melpazoid
        "oai-restapi-request-llm main callback."
-       (oai--debug "oai-restapi-request-llm 6) *url-retrieve callback*:" _events)
+       (oai--debug "oai-restapi-request-llm 6) *url-retrieve callback*:" events)
        ;; debug
        (let (oai-restapi--url-buffer-last-position-marker)
          (oai-restapi--debug-urllib (current-buffer)))
