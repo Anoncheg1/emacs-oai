@@ -163,14 +163,14 @@ machine openai--1 password <your token>"
 ;;           (goto-char end)
 ;;           (forward-line)))))
 
-(defun oai-restapi--fill-region (&optional _pos stream)
+(defun oai-restapi--fill-region (&optional pos stream)
   "Fill ai block for not streaming and for streaming.
 If STREAM is non-nil this function  called after insertion of a chink of
 text, otherwise after insertion of full response.
 Ignore markdown blocks, quoted text and Org tables."
   (interactive)
-  ;; (ignore _pos)
-  (setq _pos _pos) ; for melpazoid
+  (ignore pos)
+  ;; (setq _pos _pos) ; for melpazoid
   (oai--debug "oai-restapi--fill-region %s %s" stream (point))
   (save-excursion
     (if stream
@@ -478,8 +478,8 @@ Or provide your own function."
   "Show an error message in a buffer.
 ERROR-MESSAGE is the error message to show.
 Argument _HEADER-MARKER not used."
-  ;; (ignore _header-marker)
-  (setq _header-marker _header-marker) ; for melpazoid
+  (ignore _header-marker)
+  ;; (setq _header-marker _header-marker) ; for melpazoid
   (condition-case nil
       (let ((buf (get-buffer-create "*oai error*")))
         (with-current-buffer buf
