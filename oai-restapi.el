@@ -170,6 +170,7 @@ text, otherwise after insertion of full response.
 Ignore markdown blocks, quoted text and Org tables."
   (interactive)
   (ignore _pos)
+  (setq _pos _pos)
   (oai--debug "oai-restapi--fill-region %s %s" stream (point))
   (save-excursion
     (if stream
@@ -478,6 +479,7 @@ Or provide your own function."
 ERROR-MESSAGE is the error message to show.
 Argument _HEADER-MARKER not used."
   (ignore _header-marker)
+  (setq _header-marker _header-marker)
   (condition-case nil
       (let ((buf (get-buffer-create "*oai error*")))
         (with-current-buffer buf
@@ -1222,6 +1224,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
             (lambda (_events)
               ;; "Called within url-request-buffer after `after-change-functions'"
               (ignore _events)
+              (setq _events _events)
               ;; (setq _events _events) ; noqa left unused
               ;; called one time at error or at the end of all receiving.
 
@@ -1299,6 +1302,7 @@ see `oai-restapi-request-prepare'."
      endpoint
      (lambda (_events)
        (ignore _events)
+       (setq _events _events)
        "oai-restapi-request-llm main callback."
        (oai--debug "oai-restapi-request-llm 6) *url-retrieve callback*:" _events)
        ;; debug

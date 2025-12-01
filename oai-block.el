@@ -193,6 +193,7 @@ Parameters are sourced from:
 1. From Oai block header INFO alist.  (e.g., :model \"gpt-4\")
 2. Org inherited property. (e.g., #+PROPERTY: model gpt-4)
 3. DEFAULT-FORM."
+  (setq info info) ; for melpazoid
   `(let* ,(cl-loop for def-item in definitions
                    collect
                    (let* ((sym (car def-item))

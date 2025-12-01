@@ -263,13 +263,13 @@ good understood by AI."
 
 (cl-assert
  (string-equal
-  (file-name-nondirectory (directory-file-name "/tmp/asd")) "asd"))
+  (file-name-nondirectory (directory-file-name "/aa/asd")) "asd"))
 (cl-assert
  (string-equal
-  (file-name-nondirectory (directory-file-name "/tmp/")) "tmp"))
+  (file-name-nondirectory (directory-file-name "/aa/")) "aa"))
 (cl-assert
  (string-equal
-  (file-name-nondirectory (directory-file-name "/tmp")) "tmp"))
+  (file-name-nondirectory (directory-file-name "/aa")) "aa"))
 
 (cl-assert
  (string-equal (oai-block-tags--compose-block-for-path "a.el" "ss")
