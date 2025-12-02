@@ -316,8 +316,7 @@ messages."
     (setq org-font-lock-extra-keywords (oai-block--insert-after
                                         org-font-lock-extra-keywords
                                         (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
-                                        '(oai-block-tags--font-lock-fontify-links)))
-    ))
+                                        '(oai-block-tags--font-lock-fontify-links)))))
 
 ;; -=-= interactive fn: key M-h: Mark at point
 (defun oai-mark-at-point (arg)
@@ -331,6 +330,7 @@ non-nil, then mark one chat message."
     (oai-block-tags-mark-md-block-body)))
 ;; -=-= interactive fn: Set max tokens
 (defun oai-set-max-tokens ()
+  "Jump to header of ai block and set max-tokens."
   (interactive)
   (if-let ((el (oai-block-p)))
       (let ((beg (progn (goto-char (org-element-property :contents-begin el))
@@ -347,7 +347,7 @@ non-nil, then mark one chat message."
           (forward-char 10)
           (insert " :max-tokens ")
           (setq pos (point))
-          (format "%s " oai-restapi-default-max-tokens)
+          (insert (format "%s " oai-restapi-default-max-tokens))
           (goto-char pos)))
     ;; else
     (message "Not oai block here.")))
@@ -363,8 +363,8 @@ non-nil, then mark one chat message."
   (define-key map (kbd (string-join (list "C-c" " <backspace>"))) #'oai-kill-region-at-point) ; oai-block.el
   ;; (define-key map (kbd (string-join (list "C-c" " r"))) 'org-ai-talk-capture-in-org) ; org-ai-talk.el
   (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
-  (define-key map (kbd "C-c C-/") #'oai-open-request-buffer) ; oai-restapi.el
-  (define-key map (kbd "C-c ?") #'oai-expand-block)
+  (define-key map (kbd "C-c C-.") #'oai-open-request-buffer) ; oai-restapi.el
+  (define-key map (kbd "C-c .") #'oai-expand-block)
   (define-key map (kbd "C-c m") #'oai-set-max-tokens))
 
 
@@ -382,8 +382,7 @@ non-nil, then mark one chat message."
         (when oai-fontification-flag
           (add-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords nil 'local)
           (org-set-font-lock-defaults)
-          (font-lock-refresh-defaults))
-        )
+          (font-lock-refresh-defaults)))
     ;; else - off
     (remove-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c 'local)
     (advice-remove 'keyboard-quit #'oai-keyboard-quit)

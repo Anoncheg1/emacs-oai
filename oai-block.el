@@ -569,19 +569,21 @@ Executed in `font-lock-defaults' chain."
                            'face 'org-table)
         t))))
 
-(defun oai-block--fontify-me-ai-chat-prefixes (start end)
-  "Fontify chat message prefixes like [ME:] with face."
+(defun oai-block--fontify-me-ai-chat-prefixes (lim-beg lim-end)
+  "Fontify chat message prefixes like [ME:] with face.
+Argument LIM-BEG ai block begining.
+Argument LIM-END ai block ending."
   (let (sbeg send)
-    (goto-char start)
-    (prog1 (while (re-search-forward oai-block--chat-prefixes end t)
+    (goto-char lim-beg)
+    (prog1 (while (re-search-forward oai-block--chat-prefixes lim-end t)
              (setq sbeg (match-beginning 0))
              (setq send (match-end 0))
-             (unless (oai-block--in-markdown send start)
+             (unless (oai-block--in-markdown send lim-beg)
                ;; (goto-char send)
                ;; (remove-text-properties sbeg (point) (list 'face '(org-block)))
                (put-text-property sbeg send 'face '(bold)) ; 'oai-block--me-ai-chat-prefixes-font-face
                ))
-      (goto-char end))))
+      (goto-char lim-end))))
 
 (defun oai-block--font-lock-fontify-ai-subblocks (limit)
   "Fontify markdown subblocks in ai blocks, up to LIMIT.
@@ -606,7 +608,7 @@ TODO: fontify if there is only end of ai block on page"
             (oai-block--fontify-me-ai-chat-prefixes beg end))
           (when oai-block-fontify-markdown-flag
             (save-match-data
-              (setq ret (oai-block--fontify-markdown-subblocks beg end))))
+              (oai-block--fontify-markdown-subblocks beg end)))
           (when oai-block-fontify-org-tables-flag
             (save-match-data
               (oai-block--fontify-org-tables beg end)))
