@@ -74,6 +74,16 @@
 (defvar oai-block--ai-block-begin-re "^#\\+begin_ai[^\n]*\n")
 (defvar oai-block--ai-block-end-re "^#\\+end_ai.*$")
 
+(defvar oai-block--chat-prefixes "^[ \t]*\\(?:\\[SYS\\]:\\|\\[ME\\]:\\|\\[ME:\\]\\|\\[AI\\]:\\|\\[AI_REASON\\]:\\)"
+  "Prefix should be at the begining of the line with spaces or without.
+Or roles regex.")
+
+(defface oai-block--me-ai-chat-prefixes-font-face
+  '((t :weight bold))
+  "Face font for chat roles (default bold).
+You can customize this font with `set-face-attribute'."
+  :group 'oai)
+
 (when (and (boundp 'org-protecting-blocks) (listp org-protecting-blocks))
   (add-to-list 'org-protecting-blocks "ai"))
 
@@ -256,8 +266,6 @@ Parameters are sourced from:
 ;;       v2))
 
 
-(defvar oai-block--roles-regex "\\[SYS\\]:\\|\\[ME\\]:\\|\\[ME:\\]\\|\\[AI\\]:\\|\\[AI_REASON\\]:")
-
 (defun oai-block--chat-role-regions ()
   "Splits the special block by role prompt.
 Return line begining positions of first line of content, roles, #+end_ai
@@ -269,7 +277,7 @@ line."
                       (save-excursion
                         (goto-char content-start)
                         (cl-loop with result
-                                 while (search-forward-regexp oai-block--roles-regex content-end t) ; todo, make as global variable
+                                 while (search-forward-regexp oai-block--chat-prefixes content-end t) ; todo, make as global variable
                                  do (push (match-beginning 0) result)
                                  finally return result)))))
         (if result
@@ -346,21 +354,21 @@ The numeric ARG can be used for killing the last n."
 (defun oai-block--get-content-end-marker (&optional element)
   "Return a marker for the :contents-end property of ELEMENT.
 Used in `oai-call-block'"
-  (let ((el (or element (oai-block-p))))
-    (let ((contents-end-pos (org-element-property :contents-end el)))
-      (when contents-end-pos
-        (copy-marker contents-end-pos)))))
+  (when-let* ((el (or element (oai-block-p)))
+              (contents-end-pos (org-element-property :contents-end el)))
+    (copy-marker contents-end-pos)))
 
 (defun oai-block-get-header-marker (&optional element)
   "Return marker for ai block at current buffer at current positon.
+Pointer between # an + characters.
 Use ELEMENT only in current moment in element buffer."
-  (let ((el (or element (oai-block-p))))
+  (when-let ((el (or element (oai-block-p))))
     ;; (with-current-buffer (org-element-property :buffer el)
-    (if el
-        (save-excursion
-          (goto-char (1+ (org-element-property :contents-begin el))) ; 1+ to have something before marker for correct work.
-          (forward-line -1)
-          (copy-marker (point))))))
+    (save-excursion
+      (goto-char (org-element-property :contents-begin el))
+      (forward-line -1)
+      (forward-char) ; 1+ to have something before marker for correct work.
+      (copy-marker (point)))))
 
 ;; -=-= Result
 
@@ -517,14 +525,33 @@ Argument START and END are limits for searching."
               (remove-text-properties block-end block-end-end
                                       (list 'face '(org-block)))
               (add-text-properties
-	       block-begin-begin block-begin
-	       '(face org-block-begin-line))
+               block-begin-begin block-begin
+               '(face org-block-begin-line))
               (add-text-properties
-	       block-end block-end-end
-	       '(face org-block-end-line))
+               block-end block-end-end
+               '(face org-block-end-line))
               ;; - fontify code inside markdown block
               (org-src-font-lock-fontify-block lang block-begin block-end)
               t)))))))
+
+(defun oai-block--in-markdown (pos &optional lim-beg)
+  "Check if POS in markdown block, quoted or is a table.
+Optional argument LIM-BEG is ai block begining position.
+Return t if pos in markdown block, table or quote.
+Side-effect: set pointer position to POS.
+Same as `oai-block-tags--is-special'."
+  (goto-char pos)
+  (prog1 (or
+          ;; not markdown blocks
+          ;; backward for markdown block "begin"
+          (when (re-search-backward oai-block--markdown-begin-re lim-beg t)
+            (goto-char pos)
+            ;; backward for markdown block "end" after "begin"
+            (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))
+          (progn (goto-char pos)
+                 (beginning-of-line)
+                 (looking-at "^> ")))
+    (goto-char pos)))
 
 (defun oai-block--fontify-org-tables (start end)
   "Set face for lines like Org tables.
@@ -533,19 +560,28 @@ Executed in `font-lock-defaults' chain."
   (let (mbeg)
     (goto-char start) ; in case
     (while (re-search-forward "^[\s-]*|" end t)
-      ;; (text-property-search-forward 'face 'org-table t))
       (setq mbeg (match-beginning 0)) ; (prop-match-beginning match))
-      (end-of-line)
-                                        ; (prop-match-end match))
-      (remove-text-properties mbeg (point)
-                              (list 'face '(org-block)))
+      (unless (oai-block--in-markdown mbeg start)
+        (end-of-line)
+        ;; (remove-text-properties mbeg (point)
+        ;;                         (list 'face '(org-block)))
+        (put-text-property mbeg (point)
+                           'face 'org-table)
+        t))))
 
-      (put-text-property mbeg (point)
-                         'face 'org-table)
-      ;; (put-text-property mbeg mend
-      ;;                    'org-table t)
-      )
-    t))
+(defun oai-block--fontify-me-ai-chat-prefixes (start end)
+  "Fontify chat message prefixes like [ME:] with face."
+  (let (sbeg send)
+    (goto-char start)
+    (prog1 (while (re-search-forward oai-block--chat-prefixes end t)
+             (setq sbeg (match-beginning 0))
+             (setq send (match-end 0))
+             (unless (oai-block--in-markdown send start)
+               ;; (goto-char send)
+               ;; (remove-text-properties sbeg (point) (list 'face '(org-block)))
+               (put-text-property sbeg send 'face '(bold)) ; 'oai-block--me-ai-chat-prefixes-font-face
+               ))
+      (goto-char end))))
 
 (defun oai-block--font-lock-fontify-ai-subblocks (limit)
   "Fontify markdown subblocks in ai blocks, up to LIMIT.
@@ -557,34 +593,27 @@ rules in `font-lock-defaults' variable.
 TODO: fontify if there is only end of ai block on page"
 
       (let ((case-fold-search t)
-            ret
-            end)
+            beg end)
         (while (and (< (point) limit)
-                    (re-search-forward oai-block--ai-block-begin-re limit t)
-                    (< (point) limit))
-          (let ((beg (match-end 0)))
-            (if (re-search-forward oai-block--ai-block-end-re nil t)
-                (progn
-                  (setq end (match-beginning 0))
-                  (when oai-block-fontify-markdown-flag
-                    (save-match-data
-                      (setq ret (oai-block--fontify-markdown-subblocks beg end))))
-                  (when oai-block-fontify-org-tables-flag
-                    (save-match-data
-                      (setq ret (oai-block--fontify-org-tables beg end)))))
-              ;; else end of block not found, apply block to the limit
-              (setq end limit)
-              ;; TODO: hardcoded now
-              (when oai-block-fontify-markdown-flag
-                (save-match-data
-                  (setq ret (oai-block--fontify-markdown-subblocks beg end))))
-              (when oai-block-fontify-org-tables-flag
-                    (save-match-data
-                      (setq ret (oai-block--fontify-org-tables beg end))))
-              (goto-char limit))))
+                    (re-search-forward oai-block--ai-block-begin-re limit t))
+          (setq beg (match-end 0))
+          (if (re-search-forward oai-block--ai-block-end-re nil t)
+              (setq end (match-beginning 0))
+            ;; else - end of block not found, apply block to the limit
+            (setq end limit))
+          ;; - apply fontification
+          (save-match-data
+            (oai-block--fontify-me-ai-chat-prefixes beg end))
+          (when oai-block-fontify-markdown-flag
+            (save-match-data
+              (setq ret (oai-block--fontify-markdown-subblocks beg end))))
+          (when oai-block-fontify-org-tables-flag
+            (save-match-data
+              (oai-block--fontify-org-tables beg end)))
+          (goto-char end))
         ;; required by font lock mode:
-        (goto-char limit)
-        ret))
+        (goto-char limit) ; return t
+        ))
 
 (defun oai-block--insert-after (list pos element)
   "Insert ELEMENT at after position POS in LIST."

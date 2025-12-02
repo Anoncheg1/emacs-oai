@@ -108,6 +108,8 @@
 ;; - Think about to pass callback for writing to chain implementations
 ;;    and main implementation, to make it more general.
 
+;;; Code:
+
 ;; -=-= includes
 (require 'oai-debug)
 (require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'
@@ -115,9 +117,11 @@
 (require 'oai-restapi)
 (require 'oai-prompt)
 
-
-;;; Code:
 ;; -=-= C-c C-c main interface
+(defcustom oai-fontification-flag t
+  "Non-nil means enable fontification."
+  :type 'boolean
+  :group 'oai)
 
 (defcustom oai-agent-call-function #'oai-prompt-request-prepare-chain ; oai-restapi.el
   "Pass processed ai block info to AI assistent or some Emacs agent.
@@ -178,7 +182,7 @@ With respect to specified default values here."
                                           model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
                                           )))))
 
-;; -=-= key M-x: oai-expand-block
+;; -=-= interactive fn: key M-x: oai-expand-block
 (defun oai-expand-block-deep ()
   "Output almost RAW information about request with headers and messages."
   (seq-let (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream) (oai-parse-org-header)
@@ -238,7 +242,7 @@ messages."
        (funcall oai-restapi-show-error-function (error-message-string err)
                 (oai-block-get-header-marker element))))))
 
-;; -=-= key C-g: keyboard quit
+;; -=-= interactive fn: key C-g: keyboard quit
 
 ;; (defvar org-ai-talk--reading-process)
 (defun oai-keyboard-quit ()
@@ -284,7 +288,7 @@ messages."
 ;;   "Remove the advice that cancels current request when `keyboard-quit' is called."
 ;;   (advice-remove 'keyboard-quit #'oai-keyboard-quit)) ; here
 
-;; -=-= M-x oai-toggle-debug
+;; -=-= interactive fn: M-x oai-toggle-debug
 ;;;###autoload
 (defun oai-toggle-debug ()
   "Enable/disable debug."
@@ -300,20 +304,22 @@ messages."
 
 ;; -=-= Fontify Markdown blocks and Tags - function for hook
 
-(defun oai-block--set-ai-keywords()
+(defun oai-block--set-ai-keywords ()
   "Hook, that Insert our fontify functions in Org font lock keywords."
   ;; add fontify-ai-subblocks - markdown blocks and tables.
-  (setq org-font-lock-extra-keywords (oai-block--insert-after
-                                      org-font-lock-extra-keywords
-                                      (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
-                                      '(oai-block--font-lock-fontify-ai-subblocks)))
-  ;; add fontify-links
-  (setq org-font-lock-extra-keywords (oai-block--insert-after
-                                      org-font-lock-extra-keywords
-                                      (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
-                                      '(oai-block-tags--font-lock-fontify-links))))
+  (when oai-fontification-flag
+    (setq org-font-lock-extra-keywords (oai-block--insert-after
+                                        org-font-lock-extra-keywords
+                                        (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
+                                        '(oai-block--font-lock-fontify-ai-subblocks)))
+    ;; add fontify-links
+    (setq org-font-lock-extra-keywords (oai-block--insert-after
+                                        org-font-lock-extra-keywords
+                                        (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
+                                        '(oai-block-tags--font-lock-fontify-links)))
+    ))
 
-;; -=-= Mark block M-h
+;; -=-= interactive fn: key M-h: Mark at point
 (defun oai-mark-at-point (arg)
   "Mark entity at current poin in current buffer.
 Mark Mardkown block or whole ai block.  If universal argument ARG is
@@ -323,8 +329,29 @@ non-nil, then mark one chat message."
       (oai-mark-region-at-point)
     ;; else
     (oai-block-tags-mark-md-block-body)))
+;; -=-= interactive fn: Set max tokens
+(defun oai-set-max-tokens ()
+  (interactive)
+  (if-let ((el (oai-block-p)))
+      (let ((beg (progn (goto-char (org-element-property :contents-begin el))
+                        (forward-line -1)
+                        (point)))
+            pos)
+        (if (search-forward ":max-tokens" (line-end-position) t)
+            (if (eq (line-end-position) (point))
+                (insert " ")
+                ;; else
+              (forward-char))
+          ;; else
+          (goto-char beg)
+          (forward-char 10)
+          (insert " :max-tokens ")
+          (setq pos (point))
+          (format "%s " oai-restapi-default-max-tokens)
+          (goto-char pos)))
+    ;; else
+    (message "Not oai block here.")))
 ;; -=-= Minor mode
-
 (defvar oai-mode-map (make-sparse-keymap)
   "Keymap for `oai-mode'.")
 
@@ -336,8 +363,9 @@ non-nil, then mark one chat message."
   (define-key map (kbd (string-join (list "C-c" " <backspace>"))) #'oai-kill-region-at-point) ; oai-block.el
   ;; (define-key map (kbd (string-join (list "C-c" " r"))) 'org-ai-talk-capture-in-org) ; org-ai-talk.el
   (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
-  (define-key map (kbd (string-join (list "C-c" " C-/"))) #'oai-open-request-buffer) ; oai-restapi.el
-  (define-key map (kbd (string-join (list "C-c" " ?"))) #'oai-expand-block))
+  (define-key map (kbd "C-c C-/") #'oai-open-request-buffer) ; oai-restapi.el
+  (define-key map (kbd "C-c ?") #'oai-expand-block)
+  (define-key map (kbd "C-c m") #'oai-set-max-tokens))
 
 
 
@@ -351,11 +379,18 @@ non-nil, then mark one chat message."
       (progn
         (add-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c nil 'local)
         (advice-add 'keyboard-quit :before #'oai-keyboard-quit)
-        (add-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords))
+        (when oai-fontification-flag
+          (add-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords nil 'local)
+          (org-set-font-lock-defaults)
+          (font-lock-refresh-defaults))
+        )
     ;; else - off
     (remove-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c 'local)
     (advice-remove 'keyboard-quit #'oai-keyboard-quit)
-    (remove-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords)))
+    ;; font lock refrash
+    (remove-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords)
+    (org-set-font-lock-defaults)
+    (font-lock-refresh-defaults)))
 
 ;;;###autoload
 (defun oai-open-request-buffer ()
@@ -397,7 +432,6 @@ non-nil, then mark one chat message."
   ;; (propertize (format " org-ai[%d]" count)
   ;;                   'face (if (> count 0) 'error 'default))
   )
-
 ;; -=-= Global mode (old)
 ;; (defvar org-ai-global-prefix-map (make-sparse-keymap)
 ;;   "Keymap for `org-ai-global-mode'.")
@@ -429,6 +463,6 @@ non-nil, then mark one chat message."
 ;;   :global t
 ;;   :keymap org-ai-global-mode-map
 ;;   :group 'oai)
-
+;; -=-= provide
 (provide 'oai)
 ;;; oai.el ends here

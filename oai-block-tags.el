@@ -1292,6 +1292,7 @@ Called from:
 (defun oai-block-tags--is-special (pos &optional lim-beg)
   "Check if POS in markdown block, quoted or is a table.
 Optional argument LIM-BEG is ai block begining position.
+Return t if pos in markdown block, table or quote.
 Side-effect: set pointer position to POS."
   (goto-char pos)
   (prog1 (or
@@ -1335,7 +1336,7 @@ TODO: maybe we should use something like
               (while (re-search-forward oai-block--org-link-any-re end t)
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
-                (print (list lbeg beg end (oai-block-tags--is-special lbeg beg)))
+                ;; (print (list lbeg beg end (oai-block-tags--is-special lbeg beg)))
                 (unless (oai-block-tags--is-special lbeg beg)
                   (setq ret (org-activate-links lend)))
                 (goto-char lend)))
