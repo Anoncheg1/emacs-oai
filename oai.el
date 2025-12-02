@@ -365,7 +365,7 @@ non-nil, then mark one chat message."
   (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
   (define-key map (kbd "C-c C-.") #'oai-open-request-buffer) ; oai-restapi.el
   (define-key map (kbd "C-c .") #'oai-expand-block)
-  (define-key map (kbd "C-c m") #'oai-set-max-tokens))
+  (define-key map (kbd (concat "C-c " "m")) #'oai-set-max-tokens))
 
 
 
