@@ -1260,8 +1260,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
             (unless (member 'oai-restapi--url-request-on-change-function after-change-functions)
               (add-hook 'after-change-functions #'oai-restapi--url-request-on-change-function nil t))
           ;; else - not stream
-          (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t))
-        )
+          (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t)))
       url-request-buffer)))
 
 ;; -=-= oai-restapi-request-llm
@@ -1659,8 +1658,7 @@ Call `oai-restapi--current-url-request-callback' with data.
 After processing call `oai-restapi--current-url-request-callback' with nil.
 This  callback  here  is `oai-restapi--insert-stream-response'  for  chat  or
 `oai-restapi--insert-single-response' for completion.
-Called within `url-retrieve' buffer.
-Note: if we move cursor not to the end of current line we will cause `url-http-chunked-encoding-after-change-function'."
+Called within `url-retrieve' buffer."
   (when (and (boundp 'url-http-end-of-headers)
              url-http-end-of-headers
              (if oai-restapi--url-buffer-last-position-marker
@@ -1718,8 +1716,7 @@ Note: if we move cursor not to the end of current line we will cause `url-http-c
                         ;; (tmp-buf (or oai-restapi--tmp-buf
                         ;;              (setq oai-restapi--tmp-buf (generate-new-buffer " *temp*" t))))
                         data
-                        line
-                        line-cur) ; multi-line if splitted
+                        line) ; multi-line if splitted
                     ;;     ;;   (oai--debug "oai-restapi--url-request-on-change-function 5) \"%s\"" line1)
                     ;;     ;;   ;; (data (json-read-from-string line)) ; (setq data
                     ;;     ;;   ;; (with-current-buffer tmp-buf ; faster
