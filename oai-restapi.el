@@ -1682,8 +1682,6 @@ Note: if we move cursor not to the end of current line we will cause `url-http-c
         ;; (unless (eolp)
         ;;   (beginning-of-line))
         (oai--debug "oai-restapi--url-request-on-change-function 2) streaming? %s" oai-restapi--current-request-is-streamed)
-        (search-forward "data: " nil t)
-        ;; (end-of-line)
         ;; - Streamed
         ;; multiple JSON objects prefixed with "data: " separated by empty line
         ;; This is a fast version of JSON decoding. We falback to slow version if error.
@@ -1701,7 +1699,6 @@ Note: if we move cursor not to the end of current line we will cause `url-http-c
               (setq psave (point))
 
               (oai--debug "oai-restapi--url-request-on-change-function 4) found: %s %s" (point) oai-restapi--url-buffer-last-position-marker)
-              ;; (end-of-line)
               (when (setq line1 (buffer-substring-no-properties (point) (line-end-position)))
                 (if (string= line1 "[DONE]") ;; "[DONE]" string found
                     (progn
@@ -1760,25 +1757,18 @@ Note: if we move cursor not to the end of current line we will cause `url-http-c
                       (if data
                           (setq errored nil)))
                     (oai--debug "oai-restapi--url-request-on-change-function 8) data? %s" data)
-                    ;; (setq org-ai--debug-data (append org-ai--debug-data (list data)))
-
-                    ;;   (end-of-line) ; in any case
 
                     (when data ;; errored is nil
                       ;; save only if data or DONE
                       (set-marker oai-restapi--url-buffer-last-position-marker (point))
-                      ;; (oai--debug (format "on change 3) %s" oai-restapi--url-buffer-last-position-marker))
                       (oai--debug "oai-restapi--url-request-on-change-function 9) - request-callback")
                       (funcall oai-restapi--current-url-request-callback data) ; INSERT CALLBACK!
-                      ))))
-              ;; (end-of-line)
-              )))
-
+                      )))))))
 
         ;; - Not-streamed
         ;; response is a single JSON object
         (when (not oai-restapi--current-request-is-streamed)
-          (oai--debug "oai-restapi--url-request-on-change-function 11) %s %s" (point) (point-max))
+          (oai--debug "oai-restapi--url-request-on-change-function NOT-STREAM: %s %s" (point) (point-max))
           (let ((data (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max)))))
             (when data
               (funcall oai-restapi--current-url-request-callback data))
