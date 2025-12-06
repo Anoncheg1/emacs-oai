@@ -1234,7 +1234,6 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
                 ;; Called for not stream, call `oai-restapi--current-url-request-callback'
               (when (or nil ; oai-restapi--current-request-is-streamed
                         (not (oai-restapi--maybe-show-openai-request-error))) ; t if error
-                ; called if no error for not streaming or always for streaming.
                 (oai-restapi--url-request-on-change-function nil nil nil)) ; should be always called for stream
 
 
@@ -1710,7 +1709,8 @@ Note: if we move cursor not to the end of current line we will cause `url-http-c
 
                       (funcall oai-restapi--current-url-request-callback nil) ; INSERT CALLBACK! - no do nothing
                       (oai--debug "oai-restapi--url-request-on-change-function 11) DONE")
-                      (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request))
+                      ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request)
+                      )
                   ;; - else not DONE
                   (let ((json-object-type 'plist)
                         (json-key-type 'symbol)
