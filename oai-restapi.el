@@ -364,16 +364,6 @@ messages."
   :type 'string
   :group 'oai)
 
-;; (defvar org-ai--last-url-request-buffer nil
-;;   "Internal var that stores the current request buffer.
-;; For stream responses.
-;; May be shown for debugging.")
-;; (make-variable-buffer-local 'org-ai--last-url-request-buffer)
-
-;; (defvar org-ai--current-request-buffer nil
-;;   "Internal var that stores the current request buffer.
-;; For chat completion responses.")
-
 (defvar-local oai-restapi--current-url-request-callback nil
   "Internal var that stores the current request callback.
 Called within url request buffer, should know about target position,
@@ -809,8 +799,10 @@ STREAM string - as bool, indicates whether to stream the response."
 For Completion LLM mode. Used as callback for `oai-restapi-request'."
   (when response
     ;; (oai--debug "oai-restapi--get-single-response-text response:" response)
-    (if-let ((error (plist-get response 'error)))
-        (if-let ((message (plist-get error 'message))) (error message) (error error))
+    (if-let ((err-obj (plist-get response 'error)))
+        (let ((message (or (plist-get err-obj 'message)
+                           err-obj)))
+            (error message)) ; not used
       ;; else - no "error" field
       (if-let* ((choice (aref (plist-get response 'choices) 0))
                 (text (or (plist-get choice 'text)
@@ -1077,7 +1069,7 @@ specific role."
                             ;; (oai--debug "oai-restapi--insert-stream-response: %s %s %s" type end-marker oai-restapi--current-insert-position-marker)
                             ;; - Type of message: error
                             (when (eq type 'error)
-                              (error (oai-restapi--response-payload response)))
+                              (error (oai-restapi--response-payload response))) ; not used
 
                             ;; - Always executed at begining of loop
                             (goto-char pos)
@@ -1233,12 +1225,17 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
 
               (oai--debug "oai-restapi-request *url-retrieve callback*")
 
-              ;; (let (oai-restapi--url-buffer-last-position-marker)
-              ;;   (oai-restapi--debug-urllib (current-buffer)))
+              (let (oai-restapi--url-buffer-last-position-marker)
+                (oai-restapi--debug-urllib (current-buffer)))
 
-              (oai-restapi--maybe-show-openai-request-error) ; TODO: change to RESULT by global customizable option ; maybe use _events: (:error (error http 400)
+              ;; (if (oai-restapi--maybe-show-openai-request-error) ; TODO: change to RESULT by global customizable option ; maybe use _events: (:error (error http 400)
+                  ;; for stream
+                  ;; (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t))
                 ;; Called for not stream, call `oai-restapi--current-url-request-callback'
-              (oai-restapi--url-request-on-change-function nil nil nil)
+              (when (or nil ; oai-restapi--current-request-is-streamed
+                        (not (oai-restapi--maybe-show-openai-request-error))) ; t if error
+                ; called if no error for not streaming or always for streaming.
+                (oai-restapi--url-request-on-change-function nil nil nil)) ; should be always called for stream
 
 
               ;; finally stop track buffer, error or not
@@ -1249,7 +1246,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
 
       (oai--debug "Main request after." url-request-buffer)
 
-      (with-current-buffer url-request-buffer ; old org-ai--last-url-request-buffer
+      (with-current-buffer url-request-buffer
         ; just in case, also reset in `org-ai-reset-stream-state'
         ;; (setq oai-restapi--currently-inside-code-markers nil)
         (setq oai-restapi--current-insert-position-marker nil)
@@ -1264,7 +1261,8 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
             (unless (member 'oai-restapi--url-request-on-change-function after-change-functions)
               (add-hook 'after-change-functions #'oai-restapi--url-request-on-change-function nil t))
           ;; else - not stream
-          (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t)))
+          (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t))
+        )
       url-request-buffer)))
 
 ;; -=-= oai-restapi-request-llm
@@ -1640,14 +1638,18 @@ Argument STR unicode multi-byte string."
 This is slow version compared to `json-read', because
 `json-read-from-string' create temp buffer.
 Return nil if error."
+
   (let ((json-object-type 'plist)
         (json-key-type 'symbol)
         (json-array-type 'vector))
     (condition-case _err
         (json-read-from-string
          (oai-restapi--clean-unicode-text
-          (decode-coding-string (encode-coding-string string 'utf-8 't) 'utf-8))) ; just in case
+          (decode-coding-string (encode-coding-string
+                                 (replace-regexp-in-string "\r.*?\r" "" string)
+                                 'utf-8 't) 'utf-8))) ; just in case
       (error nil))))
+
 
 (defun oai-restapi--url-request-on-change-function (_beg _end _len)
   "First function that read url-request buffer and extracts JSON stream responses.
@@ -1658,13 +1660,16 @@ Call `oai-restapi--current-url-request-callback' with data.
 After processing call `oai-restapi--current-url-request-callback' with nil.
 This  callback  here  is `oai-restapi--insert-stream-response'  for  chat  or
 `oai-restapi--insert-single-response' for completion.
-Called within `url-retrieve' buffer."
+Called within `url-retrieve' buffer.
+Note: if we move cursor not to the end of current line we will cause `url-http-chunked-encoding-after-change-function'."
   (when (and (boundp 'url-http-end-of-headers)
              url-http-end-of-headers
              (if oai-restapi--url-buffer-last-position-marker
                  (> (- (point-max) (marker-position oai-restapi--url-buffer-last-position-marker)) 6) ; [DONE]
                t))
-      (save-excursion
+    (save-excursion
+      (save-match-data ; without it cause error integer-or-marker-p nil in 'url-http-chunked-encoding-after-change-function`
+        ;; (save-restriction
         (if oai-restapi--url-buffer-last-position-marker
             (goto-char oai-restapi--url-buffer-last-position-marker)
           ;; else
@@ -1677,14 +1682,17 @@ Called within `url-retrieve' buffer."
         ;; (unless (eolp)
         ;;   (beginning-of-line))
         (oai--debug "oai-restapi--url-request-on-change-function 2) streaming? %s" oai-restapi--current-request-is-streamed)
+        (search-forward "data: " nil t)
+        ;; (end-of-line)
         ;; - Streamed
         ;; multiple JSON objects prefixed with "data: " separated by empty line
         ;; This is a fast version of JSON decoding. We falback to slow version if error.
         (when oai-restapi--current-request-is-streamed
-          (set-buffer-multibyte t) ; force UTF-8 for url-buffer
           (let ((errored nil)
+                (case-fold-search nil)
                 psave
-                line1)
+                line1) ; simple line
+            (set-buffer-multibyte t) ; force UTF-8 for url-buffer
             (oai--debug "oai-restapi--url-request-on-change-function 3) %s %s" (point) (point-max))
             ;; loop per chunks separated by empty line
             (while (and (not errored) ; we decode chunks until unable to decode one, this mean that chunk should be received first.
@@ -1693,23 +1701,36 @@ Called within `url-retrieve' buffer."
               (setq psave (point))
 
               (oai--debug "oai-restapi--url-request-on-change-function 4) found: %s %s" (point) oai-restapi--url-buffer-last-position-marker)
+              ;; (end-of-line)
+              (when (setq line1 (buffer-substring-no-properties (point) (line-end-position)))
+                (if (string= line1 "[DONE]") ;; "[DONE]" string found
+                    (progn
+                      (oai--debug "oai-restapi--url-request-on-change-function 10) DONE %s %s" (point) (point-max))
+                      (end-of-line)
+                      (set-marker oai-restapi--url-buffer-last-position-marker (point))
 
-              (setq line1 (buffer-substring-no-properties (point) (line-end-position)))
+                      (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t)
 
-              (if (and line1 (not (string= line1 "[DONE]")))
+                      (funcall oai-restapi--current-url-request-callback nil) ; INSERT CALLBACK! - no do nothing
+                      (oai--debug "oai-restapi--url-request-on-change-function 11) DONE")
+                      (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request))
+                  ;; - else not DONE
                   (let ((json-object-type 'plist)
                         (json-key-type 'symbol)
                         (json-array-type 'vector)
+                        ;; (tmp-buf (or oai-restapi--tmp-buf
+                        ;;              (setq oai-restapi--tmp-buf (generate-new-buffer " *temp*" t))))
                         data
-                        line)
-                    (oai--debug "oai-restapi--url-request-on-change-function 5) \"%s\"" line1)
-                    ;; (data (json-read-from-string line)) ; (setq data
-                    ;; (with-current-buffer (get-buffer-create tmp-buf t) ; faster
-                    ;; - Decoding attempt 1.
+                        line
+                        line-cur) ; multi-line if splitted
+                    ;;     ;;   (oai--debug "oai-restapi--url-request-on-change-function 5) \"%s\"" line1)
+                    ;;     ;;   ;; (data (json-read-from-string line)) ; (setq data
+                    ;;     ;;   ;; (with-current-buffer tmp-buf ; faster
+                    ;;     ;;     ;; - Decoding attempt 1.
                     (condition-case _err
                         (progn
                           ;; (erase-buffer)
-                          ;; (insert line)
+                          ;; (insert line1)
                           ;; (goto-char (point-min))
                           (setq data (json-read)))
                       (error
@@ -1725,38 +1746,34 @@ Called within `url-retrieve' buffer."
                              (nreverse
                               (let ((lines (list (buffer-substring-no-properties (point) (line-end-position))))
                                     line-cur)
-                                (while (and (= (forward-line) 0)
+                                (while (and (= (forward-line) 0) ; if not end of buffer
                                             (progn
                                               (setq line-cur (buffer-substring-no-properties (point) (line-end-position)))
                                               (unless (string-empty-p line-cur)
                                                 (push line-cur lines)))))
-                                lines))))
+                                lines)))) ; stop at empty next line.
+                      ;; (when (string-empty-p line-cur) ; return -1 line
+                      ;;   (forward-line -1))
 
                       (oai--debug "oai-restapi--url-request-on-change-function 7) - Decoding attempt 2: %s" line)
                       (setq data (oai-restapi--json-decode-not-streamed line))
-                      (when data
-                        (setq errored nil)))
+                      (if data
+                          (setq errored nil)))
                     (oai--debug "oai-restapi--url-request-on-change-function 8) data? %s" data)
                     ;; (setq org-ai--debug-data (append org-ai--debug-data (list data)))
-                    (when data
-                                        ; save only if data or DONE
-                      (end-of-line)
+
+                    ;;   (end-of-line) ; in any case
+
+                    (when data ;; errored is nil
+                      ;; save only if data or DONE
                       (set-marker oai-restapi--url-buffer-last-position-marker (point))
                       ;; (oai--debug (format "on change 3) %s" oai-restapi--url-buffer-last-position-marker))
                       (oai--debug "oai-restapi--url-request-on-change-function 9) - request-callback")
                       (funcall oai-restapi--current-url-request-callback data) ; INSERT CALLBACK!
-                      ))
+                      ))))
+              ;; (end-of-line)
+              )))
 
-                ;; - else "[DONE]" string found
-                (progn
-                  (oai--debug "oai-restapi--url-request-on-change-function 10) DONE %s %s" (point) (point-max))
-                  ;; (end-of-line)
-                  (set-marker oai-restapi--url-buffer-last-position-marker (point))
-                  ;; remove itself
-                  (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t)
-
-                  (funcall oai-restapi--current-url-request-callback nil) ; INSERT CALLBACK! - no do nothing
-                  )))))
 
         ;; - Not-streamed
         ;; response is a single JSON object
@@ -1764,31 +1781,10 @@ Called within `url-retrieve' buffer."
           (oai--debug "oai-restapi--url-request-on-change-function 11) %s %s" (point) (point-max))
           (let ((data (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max)))))
             (when data
-              ;; (oai--debug "on change 1)")
               (funcall oai-restapi--current-url-request-callback data))
             ;; - Done or Error
-            ;; (oai--debug "on change 2)")
-            (funcall oai-restapi--current-url-request-callback nil))))))
+            (funcall oai-restapi--current-url-request-callback nil)))))))
 
-
-;; (defun org-ai--kill-query-process ()
-;;   (let ((proc (get-buffer-process org-ai--last-url-request-buffer)))
-;;     (set-process-sentinel proc 'ignore)
-;;     (delete-process proc)))
-
-
-;; (defun org-ai-reset-url-state ()
-
-;; (defun org-ai-reset-stream-state ()
-;;   "Reset the stream state.
-;; Should be called within url-retrieve buffer. Danger function."
-;;   (interactive)
-;;   (setq oai-restapi--current-url-request-callback nil)
-;;   (setq oai-restapi--url-buffer-last-position-marker nil)
-;;   (setq oai-restapi--current-chat-role nil)
-;;   (setq oai-restapi--current-request-is-streamed nil)
-;;   (org-ai--progress-reporter-global-cancel (current-buffer))
-;;   )
 
 ;; -=-= Reporter & Requests interrupt functions
 ;; 1) `oai-timers--progress-reporter-run' - start global timer

@@ -455,7 +455,7 @@ For _INFO HASH check `org-babel-where-is-src-block-result' function."
           ((let* ((next (org-element-at-point))
                   (end (save-excursion
                          (goto-char
-                          (org-element-property :post-affiliated next))
+                          (org-element-property :end next))
                          (line-end-position)))
                   (empty-result-re (concat org-babel-result-regexp "$"))
                   (case-fold-search t))
