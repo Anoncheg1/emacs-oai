@@ -715,23 +715,6 @@ Was causing freezing."
                 (setq beg end)))
             t))))))
 
-;; (defun oai-block-test (beginning end)
-;;   (interactive "r")
-;;   (if (use-region-p)
-;;       (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beginning end nil)))
-
-(cl-assert
- (with-temp-buffer
-   (progn
-     (org-mode)
-     (setq fill-column 10)
-     (insert "Some.\n")
-     (insert "Some text here asdasdasdasd asda asd asd asd asd asd asd as d\n")
-     (insert "Some.\n")
-     (goto-char 1)
-     (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph (point-min) (point-max) nil)
-     (let ((strings (string-split (buffer-substring-no-properties (point-min) (point-max)) "\n")))
-       (< (length (nth 1 strings)) 10)))))
 
 (provide 'oai-block)
 ;;; oai-block.el ends here

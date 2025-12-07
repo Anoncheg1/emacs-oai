@@ -369,14 +369,6 @@ Return nil if begin or end of markdown block was not found."
               (when (and (>= point-pos begin) (< point-pos end))
                 (list begin end)))))))))
 
-(cl-assert (equal '(39 42)
-                  (with-temp-buffer
-                    (org-mode)
-                    (insert "#+NAME: asd\n#+begin_src text\n```elisp")
-                    (let ((p (point)))
-                      (insert "\naa\n```\n#+end_src\n")
-                      (goto-char p)
-                      (oai-block-tags--markdown-fenced-code-body-get-range)))))
 
 (defun oai-block-tags--markdown-block-range ()
   "Return range if current position in current buffer in markdown block.
@@ -629,51 +621,6 @@ Works in any mode buffers.
     (user-error "No outline, function or paragraph was found to get a block"))))
 
 
-;; Test: outline
-(cl-assert
- (string-equal
-  "\nOutliner:\n```elisp\n;; -- header1\ntext1\n```"
-  (with-temp-buffer
-    (emacs-lisp-mode)
-    (outline-minor-mode)
-    (setq-local outline-regexp ";; \\-\\- ")
-    (insert "text0\n")
-    (let ((p (point)))
-      (insert ";; -- header1\ntext1\n")
-      (insert ";; -- header2\ntext2\n")
-      (goto-char (1+ p))
-      (oai-block-tags--get-content-at-point-not-org)))))
-
-;; Test: defun
-(cl-assert
- (string-equal
-  "\nFunction:\n```elisp\n(defun f1 ()\nt\n)\n```"
-  (with-temp-buffer
-    (emacs-lisp-mode)
-    (insert "(defun f1 ()\nt\n)\n\n(defun f2 ()\nt\n)")
-    (goto-char 1)
-    (oai-block-tags--get-content-at-point-not-org))))
-
-;; Test: paragraph
-(cl-assert
- (string-equal
-  "\n```text\n;; -- header2\ntext2\n```"
-  (with-temp-buffer
-    (text-mode)
-    (setq-local paragraph-start "\f\\|[ \t]*$")
-    (setq-local paragraph-separate "[ \t\f]*$")
-    (let ((p))
-      (progn
-        (insert "text0\n")
-        (insert "\n")
-        (insert ";; -- header1\ntext1\n")
-        (setq p (point))
-        (insert "\n")
-        (insert ";; -- header2\ntext2"))
-      (goto-char p))
-      (oai-block-tags--get-content-at-point-not-org))))
-
-
 (defun oai-block-tags--get-content-at-point ()
   "Return prepared block at current position.
 Support any mode buffers.  Here code for Org mode.
@@ -746,28 +693,7 @@ Move pointer to the end of block."
        (t
         (user-error "Cant get content at point for link")))))) ; should not happen in Org mode.
 
-(cl-assert
- (string-equal
-  "\nBlock name: asd\n```elisp\naa\n```"
-  (with-temp-buffer
-    (org-mode)
-    (insert "ssd\n#+NAME: asd\n#+begin_src elisp\naa\n#+end_src\n")
-    (goto-char 15)
-    (oai-block-tags--get-content-at-point))))
 
-(cl-assert
- (string-equal
-  "```elisp\naa\n```"
-  (with-temp-buffer
-    (org-mode)
-    (insert "#+NAME: asd\n#+begin_src text\n```elisp")
-    (let ((p (point)))
-      (insert "\naa\n```\n#+end_src\n")
-      (goto-char p)
-      ;; (oai-block-tags--get-org-block-region)))
-      ;; (oai-block-tags--markdown-block-range)))
-      ;; (oai-block-tags--get-m-block)))
-      (oai-block-tags--get-content-at-point)))))
 
 ;; (featurep 'org-links)
 (declare-function org-links--local-get-target-position-for-link "org-links")
@@ -1059,78 +985,6 @@ found."
                                                               (match-string 0 str-orig))) ;; (substring str-orig last-pos last-end)
         nil))))
 
-(cl-assert
- (string-equal (oai-block-tags--replace-last-regex-smart "asdasd@Backtraceasdasdasd" "\\(@Backtrace\\)" "111")
-        "asdasd111asdasdasd"))
-
-(cl-assert
- (string-equal
-  (oai-block-tags--replace-last-regex-smart "Same code: [[file:~/tmp/emacs::27-30]]```" oai-block--org-link-any-re)
-  "[[file:~/tmp/emacs::27-30]]"))
-
-(cl-assert (not (oai-block-tags--replace-last-regex-smart "Same code: ```[[file:~/tmp/emacs::27-30]]```" oai-block--org-link-any-re)))
-
-(cl-assert
- (string-equal (oai-block-tags--replace-last-regex-smart "asda\n```\nvas@Backtraceasdasd\n```\nasd" "\\(@Backtrace\\)" "111")
-               "asda\n```\nvas@Backtraceasdasd\n```\nasd"))
-
-(cl-assert
- (string-equal (oai-block-tags--replace-last-regex-smart "asdasd@Backtraceasdasdasd" "@Backtrace")
-        "@Backtrace"))
-
-;; search without replace
-(cl-assert (string-equal (oai-block-tags--replace-last-regex-smart
-                   "foo `@Backtrace` bar `@Backtrace `@BacktraceX"
-                   oai-block-tags--regexes-backtrace)
-                  "@Backtrace"))
-
-(cl-assert (string-equal (oai-block-tags--replace-last-regex-smart
-                   "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
-                   oai-block-tags--regexes-backtrace)
-                  "@Backtrace"))
-
-(cl-assert (string-equal (oai-block-tags--replace-last-regex-smart
-            "foo `@Backtrace` bar `@Backtrace `@B`X"
-            oai-block-tags--regexes-backtrace)
-                  "@B"))
-
-(cl-assert
- (string-equal (oai-block-tags--replace-last-regex-smart
-                "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
-                oai-block-tags--regexes-backtrace
-                "REPLACED")
-               "foo `@Backtrace` bar `@Backtrace REPLACEDX"))
-;; with space
-(cl-assert
- (equal (oai-block-tags--replace-last-regex-smart
-         "foo `@Backtrace` bar `@Backtrace `@BacktraceX"
-         oai-block-tags--regexes-backtrace
-         "REPLACED")
-        "foo `@Backtrace` bar REPLACED`@BacktraceX"))
-
-(cl-assert
- (equal (oai-block-tags--replace-last-regex-smart
-         "foo `@Backtrace` bar `@B `@BacktraceX"
-         oai-block-tags--regexes-backtrace
-         "REPLACED")
-        "foo `@Backtrace` bar REPLACED`@BacktraceX"))
-
-(cl-assert
- (equal (oai-block-tags--replace-last-regex-smart
-         "foo `@/asd.txt` X"
-         oai-block-tags--regexes-path
-         "REPLACED")
-        "foo REPLACED X"))
-
-(cl-assert
- (equal (oai-block-tags--replace-last-regex-smart "foo `@.` bar " oai-block-tags--regexes-path "REPLACED")
-        "foo REPLACED bar "))
-
-(cl-assert
- (string-equal
-  (oai-block-tags--replace-last-regex-smart "asd `@/tmp/t.txt` assd" oai-block-tags--regexes-path "path")
-  "asd path assd"))
- ;; (oai-block-tags--replace-last-regex-smart "asd `[[/tmp][sd]]` assd" (plist-get oai-block-tags--regexes :path) "path")
 
 (defun oai-block-tags-replace (string)
   "Replace links in STRING with their targets.
@@ -1254,37 +1108,6 @@ Called from:
 ;;            (follow (org-link-get-parameter type :follow))
 ;;            (option (org-element-property :search-option link))) ;; after ::
 ;;       (print (list type path option follow)))
-;; Test
-(let* ((temp-dir (make-temp-file "my-tmp-dir-" t))     ;; Create temp directory
-       (file1 (expand-file-name "file1.txt" temp-dir)) ;; Known file name
-       (file2 (expand-file-name "file2.el" temp-dir))
-       (file3 (expand-file-name "file3.py" temp-dir)))
-      (with-temp-file file1
-        (insert "Contents for file1"))
-      (with-temp-file file2
-        (insert "(defun aa() )"))
-      (with-temp-file file3
-        (insert "import os"))
-      ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
-      ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)) "\n" ) "\\n"))
-      ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
-      (if (not (string-equal "ssvv \nHere file1.txt:\n```text\nContents for file1\n```\n bbb"
-                    (oai-block-tags-replace (format "ssvv `@%s` bbb" file1))))
-          (error "error in loading of oai-block-tags.el 1"))
-      ;; ;; (print (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
-      ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)) "\n" ) "\\n"))
-      ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)))
-      (if (not (string-equal "ssvv \nHere file2.el:\n```elisp\n(defun aa() )\n```\n bbb"
-                             (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
-          (error "error in loading of oai-block-tags.el 2"))
-      ;; (string-join (string-split (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)) "\n" ) "\\n"))
-      ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
-;; "ssvv \\nssssss\\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
-;;                           "ssvv \n\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
-      ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
-      (if (not (string-equal "ssvv \nHere file3.py:\n```python\nimport os\n```\n bbb"
-                             (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3))))
-          (error "error in loading of oai-block-tags.el 3")))
 
 
 ;; -=-= Fontify @Backtrace & @path & [[links]]

@@ -34,7 +34,7 @@
 (require 'oai-block)
 (require 'ert)             ; Testing framework
 (defvar ert-enabled nil)
-;;; - Helper function to set up a temporary Org buffer for testing.
+;; -=-= Helper function to set up a temporary Org buffer for testing.
 ;; It inserts content and optional Org properties, then returns the
 ;; parsed Oai block element and its parameters alist.
 ;; (defun oai-test-setup-buffer (block-content &optional properties-alist)
@@ -94,7 +94,7 @@ and INFO-ALIST is the parameters from its header."
 ;; (oai-test-setup-buffer "#+begin_ai\nTest content\n#+end_ai")
 
 
-;;; - test for test
+;; -=-= test for test
 
 (ert-deftest oai-tests-block--setup-buffer-basic-test ()
   "Test that `oai-test-setup-buffer' sets up a buffer correctly."
@@ -105,7 +105,7 @@ and INFO-ALIST is the parameters from its header."
       (should (eq (org-element-type element) 'special-block))
       (should (equal (org-element-property :type element) "ai")))))
 
-;;; - oai-block--let-params
+;; -=-= oai-block--let-params
 
 (ert-deftest oai-tests-block--let-params-all-from-info-test1 ()
   "Test when all parameters are provided in the block header (info alist)."
@@ -181,7 +181,7 @@ and INFO-ALIST is the parameters from its header."
 
 ;; (defun oai-block--oai-restapi-request-prepare (req-type content element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
 ;;   )
-;;; - oai-agent-call
+;; -=-= oai-agent-call
 ;; (ert-deftest oai-tests-block--oai-agent-call-test ()
 
 ;;   (let* ((test-block "#+begin_ai :stream t :sys \"A helpful LLM.\" :max-tokens 50 :model \"gpt-3.5-turbo\" :temperature 0.7\n\n#+end_ai\n")
@@ -308,8 +308,21 @@ and INFO-ALIST is the parameters from its header."
 ;;     ;; Removing `non-existent-param` from the test list.
 ;;     ))
 
+;; -=-= Test: oai-block-fill-region-as-paragraph
+(ert-deftest oai-tests-block--oai-block-fill-region-as-paragraph ()
+  (should (with-temp-buffer
+            (progn
+              (org-mode)
+              (setq fill-column 10)
+              (insert "Some.\n")
+              (insert "Some text here asdasdasdasd asda asd asd asd asd asd asd as d\n")
+              (insert "Some.\n")
+              (goto-char 1)
+              (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph (point-min) (point-max) nil)
+              (let ((strings (string-split (buffer-substring-no-properties (point-min) (point-max)) "\n")))
+                (< (length (nth 1 strings)) 10))))))
 
-;;; - To run these tests:
+;; -=-= To run these tests:
 ;; 1. Save the code to an .el file (e.g., `oai-params-test.el`).
 ;; 2. Open Emacs and load the file: `M-x load-file RET oai-tests2.el RET`.
 ;; 3. Run all tests: `M-x ert RET t RET`.
@@ -319,7 +332,8 @@ and INFO-ALIST is the parameters from its header."
 ;;  OR
 ;; eval-buffer
 ;; M-x ert RET t RET
-;;; provide
+
+;; -=-= provide
 (provide 'oai-tests-block)
 
 ;;; oai-tests-block.el ends here

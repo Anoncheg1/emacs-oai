@@ -175,7 +175,7 @@ and INFO-ALIST is the parameters from its header."
             (stub-retries 0)
             )
 
-        (print (list "oai-timers-duration" oai-timers-duration (current-buffer)))
+        ;; (print (list "oai-timers-duration" oai-timers-duration (current-buffer)))
         (unwind-protect
             (progn
               (advice-add 'oai-restapi-request-llm-retries :around #'oai-tests-integration2--oai-restapi-request-llm-retries-stub1)

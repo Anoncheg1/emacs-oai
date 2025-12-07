@@ -427,24 +427,216 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
 
 ;; -=-= Test: oai-block-tags--filepath-to-language
 (ert-deftest oai-tests-oai-block-tags--filepath-to-language ()
-(should
- (string-equal (oai-block-tags--filepath-to-language 'emacs-lisp-mode) "elisp"))
-(should
- (string-equal (oai-block-tags--filepath-to-language "emacs-lisp-mode") "elisp"))
-(should
- (string-equal (oai-block-tags--filepath-to-language "/tmp/a.el") "elisp"))
-(should
- (string-equal (oai-block-tags--filepath-to-language "/tmp/a.py") "python"))
-(should
- (string-equal (oai-block-tags--filepath-to-language "asaas") "auto")) ;unknwon
-(should
- (string-equal (oai-block-tags--filepath-to-language "/tmp/a.elfff") "auto")) ;unknwon
-(should
- (string-equal (oai-block-tags--filepath-to-language "/tmp/txt") "auto")) ;unknwon
-(should
- (string-equal (oai-block-tags--filepath-to-language "/tmp/a.org") "org"))
-(should
- (string-equal (oai-block-tags--filepath-to-language "a.txt") "text")))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language 'emacs-lisp-mode) "elisp"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "emacs-lisp-mode") "elisp"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "/tmp/a.el") "elisp"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "/tmp/a.py") "python"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "asaas") "auto")) ;unknwon
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "/tmp/a.elfff") "auto")) ;unknwon
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "/tmp/txt") "auto")) ;unknwon
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "/tmp/a.org") "org"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "a.txt") "text")))
+
+;; -=-= Test: oai-block-tags-replace
+(ert-deftest oai-tests-block-tags--replace ()
+  (let* ((temp-dir (make-temp-file "my-tmp-dir-" t))     ;; Create temp directory
+         (file1 (expand-file-name "file1.txt" temp-dir)) ;; Known file name
+         (file2 (expand-file-name "file2.el" temp-dir))
+         (file3 (expand-file-name "file3.py" temp-dir)))
+    (with-temp-file file1
+      (insert "Contents for file1"))
+    (with-temp-file file2
+      (insert "(defun aa() )"))
+    (with-temp-file file3
+      (insert "import os"))
+    ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
+    ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)) "\n" ) "\\n"))
+    ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
+    (should (string-equal "ssvv \nHere file1.txt:\n```text\nContents for file1\n```\n bbb"
+                          (oai-block-tags-replace (format "ssvv `@%s` bbb" file1))))
+    ;; ;; (print (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
+    ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)) "\n" ) "\\n"))
+    ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)))
+    (should (string-equal "ssvv \nHere file2.el:\n```elisp\n(defun aa() )\n```\n bbb"
+                          (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
+    ;; (string-join (string-split (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)) "\n" ) "\\n"))
+    ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
+    ;; "ssvv \\nssssss\\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
+    ;;                           "ssvv \n\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
+    ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
+    (should (string-equal "ssvv \nHere file3.py:\n```python\nimport os\n```\n bbb"
+                          (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3))))))
+
+
+;; -=-= Test: replace-last-regex-smart
+(ert-deftest oai-tests-block-tags--replace-last-regex-smart ()
+  (should
+   (string-equal (oai-block-tags--replace-last-regex-smart "asdasd@Backtraceasdasdasd" "\\(@Backtrace\\)" "111")
+                 "asdasd111asdasdasd"))
+
+  (should
+   (string-equal
+    (oai-block-tags--replace-last-regex-smart "Same code: [[file:~/tmp/emacs::27-30]]```" oai-block--org-link-any-re)
+    "[[file:~/tmp/emacs::27-30]]"))
+
+  (should (not (oai-block-tags--replace-last-regex-smart "Same code: ```[[file:~/tmp/emacs::27-30]]```" oai-block--org-link-any-re)))
+
+  (should
+   (string-equal (oai-block-tags--replace-last-regex-smart "asda\n```\nvas@Backtraceasdasd\n```\nasd" "\\(@Backtrace\\)" "111")
+                 "asda\n```\nvas@Backtraceasdasd\n```\nasd"))
+
+  (should
+   (string-equal (oai-block-tags--replace-last-regex-smart "asdasd@Backtraceasdasdasd" "@Backtrace")
+                 "@Backtrace"))
+
+  ;; search without replace
+  (should (string-equal (oai-block-tags--replace-last-regex-smart
+                         "foo `@Backtrace` bar `@Backtrace `@BacktraceX"
+                         oai-block-tags--regexes-backtrace)
+                        "@Backtrace"))
+
+  (should (string-equal (oai-block-tags--replace-last-regex-smart
+                         "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
+                         oai-block-tags--regexes-backtrace)
+                        "@Backtrace"))
+
+  (should (string-equal (oai-block-tags--replace-last-regex-smart
+                         "foo `@Backtrace` bar `@Backtrace `@B`X"
+                         oai-block-tags--regexes-backtrace)
+                        "@B"))
+
+  (should
+   (string-equal (oai-block-tags--replace-last-regex-smart
+                  "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
+                  oai-block-tags--regexes-backtrace
+                  "REPLACED")
+                 "foo `@Backtrace` bar `@Backtrace REPLACEDX"))
+  ;; with space
+  (should
+   (equal (oai-block-tags--replace-last-regex-smart
+           "foo `@Backtrace` bar `@Backtrace `@BacktraceX"
+           oai-block-tags--regexes-backtrace
+           "REPLACED")
+          "foo `@Backtrace` bar REPLACED`@BacktraceX"))
+
+  (should
+   (equal (oai-block-tags--replace-last-regex-smart
+           "foo `@Backtrace` bar `@B `@BacktraceX"
+           oai-block-tags--regexes-backtrace
+           "REPLACED")
+          "foo `@Backtrace` bar REPLACED`@BacktraceX"))
+
+  (should
+   (equal (oai-block-tags--replace-last-regex-smart
+           "foo `@/asd.txt` X"
+           oai-block-tags--regexes-path
+           "REPLACED")
+          "foo REPLACED X"))
+
+  (should
+   (equal (oai-block-tags--replace-last-regex-smart "foo `@.` bar " oai-block-tags--regexes-path "REPLACED")
+          "foo REPLACED bar "))
+
+  (should
+   (string-equal
+    (oai-block-tags--replace-last-regex-smart "asd `@/tmp/t.txt` assd" oai-block-tags--regexes-path "path")
+    "asd path assd")))
+
+;; -=-= Test: oai-block-tags--get-content-at-point-not-org
+(ert-deftest oai-tests-block-tags--get-content-at-point-not-org1 ()
+  ;; Test: outline
+  (should
+   (string-equal
+    "\nOutliner:\n```elisp\n;; -- header1\ntext1\n```"
+    (with-temp-buffer
+      (emacs-lisp-mode)
+      (outline-minor-mode)
+      (setq-local outline-regexp ";; \\-\\- ")
+      (insert "text0\n")
+      (let ((p (point)))
+        (insert ";; -- header1\ntext1\n")
+        (insert ";; -- header2\ntext2\n")
+        (goto-char (1+ p))
+        (oai-block-tags--get-content-at-point-not-org))))))
+
+(ert-deftest oai-tests-block-tags--get-content-at-point-not-org2 ()
+  ;; Test: defun
+  (should
+   (string-equal
+    "\nFunction:\n```elisp\n(defun f1 ()\nt\n)\n```"
+    (with-temp-buffer
+      (emacs-lisp-mode)
+      (insert "(defun f1 ()\nt\n)\n\n(defun f2 ()\nt\n)")
+      (goto-char 1)
+      (oai-block-tags--get-content-at-point-not-org)))))
+
+(ert-deftest oai-tests-block-tags--get-content-at-point-not-org3 ()
+  ;; Test: paragraph
+  (should
+   (string-equal
+    "\n```text\n;; -- header2\ntext2\n```"
+    (with-temp-buffer
+      (text-mode)
+      (setq-local paragraph-start "\f\\|[ \t]*$")
+      (setq-local paragraph-separate "[ \t\f]*$")
+      (let ((p))
+        (progn
+          (insert "text0\n")
+          (insert "\n")
+          (insert ";; -- header1\ntext1\n")
+          (setq p (point))
+          (insert "\n")
+          (insert ";; -- header2\ntext2"))
+        (goto-char p))
+      (oai-block-tags--get-content-at-point-not-org)))))
+
+;; -=-= Test: oai-block-tags--get-content-at-point
+(ert-deftest oai-tests-block-tags--get-content-at-point1 ()
+  (should
+   (string-equal
+    "\nBlock name: asd\n```elisp\naa\n```"
+    (with-temp-buffer
+      (org-mode)
+      (insert "ssd\n#+NAME: asd\n#+begin_src elisp\naa\n#+end_src\n")
+      (goto-char 15)
+      (oai-block-tags--get-content-at-point)))))
+
+(ert-deftest oai-tests-block-tags--get-content-at-point2 ()
+  (should
+   (string-equal
+    "```elisp\naa\n```"
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+NAME: asd\n#+begin_src text\n```elisp")
+      (let ((p (point)))
+        (insert "\naa\n```\n#+end_src\n")
+        (goto-char p)
+        ;; (oai-block-tags--get-org-block-region)))
+        ;; (oai-block-tags--markdown-block-range)))
+        ;; (oai-block-tags--get-m-block)))
+        (oai-block-tags--get-content-at-point))))))
+
+
+;; -=-= Test: oai-block-tags--markdown-fenced-code-body-get-range
+(ert-deftest oai-tests-block-tags--markdown-fenced-code-body-get-range ()
+  (should (equal '(39 42)
+                 (with-temp-buffer
+                   (org-mode)
+                   (insert "#+NAME: asd\n#+begin_src text\n```elisp")
+                   (let ((p (point)))
+                     (insert "\naa\n```\n#+end_src\n")
+                     (goto-char p)
+                     (oai-block-tags--markdown-fenced-code-body-get-range))))))
+
 
 ;; -=-= provide
 (provide 'oai-tests-block-tags)
