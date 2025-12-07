@@ -9,7 +9,6 @@ Features:
 - provide prompt engineering tools
 * Screenshot
 [[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]
-/home/g/sources/public-share/oai.png
 * Dependencies
 - Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/emacs-org-links
 
