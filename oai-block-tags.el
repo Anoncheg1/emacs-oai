@@ -71,22 +71,30 @@
   "Right after ``` markdown block begining.")
 (defvar oai-block-tags--markdown-postfix "\n```\n")
 
-(defvar oai-block-tags--backtrace-max-lines 12
+(defcustom oai-block-tags-backtrace-max-lines 12
   "Max lines to get from Backtrace buffer from begining.
-All lines are rarely required, first 4-8 are most imortant.")
+All lines are rarely required, first 4-8 are most imortant."
+  :type 'integer
+  :group 'oai)
 
-(defvar oai-block-tags-use-simple-directory-content nil
-  "If non-nil use `directory-files' with simple list of item.
+(defcustom oai-block-tags-use-simple-directory-content-flag nil
+  "Non-nil means use `directory-files' with simple list of item.
 Otherwise ls command used.  Also `directory-files-and-attributes' may be
-used.")
+used."
+  :type 'boolean
+  :group 'oai)
 
-(defvar oai-block-tags-error-on-missing-link t
-  "If non-nil signal error for not found link.
+(defcustom oai-block-tags-error-on-missing-link-flag t
+  "Non-nil means signal error for not found link.
 Used to set `org-link-search-must-match-exact-headline' before
-`org-link-search' function call.")
+`org-link-search' function call."
+  :type 'boolean
+  :group 'oai)
 
-(defvar oai-block-tags--check-double-targets-found t
-  "Signal error if link in ai block point to targets in same file.")
+(defcustom oai-block-tags-check-double-targets-found-flag t
+  "Non-nil means signal error if link in ai block point to targets in same file."
+  :type 'boolean
+  :group 'oai)
 
 (cl-assert
   (equal (mapcar (lambda (s)
@@ -179,7 +187,7 @@ Nil if buffer does not exist."
 
 (defun oai-block-tags--get-directory-content (path-string)
   "Return string with list of files at PATH-STRING."
-  (if oai-block-tags-use-simple-directory-content
+  (if oai-block-tags-use-simple-directory-content-flag
       (concat (apply #'mapconcat #'identity (directory-files path-string)  '("\n")))
     ;; else
     (let* ((dired-listing-switches oai-block-tags-get-directory-switches)
@@ -745,7 +753,7 @@ either `dedicated' or `fuzzy'.  If not found give raise error."
   (if (equal type "radio")
       (org-link--search-radio-target path)
     ;; else - fuzzy, custom-di, coderef
-    (let ((org-link-search-must-match-exact-headline oai-block-tags-error-on-missing-link)) ;; should found?
+    (let ((org-link-search-must-match-exact-headline oai-block-tags-error-on-missing-link-flag)) ;; should found?
       ;; (print (list "oai-block-tags--org-search-local" org-link-search-must-match-exact-headline))
       ;; Not working: :-(
       ;; (save-excursion
@@ -856,11 +864,11 @@ Return replacement string."
               (setq target-pos (point))
               ;; (print (list "oai-block-tags--get-replacement-for-org-link found" found (point)))
               ;; 2.1) several targets with same name exist? = error
-              (when (and oai-block-tags--check-double-targets-found
+              (when (and oai-block-tags-check-double-targets-found-flag
                          (eq found 'dedicated)
                          (not (eq (line-number-at-pos) ln-before))) ; found?
                 (let ((ln-found (line-number-at-pos))
-                      oai-block-tags-error-on-missing-link)
+                      oai-block-tags-error-on-missing-link-flag)
                   (with-restriction (line-end-position) (point-max)
                     (condition-case nil
                         (setq found (oai-block-tags--org-search-local link-el type path))
@@ -879,14 +887,14 @@ Return replacement string."
               ;; - 5) `oai-block-tags--get-content-at-point'
               (oai-block-tags--get-content-at-point))))))))))
 ;; - test:
-;; (if (not (let ((oai-block-tags-use-simple-directory-content t))
+;; (if (not (let ((oai-block-tags-use-simple-directory-content-flag t))
 ;;            (and
 ;;             (string-match "oai-block-tags.el" (oai-block-tags--get-replacement-for-org-link "file:./"))
 ;;             (string-match "oai-block-tags.el" (oai-block-tags--get-replacement-for-org-link "[[./]]"))
 ;;             (string-match "oai-block-tags.el" (oai-block-tags--get-replacement-for-org-link "[[file:./]]"))
 ;;             (string-match "oai-block-tags.el" (oai-block-tags--get-replacement-for-org-link "[[file:.]]"))
 ;;             )))
-;;     (error "oai-block-tags-use-simple-directory-content dir ./"))
+;;     (error "oai-block-tags-use-simple-directory-content-flag dir ./"))
 
 ;; [[file:oai-block-tags.el::`(ref)']]]
 ;; (oai-block-tags--get-replacement-for-org-link  "[[xx]]")
@@ -1003,7 +1011,7 @@ Called from:
     (oai--debug "oai-block-tags-replace: here1")
     (if-let* ((bt (or (oai-block-tags--get-backtrace-buffer-string)
                       (user-error "No backtrace buffer for @Backtrace tag"))) ; *Backtrace* buffer exist
-              (bt (oai-block-tags--take-n-lines bt oai-block-tags--backtrace-max-lines))
+              (bt (oai-block-tags--take-n-lines bt oai-block-tags-backtrace-max-lines))
               (bt (concat "\n```" (plist-get oai-block-tags--markdown-prefixes :backtrace) "\n"
                           bt
                           oai-block-tags--markdown-postfix)) ; prepare string

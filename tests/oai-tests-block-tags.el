@@ -139,7 +139,7 @@ text after"))
 ;; -=-= Test: oai-block-tags--get-replacement-for-org-link - dir
 (ert-deftest oai-tests-block-tags--get-replacement-for-org-link-dir ()
   ""
-  (let ((oai-block-tags-use-simple-directory-content t)
+  (let ((oai-block-tags-use-simple-directory-content-flag t)
                 res)
     (setq res (oai-block-tags--get-replacement-for-org-link "file:./"))
     (setq res (string-match "Here . folder" res))

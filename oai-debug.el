@@ -24,7 +24,7 @@
 
 ;;; Commentary:
 
-(require 'backtrace) ; for `oai--debug-get-caller' (not used now)
+(require 'backtrace) ; for `oai-debug--get-caller' (not used now)
 
 ;;; Code:
 ;; -=-= customization and function
@@ -35,13 +35,13 @@ Set to something like *debug-oai*.  to enable debugging."
                  (string :tag "Name of buffer"))
   :group 'oai)
 
-(defcustom oai-debug-timestamp t
+(defcustom oai-debug-timestamp-flag t
   "If non-nil, add timestamp to every debug message."
   :type 'boolean
   :group 'oai)
 
 
-(defun oai--debug-get-caller()
+(defun oai-debug--get-caller()
   "Return string with name of function of caller function.
 Heavy to execute."
   (let* ((backtrace-line-length 20) ; used by `backtrace-get-frames'
@@ -59,7 +59,7 @@ Heavy to execute."
                    (sline (substring line 0 mpos))
                    (tline (string-trim-right (string-trim-left sline))))
                    (if (and (not (string-empty-p tline))
-                            (not (member tline '("oai--debug-get-caller" "oai--debug" ) )))
+                            (not (member tline '("oai-debug--get-caller" "oai--debug" ) )))
                        (setq caller tline)
                      nil ; else
                      )))
@@ -67,8 +67,10 @@ Heavy to execute."
           (cdr (string-split bt "\n" t)))
          caller))
 
-(defvar oai--debug-filter nil
-  "Output only strings that contains this.")
+(defcustom oai--debug-filter nil
+  "Output only strings that contains this."
+  :type 'boolean
+  :group 'oai)
 
 (defun oai-debug--format-argument (args)
   "Convert ARGS to a string.
@@ -127,7 +129,7 @@ Return last argument, but should not be used for return value."
                 ))
           ;; ;; - output caller function ( working, but too heavy)
           ;; (let ((caller
-          ;;        (oai--debug-get-caller)))
+          ;;        (oai-debug--get-caller)))
           ;;   (when caller
           ;;     (insert "Din ")
           ;;     (insert caller)

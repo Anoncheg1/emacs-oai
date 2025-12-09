@@ -199,7 +199,7 @@ PROC is process object.  _STRING is data received."
            (signal (car err) (cdr err)))) ; re-signal error (does not suppress)
         ))
     (run-at-time 1 nil (lambda (buf) (with-current-buffer buf
-                                       (print (list "POINT" (point) (buffer-substring-no-properties (point) (point-max))))
+                                       ;; (print (list "POINT" (point) (buffer-substring-no-properties (point) (point-max))))
                                        (should (eq 79 (point)))
                                        (should (string-equal
                                                 (buffer-substring-no-properties (point-min) (point-max) )
