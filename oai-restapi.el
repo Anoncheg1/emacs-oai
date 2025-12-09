@@ -891,6 +891,7 @@ Here used for completion mode in `oai-restapi-request'.
                 ;; - go  to the end of previous line and open new one
                 (goto-char pos)
                 (insert "\n[ME]: \n")
+                (forward-char -1)
                 (setq pos (point)))
               (set-marker end-marker (point)))
             (when oai-restapi-jump-to-end-of-block
@@ -1049,7 +1050,8 @@ If response is multiline `oai-restapi-fill-function' may not
 work properly.
 Argument INSERT-ROLE provided just in case we will need to insert with
 specific role."
-  (oai--debug "oai-restapi--insert-stream-response1" ) ; response
+  ;; (oai--debug "oai-restapi--insert-stream-response1 %s" (oai-restapi--normalize-response response)) ; response
+  (oai--debug "oai-restapi--insert-stream-response1")
   (when response ; [DONE] not processed. we use "finish_reason":"stop" instead.
     (let ((normalized (oai-restapi--normalize-response response)) ; list of messages
           (buffer (marker-buffer end-marker))
@@ -1763,7 +1765,7 @@ Called within `url-retrieve' buffer."
                       )))))))
 
         ;; - Not-streamed
-        ;; response is a single JSON object
+        ;; response is a single JSON object, no "data: " prefix. {"choices":[...
         (when (not oai-restapi--current-request-is-streamed)
           (oai--debug "oai-restapi--url-request-on-change-function NOT-STREAM: %s %s" (point) (point-max))
           (let ((data (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max)))))
