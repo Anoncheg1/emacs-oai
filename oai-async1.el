@@ -2,7 +2,7 @@
 
 ;; Copyright (c) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
 ;; SPDX-License-Identifier: AGPL-3.0-or-later
-;; Author: github.com/Anoncheg1,codeberg.org/Anoncheg
+;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
 ;; Keywords: tools, async, callback
 ;; URL: https://github.com/Anoncheg1/emacs-async1
 ;; Version: 0.1

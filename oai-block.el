@@ -3,7 +3,7 @@
 ;; Copyright (C) 2023-2025 Robert Krahn and contributers
 ;; Copyright (C) 2025 github.com/Anoncheg1
 ;; SPDX-License-Identifier: AGPL-3.0-or-later
-;; Author: github.com/Anoncheg1,codeberg.org/Anoncheg
+;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
 
 ;;; License
 
