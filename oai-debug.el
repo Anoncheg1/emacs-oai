@@ -67,9 +67,10 @@ Heavy to execute."
           (cdr (string-split bt "\n" t)))
          caller))
 
-(defcustom oai--debug-filter nil
-  "Output only strings that contains this."
-  :type 'boolean
+(defcustom oai-debug-filter nil
+  "If non-nil output only strings that contains this string."
+  :type '(choice (const :tag "No filter" nil)
+                 (string :tag "Regex string for filter"))
   :group 'oai)
 
 (defun oai-debug--format-argument (args)
@@ -148,8 +149,8 @@ Return last argument, but should not be used for return value."
                                              "```debug\n" (apply #'concat (mapcar #'oai-debug--format-argument
                                                                                (cdr args)))
                                              "```\n")))))
-            (when (and oai--debug-filter
-                       (not (string-match-p (regexp-quote oai--debug-filter) result-string)))
+            (when (and oai-debug-filter
+                       (not (string-match-p (regexp-quote oai-debug-filter) result-string)))
                     (setq result-string nil))
             (when result-string
               ;; - add timestamp
