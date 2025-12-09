@@ -153,7 +153,7 @@ Return last argument, but should not be used for return value."
                     (setq result-string nil))
             (when result-string
               ;; - add timestamp
-              (when oai-debug-timestamp
+              (when oai-debug-timestamp-flag
                 (let* ((time (current-time))
                        (time-mili (format "%s.%03d"
                                           (format-time-string "%M:%S" time)
