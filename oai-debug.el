@@ -36,7 +36,7 @@ Set to something like *debug-oai*.  to enable debugging."
   :group 'oai)
 
 (defcustom oai-debug-timestamp-flag t
-  "If non-nil, add timestamp to every debug message."
+  "Non-nil means add timestamp to every debug message."
   :type 'boolean
   :group 'oai)
 
