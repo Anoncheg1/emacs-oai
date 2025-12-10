@@ -333,7 +333,9 @@ non-nil, then mark one chat message."
   "Jump to header of ai block and set max-tokens."
   (interactive)
   (if-let ((el (oai-block-p)))
-      (let ((beg (progn (goto-char (org-element-property :contents-begin el))
+
+      (let ((beg (progn (push-mark)
+                        (goto-char (org-element-property :contents-begin el))
                         (forward-line -1)
                         (point)))
             pos)
