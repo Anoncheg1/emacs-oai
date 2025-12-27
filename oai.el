@@ -5,7 +5,7 @@
 ;; Keywords: org, comm, url, link
 ;; URL: https://github.com/Anoncheg1/emacs-oai
 ;; Version: 0.1
-;; Created: 20 Aug 2025
+;; Created: 27 dec 2025
 ;; Package-Requires: ((emacs "29.1"))
 ;; Optional dependency: ((org-links "0.2"))
 ;; SPDX-License-Identifier: AGPL-3.0-or-later

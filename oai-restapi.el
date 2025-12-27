@@ -1945,6 +1945,33 @@ inside the assembled prompt string."
     idx))
 
 
+(defun oai-restapi--modify-vector-content (vec role new-content)
+  (unless (vectorp vec)
+    (error "Not a vector"))
+  (let ((i (length vec))
+        el
+        content
+        (newvec (copy-sequence vec)))
+    (while
+        (setq el (aref newvec i)) ; from 0
+        (setq content (plist-get el :content))
+        (setq content (if (functionp new-content)
+                          (funcall new-content content)
+                        ;; else
+                        new-content))
+        (aset newvec i (plist-put (copy-sequence el) :content rep-content)))
+    newvec))
+
+;; (let ((vec '[(:role system :content "foo")
+;;              (:role user :content "How to make coffe1?")
+;;              (:role assistant :content "IDK.")
+;;              (:role user :content "How to make coffe2? w11")
+;;              (:role system :content "other")]))
+;;   (length vec))
+;;   (aref vec 1))
+
+;;   (oai-restapi--modify-vector-content vec 'user "new-content"))
+
 (defun oai-restapi--modify-last-user-content (vec new-content)
   "Replacing last \='user :content with NEW-CONTENT in VEC.
 NEW-CONTENT is either (string or function of old content).

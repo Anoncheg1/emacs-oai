@@ -346,7 +346,7 @@ as
       (insert payload)
       (setq res (oai-block--parse-part (point-min) 10))
       (should (equal res '(:role user :content "text befo")))
-      (setq res (let ((lst (oai-block--get-chat-messages-positions (point-min) (point-max)))
+      (setq res (let ((lst (oai-block--get-chat-messages-positions (point-min) (point-max) oai-block--chat-prefixes-re))
                       (results '()))
                   (while (and lst (cdr lst))
                     (push (oai-block--parse-part (car lst) (cadr lst)) results) ; parse current block

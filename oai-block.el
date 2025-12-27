@@ -66,15 +66,16 @@
   :type 'boolean
   :group 'oai)
 
+(defconst oai-block--ai-block-begin-re "^#\\+begin_ai.*$")
+(defconst oai-block--ai-block-end-re "^#\\+end_ai.*$")
+
 (defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
 (defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")
-(defvar oai-block--ai-block-begin-re "^#\\+begin_ai[^\n]*\n")
-(defvar oai-block--ai-block-end-re "^#\\+end_ai.*$")
-(defvar oai-block--chat-prefixes "^[ \t]*\\[\\([A-Z_]+\\)\\(:\\]\\|\\]:\\)\\s-*"
+(defvar oai-block--chat-prefixes-re "^[ \t]*\\[\\([A-Z_]+\\)\\(:\\]\\|\\]:\\)\\s-*"
   "Prefix should be at the begining of the line with spaces or without.
 Or roles regex.")
 
-;; (defvar oai-block--chat-prefixes "^[ \t]*\\(?:\\[SYS\\]:\\|\\[ME\\]:\\|\\[ME:\\]\\|\\[AI\\]:\\|\\[AI_REASON\\]:\\)"
+;; (defvar oai-block--chat-prefixes-re "^[ \t]*\\(?:\\[SYS\\]:\\|\\[ME\\]:\\|\\[ME:\\]\\|\\[AI\\]:\\|\\[AI_REASON\\]:\\)"
 ;;   "Prefix should be at the begining of the line with spaces or without.
 ;; Or roles regex.")
 
@@ -266,19 +267,19 @@ ELEMENT."
     (string-trim content)))
 
 ;; -=-= fn: collect-chat-messages
-(defun oai-block--get-chat-messages-positions (content-start content-end)
+(defun oai-block--get-chat-messages-positions (content-start content-end prefix-re)
   "Return a flat list of positions for chat messages in current buffer.
 Positions CONTENT-START CONTENT-END used as boundaries.
-Positions are start points of chat message headers (matching
-`oai-block--chat-prefixes`), including content start and content end as
-boundaries."
+Return positions  as start points  that match PREFIX-RE (normally  it is
+`oai-block--chat-prefixes-re'), and additional positions of content start
+and content end at the beginin and the end of flat list."
   (when (< content-end content-start)
     (error "Point is at wrong position"))
   (save-excursion
     (let (positions)
       (goto-char content-start)
       ;; Collect all chat header positions
-      (while (re-search-forward oai-block--chat-prefixes content-end t)
+      (while (re-search-forward prefix-re content-end t)
         (push (match-beginning 0) positions))
       (setq positions (nreverse positions))
       ;; Ensure content-start is included first
@@ -301,7 +302,7 @@ boundaries."
 ;;                     (save-excursion
 ;;                       (goto-char content-start)
 ;;                       (cl-loop with result
-;;                                while (search-forward-regexp oai-block--chat-prefixes content-end t)
+;;                                while (search-forward-regexp oai-block--chat-prefixes-re content-end t)
 ;;                                do (push (match-beginning 0) result)
 ;;                                finally return result)))))
 ;;       (if result
@@ -315,7 +316,7 @@ line."
   (when-let* ((element (oai-block-p))
               (content-start (org-element-property :contents-begin element))
               (content-end (org-element-property :contents-end element)))
-    (oai-block--get-chat-messages-positions content-start content-end)))
+    (oai-block--get-chat-messages-positions content-start content-end oai-block--chat-prefixes-re)))
 
 
 (defun oai-block--merge-by-role (messages &optional sep)
@@ -342,7 +343,7 @@ Joining non-empty content by SEP (defaults to newline)."
     (nreverse result)))
 
 
-;; (progn (re-search-forward oai-block--chat-prefixes)
+;; (progn (re-search-forward oai-block--chat-prefixes-re)
 ;;        (print (match-string 1)))
 (defvar oai-block-roles '(("SYS"		system)
                           ("ME"		user)
@@ -365,22 +366,22 @@ Uses `oai-block-roles' variable."
 If content is empty string return nil.
 Positions POS-BEG POS-END used as limits.
 If prefix found two times error is thrown.
-Uses `oai-block-roles' variable."
+Uses `oai-block-roles' variable and `oai-block--chat-prefixes-re'."
   (save-excursion
     (goto-char pos-beg)
     ;; - find prefix
     (let (content ; after prefix or from pos
           (role (cadr (assoc-string "missing_role" oai-block-roles)))) ; default role
       (save-match-data
-        (if (re-search-forward oai-block--chat-prefixes pos-end t)
+        (if (re-search-forward oai-block--chat-prefixes-re pos-end t)
             (let ((role-str (match-string 1))
-                  (pre-end (match-end 0)))
-              (when (re-search-forward oai-block--chat-prefixes pos-end t)
+                  (pre-end-pos (match-end 0)))
+              (when (re-search-forward oai-block--chat-prefixes-re pos-end t)
                 (error "Another role prefix found before POS-END"))
               ;; Filter out reasoning parts
               (unless (string= role-str "AI_REASON")
                 ;; - get content after prefix
-                (setq content (string-trim (buffer-substring-no-properties pre-end pos-end)))
+                (setq content (string-trim (buffer-substring-no-properties pre-end-pos pos-end)))
                 (setq role (or (cadr (assoc-string role-str oai-block-roles))
                                (cadr (assoc-string "unknown_role" oai-block-roles)) ))))
           ;; else - Insert default role if part lacks role prefix
@@ -395,7 +396,7 @@ Uses `oai-block-roles' variable."
 
 ;; Finds message prefixes, assigns roles, skips empty messages and 'AI_REASON'.
 ;; Returns list of (:role ROLE :content CONTENT) plists in buffer order."
-;;   (let ((prefix-regex oai-block--chat-prefixes)
+;;   (let ((prefix-regex oai-block--chat-prefixes-re)
 ;;         (parts ())
 ;;         (start pos-beg)
 ;;         (role nil))
@@ -439,7 +440,7 @@ MAX-TOKEN-RECOMMENDATION is string to add to first system message.
 Return vector with plist with :role and :content."
   (let* ((separator (or separator "\n"))
          ;; 1) Positions: for prefixes [ME:], [AI:] in current buffer
-         (positions (oai-block--get-chat-messages-positions content-start content-end))
+         (positions (oai-block--get-chat-messages-positions content-start content-end oai-block--chat-prefixes-re))
          ;; 2) Parts: loop over positions to get strings of parts
          (parts (let ((lst positions)
                       (results '()))
@@ -823,7 +824,7 @@ Argument LIM-BEG ai block begining.
 Argument LIM-END ai block ending."
   (let (sbeg send)
     (goto-char lim-beg)
-    (prog1 (while (re-search-forward oai-block--chat-prefixes lim-end t)
+    (prog1 (while (re-search-forward oai-block--chat-prefixes-re lim-end t)
              (setq sbeg (match-beginning 0))
              (setq send (match-end 0))
              (unless (oai-block--in-markdown send lim-beg)
