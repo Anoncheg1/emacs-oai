@@ -1,0 +1,152 @@
+* oai
+Emacs package, provide blocks ~#+begin_ai~ in Org mode for communication with LLMs APIs.
+
+Features:
+- Tags: expansion of links in block
+- Do parallel request in the same or different buffer without waiting
+- Highlighting inside AI block: markdown block, Org tables, links
+- Auto filling
+- provide prompt engineering tools
+* Screenshot
+[[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]y
+* Dependencies
+- Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/emacs-org-links
+
+Tested for Emacs 30.2
+* Files
+| File              | Purpose                                                        |
+|-------------------+----------------------------------------------------------------|
+| oai.el            | minor Org oai-mode and ~C-c C-c~ request activation command    |
+| oai-restapi.el    | Connection to REST API (OpenAI-compatible)                     |
+| oai-block.el      | handling ai block                                              |
+| oai-block-tags.el | Handlings links in request window                              |
+| oai-timers.el     | Notifications and handling waitings                            |
+| oai-prompt.el     | Working with prompt-engineering, :chain parameter              |
+| oai-async1.el     | Framework for handling callbacks of REST API requests (url.el) |
+| oai-optional.el   | Hooks functions for postprocessing                             |
+
+* Connection configuration
+~oai-restapi-con-token~ - "token-string" or token per service: ~'(:openai "token-string1" :deepseek "token-string2")~ or nil for reading from "~/.authinfo" or "~/.authinfo.gpg"
+
+~oai-restapi-con-service~ - 'openai or 'deepseek or use parameter at block like this: ~#+begin_ai :service openai~
+
+* Supported services
+- OpenAI
+- Azure-OpenAI
+- Perplexity.ai
+- Anthropic
+- DeepSeek
+- Google
+- Github
+- Together
+
+oai-restapi-con-service [[./oai-restapi.el]]
+* Configuration
+: git clone https://github.com/Anoncheg1/oai
+
+#+begin_src elisp :results none :exports code :eval no
+(add-to-list 'load-path "path/to/oai")
+(require 'oai)
+(add-hook 'org-mode-hook #'oai-mode) ; oai.el
+(setq org-ai-api-creds-token "xxx") ; oai-restapi.el
+#+end_src
+** How to connect to not supported service?
+
+#+begin_src elisp :results none :exports code :eval no
+(plist-put oai-restapi-con-endpoints :local "http://localhost:8000/v1/chat/completions")
+;; Optionally, set it as default
+(setq oai-restapi-con-service 'local)
+#+end_src
+
+Redefine:
+- ~oai-restapi--get-headers~ - If you need some special HTTP headers.
+- ~oai-restapi--get-single-response-text~ and ~oai-restapi--normalize-response~ - if HTTP responses is not standard for ~"stream":false~ and ~"stream":true~ respectively.
+** Fintification configuration
+To enable all Org fintifications in ai blocks:
+: (setq org-protecting-blocks (delete "ai" org-protecting-blocks))
+: (org-restart-font-lock)
+
+To disable all fontifications:
+: (advice-add 'oai-block--set-ai-keywords :override (lambda () t))
+
+** Auto-fill
+To set use custom function or disable auto-fill by setting it to ~nil~:
+: M-x customize-variable RET oai-restapi-fill-function
+
+* Supported “[AI]:” in-text prefixes
+- SYS-EVERYWHERE
+- SYS - role: system
+- AI - role: assistant
+- AI_REASON - excluded
+- ME - role: user
+
+* Supported parameteres for #+begin_ai
+- :model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" - string
+- :service <service> - string symbol/string (oai-restapi-con-service)
+- :max-tokens 150 - int
+- :stream - bool
+- :top-p float
+- :temperature float
+- :frequency-penalty float
+- :presence-penalty float
+- :sys-everywhere - string (sys-prompt-for-all-messages) [[./oai.el]]
+- :chat :completion - bool (org-ai--request-type) [[./oai-block.el]]
+- :chain - bool [[./oai-prompt.el]]
+
+* Debugging
+To get full request body and more information set:
+: (setopt oai-debug-buffer "*debug-oai*")
+: (setq debug-on-error t) ; optional
+
+Built-in url.el have ability to output request and resonse headers, for that you need to set
+: (setq url-debug '(http))
+* Extension guide
+** How to add post-processing for text
+There are a hook ~oai-restapi-after-chat-insertion-hook~ that accpet two arguments (par1 par2)
+- type :: simbol \='role, \='text or'end.
+- role-text :: text or role name.
+- pos :: position before text insertion.
+- stream :: stream mode or a single insertion.
+
+There is two implementations for hook in oai-optional.el:
+- oai-optional-remove-distant-empty-lines-hook-function
+- oai-optional-remove-headers-hook-function
+
+Example to remove empty lines after AI answer:
+#+begin_src elisp :results none :exports code :eval no
+(require 'oai-optional) ; for `oai-optional-remove-distant-empty-lines'
+
+(defun my/ai-postprocess (type _content _pos _stream)
+  (ignore _content _pos)
+    (when (equal type 'end)
+      (save-excursion
+        (let* ((context (oai-block-p))
+               (con-beg (org-element-property :contents-begin context))
+               (con-end (org-element-property :contents-end context)))
+          (oai-optional-remove-distant-empty-lines con-beg con-end)))))
+
+(add-hook 'oai-restapi-after-chat-insertion-hook #'my/ai-postprocess)
+#+end_src
+
+* Org functions for block
+- org-in-src-block-p = oai-block-p
+- oai-block-insert-result = oai-block-insert-result
+- org-babel-where-is-src-block-result = oai-block-where-is-result
+- org-fill-paragraph = oai-block-fill-paragraph
+
+* Other packages
+- Navigation in Dired, Packages, Buffers modes https://github.com/Anoncheg1/firstly-search
+- Search with Chinese	https://github.com/Anoncheg1/pinyin-isearch
+- Ediff fix		https://github.com/Anoncheg1/ediffnw
+- Dired history	https://github.com/Anoncheg1/dired-hist
+- Selected window contrast	https://github.com/Anoncheg1/selected-window-contrast
+- Copy link to clipboard	https://github.com/Anoncheg1/emacs-org-links
+- Solution for "callback hell"	https://github.com/Anoncheg1/emacs-async1
+- Restore buffer state		https://github.com/Anoncheg1/emacs-unmodified-buffer1
+- outline.el usage		https://github.com/Anoncheg1/emacs-outline-it
+
+* Donate, sponsor author
+You can sponsor author crypto money directly with crypto currencies:
+- BTC (Bitcoin) address: 1CcDWSQ2vgqv5LxZuWaHGW52B9fkT5io25
+- USDT (Tether) address: TVoXfYMkVYLnQZV3mGZ6GvmumuBfGsZzsN
+- TON (Telegram) address: UQC8rjJFCHQkfdp7KmCkTZCb5dGzLFYe2TzsiZpfsnyTFt9D

@@ -1,0 +1,37 @@
+;-*- mode: Org; fill-column: 110;-*-
+* preparation steps of block content for LLM
+*oai-restapi-request-prepare chain*
+- oai-restapi-request-prepare
+- oai-restapi-prepare-content
+   1) oai-block-get-content - string
+   2) oai-restapi--collect-chat-messages - vector
+   3) oai-restapi--modify-last-user-content
+
+
+*oai-prompt.el chain*
+1) oai-block-get-content - string
+2) oai-prompt-collect-chat-research-steps-prompt ->
+  - oai-restapi--collect-chat-messages - vector
+3) oai-restapi-request-llm-retries ->
+  - oai-restapi--modify-last-user-content
+
+* preparation hooks
+cases:
+- blend all messages to a one text at `oai-block-get-content' step
+- change something in the “last-user-content”
+- format text in all messages
+* Main path of JSON decoding:
+For not stream
+- `oai-restapi--url-request-on-change-function' ->
+- `oai-restapi--get-single-response-text' ->
+- `oai-restapi--insert-single-response' ->
+- `insert'
+
+for stream:
+- `oai-restapi--url-request-on-change-function' ->
+- `oai-restapi--insert-stream-response' -> may be used for single response.
+- `oai-restapi--normalize-response' ->
+- `insert'
+
+To read data from JSON there is two ways (json-read) and (json-read-from-string), we specify plist as target,
+ so we use (plist-get data 'choices) instead of (alist-get 'choices data).
