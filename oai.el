@@ -31,6 +31,8 @@
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
 ;;; Commentary:
+;; Inspired by Robert Krahn's org-ai package <https://github.com/rksm/org-ai>
+;;
 ;; OAI extend Org mode with "ai block" that allows you to interact
 ;; with the OpenAI-compatible REST APIs.  Fork of "org-ai".
 ;;

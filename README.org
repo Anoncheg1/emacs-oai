@@ -1,5 +1,5 @@
 * oai
-Emacs package, provide blocks ~#+begin_ai~ in Org mode for communication with LLMs APIs.
+Emacs package, provide blocks ~#+begin_ai~ in Org mode for communication with LLMs APIs. Inspired by Robert Krahn's [[https://github.com/rksm/org-ai][org-ai package]]
 
 Features:
 - Tags: expansion of links in block
