@@ -730,28 +730,31 @@ MAX-TOKENS described in `oai-restapi-request-prepare'."
   ;; (let ((content (oai-block-get-content element))) ; string - is block content
   (if (eql req-type 'completion)
       ;; - *Completion*
-      (oai-block-tags-replace (oai-block-get-content element)) ; return string
+      (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
     ;; - else - *Chat*
-    (let* ((messages
+    (let* ((messages (oai-block--collect-chat-messages-at-point element))
+           (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
+           (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
+           ;; (oai-block--collect-chat-messages-from-string
+           ;;  sys-prompt
+           ;;  sys-prompt-for-all-messages
+           ;;  (when oai-restapi-add-max-tokens-recommendation
+           ;;    (oai-restapi--get-lenght-recommendation max-tokens)))
+
             ;; (oai-block--collect-chat-messages-at-point element
             ;;                                                     sys-prompt
             ;;                                                     sys-prompt-for-all-messages
             ;;                                                     (when oai-restapi-add-max-tokens-recommendation
             ;;                                                       (oai-restapi--get-lenght-recommendation max-tokens)))
-            (oai-restapi--collect-chat-messages-at-point element
-            ;; (oai-restapi--collect-chat-messages
-            ;;  (oai-block-tags--clear-properties
-            ;;   (oai-block-tags-replace
-            ;;    (string-trim
-            ;;     (oai-block-get-content element))))
-             sys-prompt
-             sys-prompt-for-all-messages
-             (when oai-restapi-add-max-tokens-recommendation
-               (oai-restapi--get-lenght-recommendation max-tokens))))
+
+            ;; (oai-restapi--collect-chat-messages-at-point element
+            ;;  sys-prompt
+            ;;  sys-prompt-for-all-messages
+            ;;  (when oai-restapi-add-max-tokens-recommendation
+            ;;    (oai-restapi--get-lenght-recommendation max-tokens))))
            ;; replace tags at last "[ME]:" only
            ;; run-hook-with-args-until-success
-           ;; (messages (oai-restapi--modify-last-user-content messages #'oai-block-tags-replace))
-           ;; (messages (oai-restapi--modify-last-user-content content #'oai-block-tags--clear-properties))
+
            )
       messages))) ; return vector
 
@@ -1423,13 +1426,10 @@ url-buffer is alive.
 We store url-buf with marker of header in oai-timers.el"
   (oai--debug "oai-restapi-request-llm-retries0 timeout %s" timeout)
   (with-current-buffer (marker-buffer header-marker)
-    (let (
+    (let* (
           ;; prepare request - apply tags to message
-          (messages (oai-restapi--modify-last-user-content
-                     (oai-restapi--modify-last-user-content
-                      messages
-                      #'oai-block-tags-replace)
-                     #'oai-block-tags--clear-properties)))
+          (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
+          (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties)))
       (when (or (and retries (> retries 0))
                 (not retries))
         (oai--debug "oai-restapi-request-llm-retries1 %s" (current-buffer))
@@ -1946,31 +1946,29 @@ inside the assembled prompt string."
 
 
 (defun oai-restapi--modify-vector-content (vec role new-content)
+  "Modify every string content of messages VEC that match role.
+ROLE is symbol.  NEW-CONTENT may be string or function that accept one
+string arguments and return new content."
   (unless (vectorp vec)
     (error "Not a vector"))
-  (let ((i (length vec))
+  (let ((i (1- (length vec)))
+        (newvec (copy-sequence vec))
         el
-        content
-        (newvec (copy-sequence vec)))
-    (while
-        (setq el (aref newvec i)) ; from 0
-        (setq content (plist-get el :content))
+        content)
+    ;; loop over messages in vec
+    (while (>= i 0)
+      (setq el (aref newvec i)) ; from 0 to len-1
+      (setq content (plist-get el :content))
+      ;; replace content for role
+      (when (eql role (plist-get el :role))
         (setq content (if (functionp new-content)
                           (funcall new-content content)
                         ;; else
                         new-content))
-        (aset newvec i (plist-put (copy-sequence el) :content rep-content)))
+        (aset newvec i (plist-put (copy-sequence el) :content content)))
+      (setq i (1- i))) ; ++1
     newvec))
 
-;; (let ((vec '[(:role system :content "foo")
-;;              (:role user :content "How to make coffe1?")
-;;              (:role assistant :content "IDK.")
-;;              (:role user :content "How to make coffe2? w11")
-;;              (:role system :content "other")]))
-;;   (length vec))
-;;   (aref vec 1))
-
-;;   (oai-restapi--modify-vector-content vec 'user "new-content"))
 
 (defun oai-restapi--modify-last-user-content (vec new-content)
   "Replacing last \='user :content with NEW-CONTENT in VEC.

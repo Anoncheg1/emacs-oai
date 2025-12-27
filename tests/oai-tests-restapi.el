@@ -622,5 +622,24 @@
             (:role user :content "How to make coffe2? w11")
             (:role system :content "other")])))
 
+;; -=-= For: `oai-restapi--modify-vector-content'
+(ert-deftest oai-restapi--modify-vector-content ()
+  (should
+   (equal (oai-restapi--modify-vector-content
+           '[(:role system :content "foo")
+             (:role user :content "How to make coffe1?")
+             (:role assistant :content "IDK.")
+             (:role user :content "How to make coffe2?")
+             (:role system :content "other")]
+           'user
+           (lambda (x) (concat x " w11")))
+          '[(:role system :content "foo")
+            (:role user :content "How to make coffe1? w11")
+            (:role assistant :content "IDK.")
+            (:role user :content "How to make coffe2? w11")
+            (:role system :content "other")])))
+
+
 (provide 'oai-tests-restapi)
+
 ;;; oai-tests-restapi.el ends here

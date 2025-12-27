@@ -25,10 +25,9 @@
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
 ;;; Commentary:
-;; How this works?
-;; We appply `oai-block-tags-replace' to text of last user request, this way:
-;; in oai.el: (oai-restapi--modify-last-user-content expanded #'oai-block-tags-replace)
+;; `oai-block-tags-replace' is main function for replace links.
 ;;
+;; TODO: How this works?
 ;;
 ;; We support @links:
 ;; - @Backtrace
@@ -38,7 +37,7 @@
 ;; We support Org ol.el package links:
 ;; - [[PATH]]
 ;;
-;; We support "org-links" package new links: (TODO)
+;; We support "org-links" package new links:
 ;; - [[PATH::NUM::LINE]]
 ;; - [[PATH::NUM-NUM::LINE]] - range
 ;; - [[PATH::NUM-NUM]] - range
@@ -949,7 +948,7 @@ Check every type of links if it exist in text, find replacement for the
 fist link and replace link substring with
 `oai-block-tags--replace-last-regex-smart' once.
 Return modified string with text properties or the same string.
-Used for function `oai-restapi--modify-last-user-content'.
+Used for function `oai-restapi--modify-vector-content'.
 Called from:
 - `oai-expand-block' interactive function
 - `oai-restapi-request-prepare'
@@ -1061,7 +1060,7 @@ Called from:
 
 (defun oai-block-tags--clear-properties (string)
   "Remove text properties from STRING.
-Used as argument fo function `oai-restapi--modify-last-user-content'.
+Used as argument fo function `oai-restapi--modify-vector-content'.
 Used for `oai-expand-block' that show fontificated of markdown blocks,
 made by `oai-block-tags--replace-last-regex-smart'.
 Return modified STRING."
