@@ -32,7 +32,7 @@ May be implemented at:
 Solution:
 - before any - raw text level: as `oai-block-parse-part-hook' in `oai-block--parse-part'
 - after all - vector level: as `oai-restapi-after-prepare-messages-hook' in `oai-restapi-request-llm-retries' and in `oai-restapi-prepare-content'
-* Main path of JSON decoding:
+* Main path of JSON decoding
 For not stream
 - `oai-restapi--url-request-on-change-function' ->
 - `oai-restapi--get-single-response-text' ->

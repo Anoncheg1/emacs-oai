@@ -101,7 +101,7 @@ To get full request body and more information set:
 Built-in url.el have ability to output request and resonse headers, for that you need to set
 : (setq url-debug '(http))
 * Extension guide
-** How to add post-processing for text
+** Hooks for post-processing of LLM resonse
 There are a hook ~oai-restapi-after-chat-insertion-hook~ that accpet two arguments (par1 par2)
 - type :: simbol \='role, \='text or'end.
 - role-text :: text or role name.
@@ -128,6 +128,12 @@ Example to remove empty lines after AI answer:
 (add-hook 'oai-restapi-after-chat-insertion-hook #'my/ai-postprocess)
 #+end_src
 
+** Hooks for for pre-processing of requests to LLM or text of blocks
+There are two hooks for that:
+- before any - raw text level: as `oai-block-parse-part-hook' in oai-block.el
+- after all - vector level: as `oai-restapi-after-prepare-messages-hook' in oai-restapi.el
+
+More info: [[file:./doc.org::*Main path of JSON decoding][Main path of JSON decoding]]
 * Org functions for block
 - org-in-src-block-p = oai-block-p
 - oai-block-insert-result = oai-block-insert-result
