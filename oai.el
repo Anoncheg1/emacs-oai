@@ -148,7 +148,8 @@ Returning t is Org requirement."
 (defun oai-call-this-or-that (fn-default fn-list args)
   "If you specify :chain in ai block, we call related function.
 FN-DEFAULT is `oai-restapi-request-prepare' FN-LIST is
-`oai-agent-call-functions' variable."
+`oai-agent-call-functions' variable.
+ARGS is `oai-parse-org-header' result."
   (let ((info (car (last args)))
         called)
     ;; loop over `oai-agent-call-functions'
