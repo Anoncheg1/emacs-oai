@@ -121,9 +121,12 @@
   :type 'boolean
   :group 'oai)
 
-(defcustom oai-agent-call-functions '(:chain #'oai-prompt-request-chain) ; oai-restapi.el
-  "Pass processed ai block info to AI assistent or some Emacs agent.
-See `oai-call-block' and `oai-restapi-request-prepare' for parameters."
+(defcustom oai-agent-call-functions (list :forexample #'oai-prompt-request-chain
+                                          :chain #'oai-prompt-request-chain) ; at oai-prompt.el
+  "Custom variants to execute request.
+If you specify :chain at #+begin_ai line, associated function will be
+called.  See `oai-call-block' and `oai-restapi-request-prepare' for
+parameters."
   :type '(choice
           (plist :tag "Property list (symbol => funcion)"
                  :key-type symbol
@@ -131,25 +134,37 @@ See `oai-call-block' and `oai-restapi-request-prepare' for parameters."
           (const :tag "Use auth-source." nil))
   :group 'oai)
 
+
 (defun oai-ctrl-c-ctrl-c ()
   "Remove result and parse ai block header parameters.
 Returning t is Org requirement."
-  (when (oai-block-p) ; oai-block.el
+  (when (oai-block-p)
     (oai-block-remove-result)
-    (let* ((args (oai-parse-org-header))
-           (info (car (last args))))
-      (unless
-          (cl-loop for (key val) on oai-agent-call-functions by #'cddr
-                       when (and val ; skip keys with missing value
-                                 (not (eql 'x (alist-get key info 'x))))
-                       return (progn (apply (eval val) args) key)) ; return t if key found
-        (apply #'oai-restapi-request-prepare args))) ; call default REST request implementation
+    (oai-call-this-or-that #'oai-restapi-request-prepare
+                           oai-agent-call-functions
+                           (oai-parse-org-header))
     t))
+
+(defun oai-call-this-or-that (fn-default fn-list args)
+  "If you specify :chain in ai block, we call related function.
+FN-DEFAULT is `oai-restapi-request-prepare' FN-LIST is
+`oai-agent-call-functions' variable."
+  (let ((info (car (last args)))
+        called)
+    ;; loop over `oai-agent-call-functions'
+    (while (and fn-list (not called))
+      (let ((key (pop fn-list))
+            (fn (pop fn-list)))
+        (when (and fn ; skip keys with missing value
+                   (not (eq 'x (alist-get key info 'x)))) ; check key exist in info
+          (setq called (apply fn args))))) ; call agant function
+    (unless called ; executed if key exist but evaluation return nil or key not exist
+      (apply fn-default args)))) ; call default function
 
 
 (defun oai-parse-org-header ()
   "Parsing ai block header and parameters.
-With respect to specified default values here."
+Return list of arguments args."
   (let* ((element (oai-block-p)) ; oai-block.el
          (info (oai-block-get-info element)) ; ((:max-tokens . 150) (:service . "together") (:model . "xxx")) ; oai-block.el
          (req-type (oai-block--get-request-type info)) ; oai-block.el
@@ -191,7 +206,8 @@ With respect to specified default values here."
 
 ;; -=-= interactive fn: key M-x: oai-expand-block
 (defun oai-expand-block-deep ()
-  "Output almost RAW information about request with headers and messages."
+  "Output almost RAW information about request with headers and messages.
+Return list of strings to print."
   (seq-let (element req-type sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream) (oai-parse-org-header)
     (let* ((messages (unless (eql req-type 'completion)
                        ;; - split content to messages
@@ -199,22 +215,7 @@ With respect to specified default values here."
                                                                     sys-prompt
                                                                     sys-prompt-for-all-messages
                                                                     (if oai-restapi-add-max-tokens-recommendation
-                                                                        (oai-restapi--get-lenght-recommendation max-tokens)))
-                       ;; (oai-restapi--collect-chat-messages
-                       ;;  (oai-block-tags--clear-properties
-                       ;;   (oai-block-tags-replace
-                       ;;    (string-trim
-                       ;;     (oai-block-get-content element)))))
-                       ;; (oai-restapi--modify-last-user-content
-                       ;;  (oai-restapi--modify-last-user-content
-                       ;;   (oai-block--collect-chat-messages-at-point element
-                       ;;                                              sys-prompt
-                       ;;                                              sys-prompt-for-all-messages
-                       ;;                                              (if oai-restapi-add-max-tokens-recommendation
-                       ;;                                                  (oai-restapi--get-lenght-recommendation max-tokens)))
-                       ;;   #'oai-block-tags-replace)
-                       ;;  #'oai-block-tags--clear-properties)
-                       )))
+                                                                        (oai-restapi--get-lenght-recommendation max-tokens))))))
       (list
        (oai-restapi--get-endpoint messages service)
        (oai-restapi--get-headers service)
@@ -239,37 +240,27 @@ Set `help-window-select' variable to get focus.
 When universal  ARG specifide  output more  raw information  splitted by
 messages."
   (interactive "P")
-  (when-let* ((element (oai-block-p))) ; oai-block.el
-    ;; (condition-case err
-              (let ((res-str (if arg
-                                 (pp-to-string (oai-expand-block-deep))
-                               ;; else
-                               (let* (
-                                      ;; get block
-                                      (expanded (string-trim
-                                                 (oai-block-get-content element))) ; oai-block.el
-                                      (expanded (oai-block-tags-replace expanded))
-                                      ;; ;; vector
-                                      ;; (expanded (oai-restapi--collect-chat-messages expanded))
-                                      ;; ;; vector with changed last message
-                                      ;; (expanded (oai-restapi--modify-last-user-content expanded #'oai-block-tags-replace))
-                                      ;; vector
-                                      (expanded (oai-block--collect-chat-messages-from-string expanded))
-                                      ;; one string
-                                      (expanded (oai-block--stringify-chat-messages expanded)))
-                                 expanded))))
-                    (if (called-interactively-p 'any)
-                        (let ((buf (get-buffer-create "*OAi Preview*")))
-                          (with-help-window buf (with-current-buffer buf
-                                                  (insert res-str)))
-                          (switch-to-buffer buf))
-                      ;; else
-                      res-str))
-                ;; (user-error
-                ;;  (print "wtf")
-                ;;  (funcall oai-restapi-show-error-function (error-message-string err)
-                ;;           (oai-block-get-header-marker element)))
-                ))
+  (when-let* ((element (oai-block-p)) ; oai-block.el
+              (res-str (if arg
+                           (pp-to-string (oai-expand-block-deep))
+                         ;; else
+                         (let* (
+                                ;; get block
+                                (expanded (string-trim
+                                           (oai-block-get-content element))) ; oai-block.el
+                                (expanded (oai-block-tags-replace expanded))
+                                ;; vector
+                                (expanded (oai-block--collect-chat-messages-from-string expanded))
+                                ;; one string
+                                (expanded (oai-block--stringify-chat-messages expanded)))
+                           expanded))))
+    (if (called-interactively-p 'any)
+        (let ((buf (get-buffer-create "*OAi Preview*")))
+          (with-help-window buf (with-current-buffer buf
+                                  (insert res-str)))
+          (switch-to-buffer buf))
+      ;; else
+      res-str)))
 
 ;; -=-= interactive fn: key C-g: keyboard quit
 
@@ -482,37 +473,7 @@ non-nil, then mark one chat message."
   ;; (propertize (format " org-ai[%d]" count)
   ;;                   'face (if (> count 0) 'error 'default))
   )
-;; -=-= Global mode (old)
-;; (defvar org-ai-global-prefix-map (make-sparse-keymap)
-;;   "Keymap for `org-ai-global-mode'.")
 
-;; (let ((map org-ai-global-prefix-map)) ; here
-;;   ;; (define-key map (kbd "p") 'org-ai-on-project) ; org-ai-on-project.el
-;;   ;; (define-key map (kbd "P") 'org-ai-prompt-in-new-buffer) ; org-ai-useful.el
-;;   ;; (define-key map (kbd "r") 'org-ai-on-region) ; org-ai-useful.el
-;;   ;; (define-key map (kbd "c") 'org-ai-refactor-code) ; org-ai-useful.el
-;;   ;; (define-key map (kbd "s") 'org-ai-summarize) ; org-ai-useful.el
-;;   (define-key map (kbd "m") 'oai-restapi-switch-chat-model) ; oai-restapi.el
-;;   (define-key map (kbd "!") 'oai-open-request-buffer) ; oai-restapi.el
-;;   ;; (define-key map (kbd "$") 'org-ai-open-account-usage-page) ; org-ai-openai-image.el
-;;   ;; (define-key map (kbd "t") 'org-ai-talk-input-toggle) ; org-ai-talk.el
-;;   ;; (define-key map (kbd "T") 'org-ai-talk-output-toggle) ; org-ai-talk.el
-;;   ;; (define-key map (kbd "R") 'org-ai-talk-read-region) ; org-ai-talk.el
-;;   (define-key map (kbd "SPC") 'org-ai-mark-region-at-point)) ; oai-block.el
-
-;; (defvar org-ai-global-mode-map (make-sparse-keymap)
-;;   "Keymap for `org-ai-global-mode'.")
-
-;; (define-key org-ai-global-mode-map (kbd "C-c M-a") org-ai-global-prefix-map) ; here
-
-;; ;;;###autoload
-;; (define-minor-mode org-ai-global-mode
-;;   "Non `org-mode' specific minor mode for the OpenAI API."
-;;   :init-value nil
-;;   :lighter ""
-;;   :global t
-;;   :keymap org-ai-global-mode-map
-;;   :group 'oai)
 ;; -=-= provide
 (provide 'oai)
 ;;; oai.el ends here

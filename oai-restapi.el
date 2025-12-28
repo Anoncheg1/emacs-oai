@@ -659,7 +659,7 @@ not found in tokens."
 
 (defun oai-restapi--get-endpoint (messages &optional service)
   "Correct endpoint based on the SERVICE and type of requst.
-Ff MESSAGES are provided, type of request is chat, otherwise completion."
+If MESSAGES are provided, type of request is chat, otherwise completion."
   (oai--debug "oai-restapi--get-endpoint %s %s" messages service)
   (let* ((service (or (if service
                           (oai-restapi--openai-service-clear-dashes service))

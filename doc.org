@@ -32,6 +32,8 @@ May be implemented at:
 Solution:
 - before any - raw text level: as `oai-block-parse-part-hook' in `oai-block--parse-part'
 - after all - vector level: as `oai-restapi-after-prepare-messages-hook' in `oai-restapi-request-llm-retries' and in `oai-restapi-prepare-content'
+* Hook - HTTP headers before sending
+[[file:~/sources/emacs-oai/oai-restapi.el::680::(defun oai-restapi--get-headers (service)]]
 * Main path of JSON decoding
 For not stream
 - `oai-restapi--url-request-on-change-function' ->
