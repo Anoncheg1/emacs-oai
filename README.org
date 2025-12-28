@@ -4,9 +4,9 @@ Emacs package, provide blocks ~#+begin_ai~ in Org mode for communication with LL
 Features:
 - Tags: expansion of links in block
 - Do parallel request in the same or different buffer without waiting
-- Highlighting inside AI block: markdown block, Org tables, links
-- Auto filling
-- provide prompt engineering tools, there is ~:chain~ of calls out-of-the-box.
+- Highlighting: markdown block, Org tables, links. Commands to inspect raw data
+- Autofilling, hooks, powerful debugger
+- Provide prompt engineering tools, there is ~:chain~ of calls out-of-the-box
 * Screenshot
 [[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]
 * Dependencies
