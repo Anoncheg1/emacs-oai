@@ -26,8 +26,14 @@
 
 ;;; Commentary:
 ;; `oai-block-tags-replace' is main function for replace links.
+;; Link is Org links, tags is AI links in form of @something.
 ;;
-;; TODO: How this works?
+;; How this works? (TODO)
+;; - for highlighting this add hook to Org with font-lock logic
+;; - for replacing tags we operate at string variable
+;; 1) find tags/links
+;; 2) with ol.el we find target of link and compose markdown block as a string
+;; 3) use `oai-block-tags--replace-last-regex-smart' to replace substring.
 ;;
 ;; We support @links:
 ;; - @Backtrace

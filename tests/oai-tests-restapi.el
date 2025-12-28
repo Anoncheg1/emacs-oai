@@ -27,15 +27,17 @@
 
 ;;; Commentary:
 ;;
+;; $ emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block-tags.el -l oai-block.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el -l ./tests/oai-tests-restapi.el -f ert-run-tests-batch-and-exit
+;; or
 
+;; (eval-buffer)
+;; (ert t)
+
+;;; Code:
+;; -=-= imports
 (require 'ert)
 (require 'oai-restapi)
 (defvar ert-enabled nil)
-;; (eval-buffer)
-;; (ert t)
-;;
-
-;;; Code:
 
 ;; -=-= For `oai-restapi--get-token' (old)
 
@@ -623,7 +625,7 @@
             (:role system :content "other")])))
 
 ;; -=-= For: `oai-restapi--modify-vector-content'
-(ert-deftest oai-restapi--modify-vector-content ()
+(ert-deftest oai-tests-restapi--modify-vector-content ()
   (should
    (equal (oai-restapi--modify-vector-content
            '[(:role system :content "foo")
@@ -642,4 +644,42 @@
 
 (provide 'oai-tests-restapi)
 
+;; -=-= For: `oai-restapi-prepare-content'
+(ert-deftest oai-tests-restapi--prepare-content1 ()
+  (with-temp-buffer
+    (org-mode)
+    (let* ((element (progn (insert "#+begin_ai :stream t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\n#+end_ai\n")
+                           (goto-char 1)
+                           (oai-block-p)))
+           ;; (info (progn (goto-char (org-element-property :begin element)) (oai-block-get-info)))
+           )
+      (should-error (oai-restapi-prepare-content element 'chat "sys1" "sys-all2" 3) :type 'error))))
+
+(ert-deftest oai-tests-restapi--prepare-content2 ()
+  (with-temp-buffer
+    (org-mode)
+    (let* ((element (progn (insert "#+begin_ai :stream t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\nss\n#+end_ai\n")
+                           (goto-char 1)
+                           (oai-block-p)))
+           (res (oai-restapi-prepare-content element 'chat "sys1" "sys-all2" 3)))
+      (should (eq (length res) 2))
+      (should (string-match "sys1" (plist-get (aref res 0) :content)))
+      (should (eql 'system (plist-get (aref res 0) :role)))
+      (should (eql 'user (plist-get (aref res 1) :role)))
+      (should (string-match "sys-all2" (plist-get (aref res 1) :content)))
+      (should (string-match "ss" (plist-get (aref res 1) :content))))))
+
+(ert-deftest oai-tests-restapi--prepare-content3 ()
+  (with-temp-buffer
+    (org-mode)
+    (let* ((element (progn (insert "#+begin_ai :stream t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\nss\n[AI:]vv\n[ME:]tt\n#+end_ai\n")
+                           (goto-char 1)
+                           (oai-block-p)))
+           (res (oai-restapi-prepare-content element 'chat "sys1" "sys-all2" 3)))
+      (should (eq (length res) 4))
+      (should (eql 'system (plist-get (aref res 0) :role)))
+      (should (eql 'user (plist-get (aref res 1) :role)))
+      (should (eql 'assistant (plist-get (aref res 2) :role)))
+      (should (eql 'user (plist-get (aref res 3) :role)))
+      (should (string-match "tt" (plist-get (aref res 3) :content))))))
 ;;; oai-tests-restapi.el ends here

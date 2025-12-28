@@ -732,7 +732,16 @@ MAX-TOKENS described in `oai-restapi-request-prepare'."
       ;; - *Completion*
       (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
     ;; - else - *Chat*
-    (let* ((messages (oai-block--collect-chat-messages-at-point element))
+    ;; (print (oai-block--collect-chat-messages-at-point element
+    ;;                                                             sys-prompt
+    ;;                                                             sys-prompt-for-all-messages
+    ;;                                                             (when oai-restapi-add-max-tokens-recommendation
+    ;;                                                               (oai-restapi--get-lenght-recommendation max-tokens))))
+    (let* ((messages (oai-block--collect-chat-messages-at-point element
+                                                                sys-prompt
+                                                                sys-prompt-for-all-messages
+                                                                (when oai-restapi-add-max-tokens-recommendation
+                                                                  (oai-restapi--get-lenght-recommendation max-tokens))))
            (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
            (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
            ;; (oai-block--collect-chat-messages-from-string
@@ -1885,7 +1894,7 @@ over."
   (oai-timers--interrupt-all-requests #'oai-restapi--interrupt-url-request failed))
 
 
-;; -=-= chat-messages collect/stringify
+;; -=-= chat-messages: collect/stringify
 
 (defun oai-restapi--collect-chat-messages-at-point (&optional element default-system-prompt persistant-sys-prompts max-token-recommendation separator)
   "Get messsages for ai block at point or element in current buffer.
@@ -1905,7 +1914,6 @@ MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
 ;; (oai-restapi--normalize-response '(id "o3f9cZv-4Yz4kd-9617f234fd6f9d91" object "chat.completion" created 1752904277 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 589067420664432000 logprobs nil index 0 message (role "assistant" content "`(mapcar 'cdr '((a . 2) (x . 3) (2 . 1)))` returns `(2 3 1)`." tool_calls []))] usage (prompt_tokens 84 completion_tokens 34 total_tokens 118 cached_tokens 0)))
 ;; (#s(oai-restapi--response role "assistant") #s(oai-restapi--response text "`(mapcar 'cdr '((a . 2) (x . 3) (2 . 1)))` returns `(2 3 1)`.") #s(oai-restapi--response stop "stop"))
 
-;; -=-= stringify-chat-messages
 (cl-defun oai-restapi--stringify-chat-messages (messages &optional &key
                                                     default-system-prompt
                                                     (system-prefix "[SYS]: ")
@@ -1929,8 +1937,7 @@ inside the assembled prompt string."
              into result
              finally return (string-join result "\n\n"))))
 
-
-;; -=-= Last user message
+;; -=-= chat-messages: modify content
 
 (defun oai-restapi--find-last-user-index (vec)
   "Return the index of the last element in VEC whose :role is \='user, or nil."
@@ -1993,26 +2000,17 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
 
 ;; -=-= Others
 
-;; (defun oai-restapi--stream-supported (service model)
-;;   "Check if the stream is supported by the service and model.
-;; SERVICE is the service to use. MODEL is the model to use.
-;; Used in oai.el"
-;;   ;; stream not supported by openai o1 models
-;;   (not (and (or (eq service 'openai) (eq service 'azure-openai))
-;;             (or
-;;              (string-prefix-p "o1-pro" model)))))
-
 ;; not used
-(defun oai-restapi-switch-chat-model ()
-  "Change `oai-restapi-con-model'."
-  (interactive)
-  (let ((model (completing-read "Model: "
-                                (append oai-restapi-openai-known-chat-models
-                                        '("claude-3-opus-latest" "claude-3-5-sonnet-latest" "claude-3-7-sonnet-latest"
-                                          "gemini-2.5-pro-preview-03-25" "gemini-2.5-flash-preview-04-17" "gemini-2.0-flash" "gemini-2.0-pro-exp"
-                                          "deepseek-chat" "deepseek-reasoner"))
-                                nil t)))
-    (setq oai-restapi-con-model model)))
+;; (defun oai-restapi-switch-chat-model ()
+;;   "Change `oai-restapi-con-model'."
+;;   (interactive)
+;;   (let ((model (completing-read "Model: "
+;;                                 (append oai-restapi-openai-known-chat-models
+;;                                         '("claude-3-opus-latest" "claude-3-5-sonnet-latest" "claude-3-7-sonnet-latest"
+;;                                           "gemini-2.5-pro-preview-03-25" "gemini-2.5-flash-preview-04-17" "gemini-2.0-flash" "gemini-2.0-pro-exp"
+;;                                           "deepseek-chat" "deepseek-reasoner"))
+;;                                 nil t)))
+;;     (setq oai-restapi-con-model model)))
 
 
 (defun oai-restapi-get-buffers-for-element (&optional element)
