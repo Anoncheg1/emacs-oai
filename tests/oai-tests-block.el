@@ -26,12 +26,6 @@
 
 ;;; Commentary:
 
-;; (eval-buffer) or (load-file "path/to/async-tests.el")
-;; Running Tests: Load the test file and run:
-;; (eval-buffer)
-;; (ert t)
-;;
-
 ;; ## To run these tests:
 ;; 1. Save the code to an .el file (e.g., `oai-params-test.el`).
 ;; 2. Open Emacs and load the file: `M-x load-file RET oai-tests2.el RET`.
@@ -40,8 +34,11 @@
 ;; OR
 ;; to run: emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l ./tests/oai-tests-block.el -f ert-run-tests-batch-and-exit
 ;; OR
-;; eval-buffer
 ;; M-x ert RET t RET
+;; OR
+;; (eval-buffer)
+;; (ert t)
+
 ;;; Code:
 
 (require 'oai-block)
@@ -331,6 +328,34 @@ and INFO-ALIST is the parameters from its header."
               (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph (point-min) (point-max) nil)
               (let ((strings (string-split (buffer-substring-no-properties (point-min) (point-max)) "\n")))
                 (< (length (nth 1 strings)) 10))))))
+;; -=-= Test: parse-part
+(ert-deftest oai-tests-block--parse-part ()
+  (should (equal (with-temp-buffer
+                   (insert "ss")
+                   (oai-block--parse-part 1 (point)))
+                 '(:role user :content "ss")))
+  (should (not (with-temp-buffer
+                 (insert "")
+                 (oai-block--parse-part 1 (point)))))
+  (should (not (with-temp-buffer
+                 (insert "[AI:] ")
+                 (oai-block--parse-part 1 (point)))))
+  (should-error (with-temp-buffer
+                  (insert "[AI:] vv\n[ME:] zz\n")
+                  (oai-block--parse-part 1 (point)))
+                :type 'error)
+  (should (with-temp-buffer
+            (insert "[AI:] vv\n")
+            (let ((p (point))
+                  res)
+              (insert "[ME:] zz\n")
+              (setq res (oai-block--parse-part 1 p))
+              (equal res
+                     '(:role assistant :content "vv"))
+              (setq res (oai-block--parse-part p (point)))
+              (equal res
+                     '(:role user :content "zz"))))))
+
 ;; -=-= Test: oai-block--get-chat-messages-positions, oai-block--collect-chat-messages-from-string
 (ert-deftest oai-tests-block--chat-messages-tests ()
   (let ((payload "text before

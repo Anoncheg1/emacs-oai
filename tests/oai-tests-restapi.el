@@ -682,4 +682,22 @@
       (should (eql 'assistant (plist-get (aref res 2) :role)))
       (should (eql 'user (plist-get (aref res 3) :role)))
       (should (string-match "tt" (plist-get (aref res 3) :content))))))
+
+;; -=-= For fooks: oai-restapi-after-prepare-messages-hook and
+(defun oai-tests-restapi--hooks-help-fun (messages)
+  (oai-restapi--modify-vector-content messages 'user (lambda (x) (concat x "hh1"))))
+
+(ert-deftest oai-tests-restapi--prepare-messages-hooks ()
+  (with-temp-buffer
+    (org-mode)
+    (let* ((element (progn (insert "#+begin_ai :stream t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\nss\n[AI:]vv\n[ME:]tt\n#+end_ai\n")
+                           (goto-char 1)
+                           (oai-block-p)))
+           (oai-restapi-after-prepare-messages-hook (list #'oai-tests-restapi--hooks-help-fun))
+           (oai-block-parse-part-hook (list (lambda (x role) (concat x "hh2"))))
+           (res (oai-restapi-prepare-content element 'chat "sys1" "sys-all2" 3)))
+      (should (eq (length res) 4))
+      (should (string-equal "sys-all2 sshh2hh1" (plist-get (aref res 1) :content)))
+      (should (string-equal "sys-all2 tthh2hh1" (plist-get (aref res 3) :content))))))
+
 ;;; oai-tests-restapi.el ends here

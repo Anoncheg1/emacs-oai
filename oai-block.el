@@ -398,35 +398,42 @@ Uses `oai-block-roles' variable."
 ;; Parse parts and build messages
 (defun oai-block--parse-part (pos-beg pos-end)
   "Get part of chat as a plist with :role and :content in current buffer.
-If content is empty string return nil.
 Positions POS-BEG POS-END used as limits.
+Skip AI_REASON role string.
 If prefix found two times error is thrown.
-Uses `oai-block-roles' variable and `oai-block--chat-prefixes-re'."
+Uses `oai-block-roles' variable and `oai-block--chat-prefixes-re'.
+If content is empty string return nil otherwise plist."
   (save-excursion
     (goto-char pos-beg)
     ;; - find prefix
     (let (content ; after prefix or from pos
-          (role (cadr (assoc-string "missing_role" oai-block-roles)))) ; default role
+          role-str
+          role
+          pre-end-pos) ; begining of content
+      ;; get role and begining of content
       (save-match-data
-        (if (re-search-forward oai-block--chat-prefixes-re pos-end t)
-            (let ((role-str (match-string 1))
-                  (pre-end-pos (match-end 0)))
-              (when (re-search-forward oai-block--chat-prefixes-re pos-end t)
-                (error "Another role prefix found before POS-END"))
-              ;; Filter out reasoning parts
-              (unless (string= role-str "AI_REASON")
-                ;; - interpret role
-                (setq role (or (cadr (assoc-string role-str oai-block-roles))
-                               (cadr (assoc-string "unknown_role" oai-block-roles)) ))
-                ;; - get content after prefix
-                (setq content (string-trim (buffer-substring-no-properties pre-end-pos pos-end)))
-                (setq content (oai-block--pipeline oai-block-parse-part-hook content role))))
-          ;; else - Insert default role if part lacks role prefix
-          ;; - get content for pos
-          (setq content (string-trim (buffer-substring-no-properties pos-beg pos-end))))
-        ;; skip empy parts
-        (when (not (string-empty-p content))
-          (list :role role :content content))))))
+        (when (re-search-forward oai-block--chat-prefixes-re pos-end t)
+            (setq role-str (match-string 1))
+            (setq pre-end-pos (match-end 0))
+            (when (re-search-forward oai-block--chat-prefixes-re pos-end t)
+              (error "Another role prefix found before POS-END"))))
+
+      (unless (string= role-str "AI_REASON") ; works for nil
+        ;; get role symbol
+        (when role-str
+          (setq role (cadr (assoc-string role-str oai-block-roles))))
+        (setq role (if role-str
+                       (or role (cadr (assoc-string "unknown_role" oai-block-roles)))
+                     ;; else - no role-str
+                     (cadr (assoc-string "missing_role" oai-block-roles)) ; user for the first message
+                     ))
+        ;; get content
+        (setq content (string-trim (buffer-substring-no-properties (or pre-end-pos pos-beg)
+                                                                   pos-end)))
+        (setq content (oai-block--pipeline oai-block-parse-part-hook content role)))
+      ;; if content is empty return nil.
+      (when (not (string-empty-p content))
+        (list :role role :content content)))))
 
 ;; (defun oai-block--get-chat-parts (pos-beg pos-end)
 ;;   "Return a list of chat message plists (:role :content) in region POS-BEG to POS-END.
