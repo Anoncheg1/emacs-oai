@@ -75,6 +75,16 @@
   "Prefix should be at the begining of the line with spaces or without.
 Or roles regex.")
 
+(defcustom oai-block-parse-part-hook nil
+  "Call hook function with raw string of current block after role prefix.
+Implemented as a list of functions that called with two argument content
+string after prefix and role prefix as a symbol from from
+`oai-block-roles'.  Executed from left to right and pass result content
+string to each other.  Executed at step of reading ai block from raw
+content of buffer before any processing but after splitting to parts."
+  :type 'hook
+  :group 'oai)
+
 ;; (defvar oai-block--chat-prefixes-re "^[ \t]*\\(?:\\[SYS\\]:\\|\\[ME\\]:\\|\\[ME:\\]\\|\\[AI\\]:\\|\\[AI_REASON\\]:\\)"
 ;;   "Prefix should be at the begining of the line with spaces or without.
 ;; Or roles regex.")
@@ -137,9 +147,6 @@ pairs from `oai-block-get-info'."
    ((not (eql 'x (alist-get :chat info 'x))) 'chat)
    ((not (eql 'x (alist-get :completion info 'x))) 'completion)
    ((not (eql 'x (alist-get :complete info 'x))) 'completion)
-   ((not (eql 'x (alist-get :image info 'x))) 'image)
-   ((not (eql 'x (alist-get :sd-image info 'x))) 'sd-image)
-   ((not (eql 'x (alist-get :local info 'x))) 'local-chat)
    (t 'chat)))
 
 (cl-defun oai-block--get-sys (&key info default)
@@ -236,11 +243,6 @@ Parameters are sourced from:
 ;;       v2))
 
 ;; -=-= parts fn: get-content
-(defun oai-block--string-equal-ignore-case (string1 string2)
-  "Helper for backwards compat.
-STRING1 and STRING2 are strings.  Return t if they are equal
-ignoring case."
-  (eq 't (compare-strings string1 0 nil string2 0 nil t)))
 
 (defun oai-block-get-content (&optional element)
   "Extracts the text content of the #+begin_ai...#+end_ai block.
@@ -261,10 +263,37 @@ ELEMENT."
          (noweb-control (or (alist-get :noweb info nil)
                             (org-entry-get (point) "oai-noweb" 1)
                             "no"))
-         (content (if (oai-block--string-equal-ignore-case "yes" noweb-control)
+         (content (if (string-equal-ignore-case "yes" noweb-control)
                       (org-babel-expand-noweb-references (list "markdown" unexpanded-content))
                     unexpanded-content)))
     (string-trim content)))
+;; -=-= help function to call hooks as pipeline with one argument
+(defun oai-block--pipeline (funcs init-val &rest args)
+  "Process INIT-VAL through a pipeline of functions FUNCS.
+Each function in FUNCS is called as (func val &rest ARGS), where VAL
+is the result of previous function (or INIT-VAL for the first), and
+ARGS are optional additional arguments supplied to this function.
+
+Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS is nil."
+  (if funcs
+      (let ((result init-val))
+        (dolist (f funcs result)
+          (setq result (apply f result args))))
+    init-val))
+
+;; (oai-block--pipeline
+;;  '((lambda (x) (concat x "1"))
+;;    (lambda (x) (concat x "2")))
+;;  "ss") ; => "ss12"
+
+;; (oai-block--pipeline
+;;  '((lambda (x b) (concat x b "1"))
+;;    (lambda (x b) (concat x b "2")))
+;;  "ss" "vv") ; => "ssvv1vv2"
+
+;; (oai-block--pipeline
+;;  nil
+;;  "ss") ; => "ss"
 
 ;; -=-= fn: collect-chat-messages
 (defun oai-block--get-chat-messages-positions (content-start content-end prefix-re)
@@ -380,10 +409,12 @@ Uses `oai-block-roles' variable and `oai-block--chat-prefixes-re'."
                 (error "Another role prefix found before POS-END"))
               ;; Filter out reasoning parts
               (unless (string= role-str "AI_REASON")
+                ;; - interpret role
+                (setq role (or (cadr (assoc-string role-str oai-block-roles))
+                               (cadr (assoc-string "unknown_role" oai-block-roles)) ))
                 ;; - get content after prefix
                 (setq content (string-trim (buffer-substring-no-properties pre-end-pos pos-end)))
-                (setq role (or (cadr (assoc-string role-str oai-block-roles))
-                               (cadr (assoc-string "unknown_role" oai-block-roles)) ))))
+                (setq content (oai-block--pipeline oai-block-parse-part-hook content role))))
           ;; else - Insert default role if part lacks role prefix
           ;; - get content for pos
           (setq content (string-trim (buffer-substring-no-properties pos-beg pos-end))))

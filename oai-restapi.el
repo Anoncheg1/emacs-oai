@@ -718,6 +718,13 @@ Useful for small max-tokens.
 (defvar oai-restapi-prepare-last-hook nil
   "Hook to try parsing a string as a number in different formats.")
 
+
+(defvar oai-restapi-after-prepare-messages-hook nil)
+  "List of functions that called with one argument messages vector.
+Executed at step of sending request to LLM after all preparations for
+messages was done. Ever function called with one argument from left to
+right and pass result to each other."
+
 (defun oai-restapi-prepare-content (element req-type sys-prompt sys-prompt-for-all-messages max-tokens)
   "Get content of ai block of element in current buffer.
 Handle Tags, two types of REQ-TYPE and separation of PROMPT and MESSAGES.
@@ -1094,77 +1101,77 @@ specific role."
           (with-current-buffer buffer ; target buffer with block
             (save-excursion
               ;; - LOOP Per message
-              (cl-loop for response in normalized
-                       do (let ((type (oai-restapi--response-type response))
-                                (payload (oai-restapi--response-payload response)))
-                            ;; (oai--debug "oai-restapi--insert-stream-response: %s %s %s" type end-marker oai-restapi--current-insert-position-marker)
-                            ;; - Type of message: error
-                            (when (eq type 'error)
-                              (error (oai-restapi--response-payload response))) ; not used
+              (dolist (response normalized)
+                (let ((type (oai-restapi--response-type response))
+                      (payload (oai-restapi--response-payload response)))
+                  ;; (oai--debug "oai-restapi--insert-stream-response: %s %s %s" type end-marker oai-restapi--current-insert-position-marker)
+                  ;; - Type of message: error
+                  (when (eq type 'error)
+                    (error (oai-restapi--response-payload response))) ; not used
 
-                            ;; - Always executed at begining of loop
-                            (goto-char pos)
-                            (when (string-suffix-p "#+end_ai" (buffer-substring-no-properties (point) (line-end-position)))
-                              (oai-restapi--remove-empty-lines-above-at-point)
-                              (setq pos (point))
-                              (insert "\n")
-                              (backward-char))
+                  ;; - Always executed at begining of loop
+                  (goto-char pos)
+                  (when (string-suffix-p "#+end_ai" (buffer-substring-no-properties (point) (line-end-position)))
+                    (oai-restapi--remove-empty-lines-above-at-point)
+                    (setq pos (point))
+                    (insert "\n")
+                    (backward-char))
 
-                            ;; - Type of message
-                            (cl-case type
-                              (role (when (not (string= payload c-chat-role)) ; payload = role
-                                      (goto-char pos)
+                  ;; - Type of message
+                  (pcase type
+                    ('role (when (not (string= payload c-chat-role)) ; payload = role
+                             (goto-char pos)
 
-                                      (setq c-chat-role payload)
-                                      (let ((payload (and insert-role (oai-restapi--response-payload response))))
-                                        (cond
-                                         ((string= payload "assistant_reason")
-                                          (insert "\n[AI_REASON]: "))
-                                         ((string= payload "assistant")
-                                          (insert "\n[AI]: \n"))
-                                         ((string= payload "user")
-                                          (insert "\n[ME]: "))
-                                         ((string= payload "system")
-                                          (insert "\n[SYS]: ")))
+                             (setq c-chat-role payload)
+                             (let ((payload (and insert-role (oai-restapi--response-payload response))))
+                               (cond
+                                ((string= payload "assistant_reason")
+                                 (insert "\n[AI_REASON]: "))
+                                ((string= payload "assistant")
+                                 (insert "\n[AI]: \n"))
+                                ((string= payload "user")
+                                 (insert "\n[ME]: "))
+                                ((string= payload "system")
+                                 (insert "\n[SYS]: ")))
 
-                                        (condition-case hook-error
-                                            (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'role payload pos t)
-                                          (error
-                                           (message "Error during \"after-chat-insertion-hook\" for role: %s" hook-error)))
+                               (condition-case hook-error
+                                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'role payload pos t)
+                                 (error
+                                  (message "Error during \"after-chat-insertion-hook\" for role: %s" hook-error)))
 
-                                        (setq pos (point)))))
-                              (text (progn ; payload = text
-                                      (goto-char pos)
-                                      (insert payload)
-                                      ;; - "auto-fill" if not in code block
-                                      (when oai-restapi-fill-function
-                                        (funcall oai-restapi-fill-function pos t))
+                               (setq pos (point)))))
+                    ('text (progn ; payload = text
+                             (goto-char pos)
+                             (insert payload)
+                             ;; - "auto-fill" if not in code block
+                             (when oai-restapi-fill-function
+                               (funcall oai-restapi-fill-function pos t))
 
-                                      (condition-case hook-error
-                                          (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'text payload pos t)
-                                        (error
-                                         (message "Error during \"after-chat-insertion-hook\" for text: %s" hook-error)))
-                                      (setq pos (point))
-                                    ;; (setq not-first t)
-                                    ))
+                             (condition-case hook-error
+                                 (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'text payload pos t)
+                               (error
+                                (message "Error during \"after-chat-insertion-hook\" for text: %s" hook-error)))
+                             (setq pos (point))
+                             ;; (setq not-first t)
+                             ))
 
-                              (stop (progn ; payload = stop_reason
-                                      (oai--debug "oai-restapi--insert-stream-response3 stop_reason: %s" payload)
-                                      (goto-char pos)
-                                      (let ((text "\n\n[ME]: "))
-                                        (if insert-role
-                                            (insert text)
-                                          ;; else
-                                          (setq text ""))
+                    ('stop (progn ; payload = stop_reason
+                             (oai--debug "oai-restapi--insert-stream-response3 stop_reason: %s" payload)
+                             (goto-char pos)
+                             (let ((text "\n\n[ME]: "))
+                               (if insert-role
+                                   (insert text)
+                                 ;; else
+                                 (setq text ""))
 
-                                        (condition-case hook-error
-                                            (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos t)
-                                          (error
-                                           (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
-                                        (setq pos (point)))
+                               (condition-case hook-error
+                                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos t)
+                                 (error
+                                  (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
+                               (setq pos (point)))
 
-                                      (org-element-cache-reset)
-                                      (setq stop-flag t)))))))
+                             (org-element-cache-reset)
+                             (setq stop-flag t)))))))
             ;; - without save-excursion - stop: go to the end.
             (when (and oai-restapi-jump-to-end-of-block
                        stop-flag)

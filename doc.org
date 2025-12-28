@@ -1,25 +1,37 @@
 ;-*- mode: Org; fill-column: 110;-*-
 * preparation steps of block content for LLM
-*oai-restapi-request-prepare chain*
-- oai-restapi-request-prepare
-- oai-restapi-prepare-content
-   1) oai-block-get-content - string
-   2) oai-restapi--collect-chat-messages - vector
-   3) oai-restapi--modify-last-user-content
+*oai-restapi-request-prepare chain* that call `oai-restapi-prepare-content'
+1) oai-restapi--collect-chat-messages-at-point
+  + oai-block-get-content - string
+  + oai-block-tags-replace - string
+  + oai-restapi--collect-chat-messages - vector
+  + oai-block--collect-chat-messages-from-string
+    - oai-block--collect-chat-messages
+2) (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
+3) (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
 
 
-*oai-prompt.el chain*
-1) oai-block-get-content - string
-2) oai-prompt-collect-chat-research-steps-prompt ->
-  - oai-restapi--collect-chat-messages - vector
+*oai-prompt.el chain* for `oai-prompt-request-chain' function
+1) oai-restapi--collect-chat-messages-at-point - vector
 3) oai-restapi-request-llm-retries ->
-  - oai-restapi--modify-last-user-content
+  - (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
+  - (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
 
 * preparation hooks
 cases:
 - blend all messages to a one text at `oai-block-get-content' step
+- blend messages at `oai-restapi-prepare-content' step
 - change something in the “last-user-content”
-- format text in all messages
+- format text in all messages one by one
+
+May be implemented at:
+| operate at raw text level:        | oai-restapi--collect-chat-messages                              |
+
+| operate at messages vector level: | oai-restapi-prepare-content and oai-restapi-request-llm-retries |
+
+Solution:
+- raw text level in `oai-block--parse-part' as `oai-block-parse-part-hook'
+
 * Main path of JSON decoding:
 For not stream
 - `oai-restapi--url-request-on-change-function' ->
