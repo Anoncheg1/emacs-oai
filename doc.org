@@ -17,7 +17,7 @@
   - (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
   - (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
 
-* preparation hooks
+* Hooks - messages preparation for sending or content reading
 cases:
 - blend all messages to a one text at `oai-block-get-content' step
 - blend messages at `oai-restapi-prepare-content' step
@@ -30,8 +30,8 @@ May be implemented at:
 | operate at messages vector level: | oai-restapi-prepare-content and oai-restapi-request-llm-retries |
 
 Solution:
-- raw text level in `oai-block--parse-part' as `oai-block-parse-part-hook'
-
+- before any - raw text level: as `oai-block-parse-part-hook' in `oai-block--parse-part'
+- after all - vector level: as `oai-restapi-after-prepare-messages-hook' in `oai-restapi-request-llm-retries' and in `oai-restapi-prepare-content'
 * Main path of JSON decoding:
 For not stream
 - `oai-restapi--url-request-on-change-function' ->

@@ -719,11 +719,13 @@ Useful for small max-tokens.
   "Hook to try parsing a string as a number in different formats.")
 
 
-(defvar oai-restapi-after-prepare-messages-hook nil)
+(defcustom oai-restapi-after-prepare-messages-hook nil
   "List of functions that called with one argument messages vector.
 Executed at step of sending request to LLM after all preparations for
 messages was done. Ever function called with one argument from left to
 right and pass result to each other."
+  :type 'hook
+  :group 'oai)
 
 (defun oai-restapi-prepare-content (element req-type sys-prompt sys-prompt-for-all-messages max-tokens)
   "Get content of ai block of element in current buffer.
@@ -751,6 +753,7 @@ MAX-TOKENS described in `oai-restapi-request-prepare'."
                                                                   (oai-restapi--get-lenght-recommendation max-tokens))))
            (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
            (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
+           (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages))
            ;; (oai-block--collect-chat-messages-from-string
            ;;  sys-prompt
            ;;  sys-prompt-for-all-messages
@@ -770,7 +773,6 @@ MAX-TOKENS described in `oai-restapi-request-prepare'."
             ;;    (oai-restapi--get-lenght-recommendation max-tokens))))
            ;; replace tags at last "[ME]:" only
            ;; run-hook-with-args-until-success
-
            )
       messages))) ; return vector
 
@@ -1445,7 +1447,8 @@ We store url-buf with marker of header in oai-timers.el"
     (let* (
           ;; prepare request - apply tags to message
           (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
-          (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties)))
+          (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
+          (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
       (when (or (and retries (> retries 0))
                 (not retries))
         (oai--debug "oai-restapi-request-llm-retries1 %s" (current-buffer))

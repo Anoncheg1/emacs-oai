@@ -279,8 +279,14 @@ Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS is nil."
       (let ((result init-val))
         (dolist (f funcs result)
           (setq result (apply f result args))))
+    ;; else
     init-val))
 
+;; (defun aa (x) (concat x "2"))
+;; (oai-block--pipeline
+;;  (list 'aa)
+;;  "ss") ; => "ss2"
+;;
 ;; (oai-block--pipeline
 ;;  '((lambda (x) (concat x "1"))
 ;;    (lambda (x) (concat x "2")))
