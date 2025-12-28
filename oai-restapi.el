@@ -349,6 +349,14 @@ messages."
   :type 'string
   :group 'oai)
 
+(defcustom oai-restapi-after-prepare-messages-hook nil
+  "List of functions that called with one argument messages vector.
+Executed at step of sending request to LLM after all preparations for
+messages was done. Ever function called with one argument from left to
+right and pass result to each other."
+  :type 'hook
+  :group 'oai)
+
 (defvar-local oai-restapi--current-url-request-callback nil
   "Internal var that stores the current request callback.
 Called within url request buffer, should know about target position,
@@ -714,18 +722,6 @@ Useful for small max-tokens.
            (format "Answer short in %d paragraphs or %d pages or less." (/ max-tokens 200) (ceiling (/ max-tokens 600.0)))))))
 
 ;; -=-= Prepare content
-
-(defvar oai-restapi-prepare-last-hook nil
-  "Hook to try parsing a string as a number in different formats.")
-
-
-(defcustom oai-restapi-after-prepare-messages-hook nil
-  "List of functions that called with one argument messages vector.
-Executed at step of sending request to LLM after all preparations for
-messages was done. Ever function called with one argument from left to
-right and pass result to each other."
-  :type 'hook
-  :group 'oai)
 
 (defun oai-restapi-prepare-content (element req-type sys-prompt sys-prompt-for-all-messages max-tokens)
   "Get content of ai block of element in current buffer.
