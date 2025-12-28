@@ -134,6 +134,10 @@ There are two hooks for that:
 - after all - vector level: as `oai-restapi-after-prepare-messages-hook' in oai-restapi.el
 
 More info: [[file:./doc.org::*Main path of JSON decoding][Main path of JSON decoding]]
+** Custom roles
+There are `oai-block-roles' variable that allow to customize roles at step of parsing messages from ai block.
+
+For oai-restapi.el uses symbols as in `oai-block-roles'.
 * Org functions for block
 - org-in-src-block-p = oai-block-p
 - oai-block-insert-result = oai-block-insert-result
