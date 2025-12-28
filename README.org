@@ -6,9 +6,9 @@ Features:
 - Do parallel request in the same or different buffer without waiting
 - Highlighting inside AI block: markdown block, Org tables, links
 - Auto filling
-- provide prompt engineering tools
+- provide prompt engineering tools, there is ~:chain~ of calls out-of-the-box.
 * Screenshot
-[[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]y
+[[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]
 * Dependencies
 - Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/emacs-org-links
 
