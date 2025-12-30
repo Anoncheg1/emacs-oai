@@ -14,16 +14,16 @@ Features:
 
 Tested for Emacs 30.2
 * Files
-| File              | Purpose                                                        |
-|-------------------+----------------------------------------------------------------|
-| oai.el            | minor Org oai-mode and ~C-c C-c~ request activation command    |
-| oai-restapi.el    | Connection to REST API (OpenAI-compatible)                     |
-| oai-block.el      | handling ai block                                              |
-| oai-block-tags.el | Handlings links in request window                              |
-| oai-timers.el     | Notifications and handling waitings                            |
-| oai-prompt.el     | Working with prompt-engineering, :chain parameter              |
-| oai-async1.el     | Framework for handling callbacks of REST API requests (url.el) |
-| oai-optional.el   | Hooks functions for postprocessing                             |
+| File              | Purpose                                                            |
+|-------------------+--------------------------------------------------------------------|
+| oai.el            | minor Org oai-mode and ~C-c C-c~ request activation command        |
+| oai-restapi.el    | Connection to REST API (OpenAI-compatible)                         |
+| oai-block.el      | handling ai block                                                  |
+| oai-block-tags.el | Expand tags and links                                              |
+| oai-timers.el     | Managing requests, buffers and notifications                       |
+| oai-prompt.el     | (optional) Working with prompt-engineering, :chain parameter       |
+| oai-async1.el     | (optional) Solve “callback hell” for url.el, used by oai-prompt.el |
+| oai-optional.el   | (optional) Hooks functions for postprocessing                      |
 
 * Connection configuration
 ~oai-restapi-con-token~ - "token-string" or token per service: ~'(:openai "token-string1" :deepseek "token-string2")~ or nil for reading from "~/.authinfo" or "~/.authinfo.gpg"
@@ -67,6 +67,8 @@ To enable all Org fintifications in ai blocks:
 : (org-restart-font-lock)
 
 To disable all fontifications:
+: (setopt oai-fontification-flag nil)
+or
 : (advice-add 'oai-block--set-ai-keywords :override (lambda () t))
 
 ** Auto-fill
