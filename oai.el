@@ -34,7 +34,7 @@
 ;; Inspired by Robert Krahn's org-ai package <https://github.com/rksm/org-ai>
 ;;
 ;; OAI extend Org mode with "ai block" that allows you to interact
-;; with the OpenAI-compatible REST APIs.  Fork of "org-ai".
+;; with the OpenAI-compatible REST APIs.
 ;;
 ;; It allows you to:
 ;; - Use #+begin_ai..#+end_ai blocks for org-mode
@@ -47,7 +47,7 @@
 ;;
 ;; For the Internet connection used built-in libs: url.el and url-http.el.
 ;;
-;; See see https://github.com/Anoncheg1/oai for the full set
+;; See see https://github.com/Anoncheg1/emacs-oai for the full set
 ;; of features and setup instructions.
 ;;
 ;; Configuration:
@@ -55,25 +55,21 @@
 ;; (require 'oai)
 ;; (add-hook 'org-mode-hook #'oai-mode) ; oai.el
 ;; (setq oai-restapi-con-token "xxx") ; oai-restapi.el
-;; (setopt help-window-select t) ; for `oai-expand-block' function (optional)
 ;;
-;; You will need an OpenAI API key.  It can be stored in the format
-;;   machine api.openai.com login oai password <your-api-key>
+;; You will need an OpenAI API key-token.
+;; It can be stored in the format:
+;;  "machine api.openai.com login oai password <your-api-key>"
 ;; in your ~/.authinfo.gpg file (or other auth-source) and will be picked up
 ;; when the package is loaded.
 ;;
 ;; Available commands (TODO to refine):
 ;;
 ;; - Inside org-mode / #+begin_ai..#+end_ai blocks:
-;;     - C-c C-c to send the text to the OpenAI API and insert a response (org-ai.el)
+;;     - C-c C-c to send the text to the OpenAI API and insert a response
 ;;     - Press C-c <backspace> (oai-kill-region-at-point) to remove the chat
 ;;       part under point.  (oai-block.el)
 ;;     - oai-mark-region-at-point will mark the region at point.  (oai-block.el)
 ;;     - oai-mark-last-region will mark the last chat part.  (oai-block.el)
-
-;; Architecture:
-;;   (raw info) Interface -> (structured Org info + raw Org body) Agent ->
-;;   API to LLM + Callback (may be part of Agent or API)
 
 ;; Callback write result to ORG
 
@@ -96,8 +92,7 @@
 ;; Touch: Pain, water and warm.
 
 ;;; TODO:
-
-;; - make org-ai-variable.el and pass them to -api.el functions as parameters.
+;; - make oai-variable.el and pass them to -api.el functions as parameters.
 ;; - provide ability to replace url-http with plz or oai-restapi with llm(plz)
 ;; - implement "#+PROPERTY: var foo=1" and "#+begin_ai :var
 ;;       foo=1" and to past to text in [foo]
@@ -107,6 +102,11 @@
 ;; - use oai-restapi-prepare-content for :chain
 ;; - Think about to pass callback for writing to chain implementations
 ;;    and main implementation, to make it more general.
+;; - make org-block-tags optional
+;; - Architecture: (raw info) Interface -> (structured Org info + raw
+;;   Org body) Agent -> API to LLM + Callback (may be part of Agent or
+;;   API)
+
 
 ;;; Code:
 
@@ -123,19 +123,17 @@
   :type 'boolean
   :group 'oai)
 
-(defcustom oai-agent-call-functions (list :forexample #'oai-prompt-request-chain
-                                          :chain #'oai-prompt-request-chain) ; at oai-prompt.el
+(defcustom oai-req-type-functions (list :chat		#'oai-restapi-request-prepare ; at oai-restapi.el
+                                        :completion	#'oai-restapi-request-prepare
+                                        :chain		#'oai-prompt-request-chain) ; at oai-prompt.el
   "Custom variants to execute request.
 If you specify :chain at #+begin_ai line, associated function will be
 called.  See `oai-call-block' and `oai-restapi-request-prepare' for
 parameters."
-  :type '(choice
-          (plist :tag "Property list (symbol => funcion)"
-                 :key-type symbol
-                 :value-type function)
-          (const :tag "Use auth-source." nil))
+  :type '(plist :key-type symbol
+                :value-type function
+                :tag "Property list (symbol => funcion)")
   :group 'oai)
-
 
 (defun oai-ctrl-c-ctrl-c ()
   "Remove result and parse ai block header parameters.
@@ -143,26 +141,28 @@ Returning t is Org requirement."
   (when (oai-block-p)
     (oai-block-remove-result)
     (oai-call-this-or-that #'oai-restapi-request-prepare
-                           oai-agent-call-functions
+                           oai-req-type-functions
                            (oai-parse-org-header))
     t))
 
 (defun oai-call-this-or-that (fn-default fn-list args)
   "If you specify :chain in ai block, we call related function.
 FN-DEFAULT is `oai-restapi-request-prepare' FN-LIST is
-`oai-agent-call-functions' variable.
+`oai-req-type-functions' variable.
 ARGS is `oai-parse-org-header' result."
   (let ((info (car (last args)))
         called)
-    ;; loop over `oai-agent-call-functions'
+    ;; loop over `oai-req-type-functions'
     (while (and fn-list (not called))
       (let ((key (pop fn-list))
             (fn (pop fn-list)))
         (when (and fn ; skip keys with missing value
                    (not (eq 'x (alist-get key info 'x)))) ; check key exist in info
-          (setq called (apply fn args))))) ; call agant function
+          (setq called (apply fn
+                              (cons (intern (substring (symbol-name key) 1)) ; key to symbol
+                                    args))))))  ; (apply fn args)
     (unless called ; executed if key exist but evaluation return nil or key not exist
-      (apply fn-default args)))) ; call default function
+      (apply fn-default (cons 'chat args))))) ; call default function
 
 
 (defun oai-parse-org-header ()
@@ -170,7 +170,7 @@ ARGS is `oai-parse-org-header' result."
 Return list of arguments args."
   (let* ((element (oai-block-p)) ; oai-block.el
          (info (oai-block-get-info element)) ; ((:max-tokens . 150) (:service . "together") (:model . "xxx")) ; oai-block.el
-         (req-type (oai-block--get-request-type info)) ; oai-block.el
+         ;; (req-type (oai-block--get-request-type info)) ; oai-block.el
          (sys-prompt-for-all-messages (or (not (eql 'x (alist-get :sys-everywhere info 'x)))
                                           (org-entry-get-with-inheritance "SYS-EVERYWHERE") ; org
                                           oai-restapi-default-inject-sys-prompt-for-all-messages)) ; oai-restapi.el
@@ -203,7 +203,7 @@ Return list of arguments args."
                                           ;; else
                                           model)))
                                  ;; return
-                                 (list element req-type sys-prompt sys-prompt-for-all-messages ; message
+                                 (list element sys-prompt sys-prompt-for-all-messages ; message
                                           model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
                                           info)))))
 
@@ -211,8 +211,10 @@ Return list of arguments args."
 (defun oai-expand-block-deep ()
   "Output almost RAW information about request with headers and messages.
 Return list of strings to print."
-  (seq-let (element req-type sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream) (oai-parse-org-header)
-    (let* ((messages (unless (eql req-type 'completion)
+  (seq-let (element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream info) (oai-parse-org-header)
+    (let* ((req-type-completion (not (eq 'x (alist-get :completion info 'x))))
+           ;; (req-type
+           (messages (unless req-type-completion
                        ;; - split content to messages
                        (oai-restapi--collect-chat-messages-at-point element
                                                                     sys-prompt
@@ -222,7 +224,7 @@ Return list of strings to print."
       (list
        (oai-restapi--get-endpoint messages service)
        (oai-restapi--get-headers service)
-       (oai-restapi--payload :prompt (when (eql req-type 'completion) (oai-block-get-content element)) ; block content string
+       (oai-restapi--payload :prompt (when req-type-completion (oai-block-get-content element)) ; block content string
 			     :messages messages
 			     :model model
 			     :max-tokens max-tokens
@@ -239,7 +241,7 @@ Return list of strings to print."
 If there is ai block at current position in current buffer.
 This is what will be sent to the api.  ELEMENT is the ai block.
 Like `org-babel-expand-src-block'.
-Set `help-window-select' variable to get focus.
+Set `help-window-select' variable to to t to get focus.
 When universal  ARG specifide  output more  raw information  splitted by
 messages."
   (interactive "P")
@@ -267,7 +269,6 @@ messages."
 
 ;; -=-= interactive fn: key C-g: keyboard quit
 
-;; (defvar org-ai-talk--reading-process)
 (defun oai-keyboard-quit ()
   "Keyboard quit advice.
 - If there is an active region at current position in current buffer, do
@@ -289,28 +290,9 @@ messages."
             (call-interactively #'oai-restapi-stop-url-request) ; oai-restapi.el
           ;; else - suppress error in normal mode
           (condition-case _
-              ;; ((and (boundp 'org-ai-talk--reading-process) ; org-ai-talk.el
-              ;;       (fboundp 'org-ai-talk-stop) ; org-ai-talk.el
-              ;;       org-ai-talk--reading-process ; org-ai-talk.el
-              ;;       (process-live-p org-ai-talk--reading-process)) ; org-ai-talk
-              ;;  (org-ai-talk-stop)) ; org-ai-talk
-              ;; (org-ai-oobabooga--current-request ; org-ai-oobabooga
-              ;;  (org-ai-oobabooga-stop)) ; org-ai-oobabooga
-              ;; (org-ai--current-request-buffer-for-stream ; oai-restapi.el
-              ;;  (org-ai-interrupt-current-request)) ; oai-restapi.el
-
               (call-interactively #'oai-restapi-stop-url-request) ; oai-restapi.el
-            ;; (org-ai--current-request-buffer-for-image ; org-ai-openai-image.el
-            ;;  (org-ai-image-interrupt-current-request)) ; org-ai-openai-image.el
             (error nil)))))))
 
-;; (defun org-ai--install-keyboard-quit-advice () ; TODO: make Org only
-;;   "Cancel current request when `keyboard-quit' is called."
-;;   (advice-add 'keyboard-quit :before #'oai-keyboard-quit))
-
-;; (defun org-ai--uninstall-keyboard-quit-advice ()
-;;   "Remove the advice that cancels current request when `keyboard-quit' is called."
-;;   (advice-remove 'keyboard-quit #'oai-keyboard-quit)) ; here
 
 ;; -=-= interactive fn: M-x oai-toggle-debug
 ;;;###autoload
@@ -401,23 +383,18 @@ non-nil, then mark one chat message."
   "Keymap for `oai-mode'.")
 
 (let ((map oai-mode-map))
-  ;; (define-key map (kbd "C-c M-a v") 'org-ai-image-variation) ; org-ai-openai-image.el
-  ;; (define-key map (kbd "C-c M-a $") 'org-ai-open-account-usage-page) ; org-ai-openai-image.el
   (define-key map (kbd (string-join (list "C-c" " h"))) #'oai-mark-region-at-point) ; oai-block.el
-  ;; (define-key map (kbd "C-c DEL") 'org-ai-kill-region-at-point) ; oai-block.el
   (define-key map (kbd (string-join (list "C-c" " <backspace>"))) #'oai-kill-region-at-point) ; oai-block.el
-  ;; (define-key map (kbd (string-join (list "C-c" " r"))) 'org-ai-talk-capture-in-org) ; org-ai-talk.el
   (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
   (define-key map (kbd "C-c C-.") #'oai-open-request-buffer) ; oai-restapi.el
   (define-key map (kbd "C-c .") #'oai-expand-block)
   (define-key map (kbd (concat "C-c " "m")) #'oai-set-max-tokens))
 
 
-
 (define-minor-mode oai-mode
   "Minor mode for `org-mode' integration with the OpenAI API."
   :init-value nil
-  :lighter oai-mode-line-string ; " org-ai"
+  :lighter oai-mode-line-string ; " oai" string
   :keymap oai-mode-map
   :group 'oai
   (if oai-mode
@@ -469,13 +446,10 @@ non-nil, then mark one chat message."
   "Used in ora-timers.el to show COUNT of active requests."
   (oai--debug "oai-update-mode-line %s" count)
   (if (and count (> count 0))
-      (setq oai-mode-line-string (format " org-ai[%d]" count))
+      (setq oai-mode-line-string (format " oai[%d]" count))
     ;; else
-    (setq oai-mode-line-string " org-ai"))
-  (force-mode-line-update)
-  ;; (propertize (format " org-ai[%d]" count)
-  ;;                   'face (if (> count 0) 'error 'default))
-  )
+    (setq oai-mode-line-string " oai"))
+  (force-mode-line-update))
 
 ;; -=-= provide
 (provide 'oai)

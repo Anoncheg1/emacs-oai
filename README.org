@@ -48,7 +48,7 @@ oai-restapi-con-service [[./oai-restapi.el]]
 (add-to-list 'load-path "path/to/oai")
 (require 'oai)
 (add-hook 'org-mode-hook #'oai-mode) ; oai.el
-(setq org-ai-api-creds-token "xxx") ; oai-restapi.el
+(setq oai-restapi-con-token "xxx") ; oai-restapi.el
 #+end_src
 ** How to connect to not supported service?
 
@@ -73,6 +73,23 @@ To disable all fontifications:
 To set use custom function or disable auto-fill by setting it to ~nil~:
 : M-x customize-variable RET oai-restapi-fill-function
 
+** Key-Token security approaches to keep it safe
+1) Simplies way to set in .emacs (same with “M-x customize”):
+: (setq oai-restapi-con-token "xxx")
+
+2) Next level is to keep token in separate Elisp file:
+~/.emacs.d/oai-tokens.el
+: (setq oai-restapi-con-token "xxx")
+
+.emacs
+: (add-to-list 'load-path "~/.emacs.d/oai-tokens.el")
+: (require 'oai-tokens)
+
+3) Keep token in separate “auth-source” file with plain token text
+To get more infomration use commnd:
+: info auth-source
+
+4) Keep token in encrypted “auth-source” file. Full decription will be provided later...
 * Supported “[AI]:” in-text prefixes
 - SYS-EVERYWHERE
 - SYS - role: system

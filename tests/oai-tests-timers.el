@@ -255,16 +255,6 @@
     (oai-timers--set 'dup 'a)
     (oai-timers--set 'dup 'b) ; overwrite
     (should (equal (oai-timers--get-all-keys) '(dup)))))
-;;; To run these tests:
-;; 1. Save the code to an .el file (e.g., `org-ai-params-test.el`).
-;; 2. Open Emacs and load the file: `M-x load-file RET org-ai-tests2.el RET`.
-;; 3. Run all tests: `M-x ert RET t RET`.
-;;    Or run specific tests: `M-x ert RET oai-block--let-params-all-from-info RET`.
-;; OR
-;; to run: emacs -batch -l ert -l pinyin-isearch.el -l pinyin-isearch-pinyin-tests.el -f ert-run-tests-batch-and-exit 2> out.log
-;;  OR
-;; eval-buffer
-;; M-x ert RET t RET
 
 (provide 'oai-tests-timers)
 

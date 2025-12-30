@@ -82,11 +82,14 @@ asd2
         (insert oai-tests-oai--expand-block-string)
         (goto-char 1)
         ;; (print (list "wtf" (oai-expand-block-deep)))))
-
+        ;; (print (oai-expand-block-deep))))
         (should
          (equal
 
-'("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json") ("Authorization" . "Bearer test-token-openai")) ((messages . [(:role system :content "Be helpful.") (:role user :content "```text
+'("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json")
+                                                ("Authorization" . "Bearer test-token-openai"))
+  ((messages . [(:role system :content "Be helpful.")
+                (:role user :content "```text
 # tt1
 asd
 

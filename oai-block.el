@@ -85,10 +85,6 @@ content of buffer before any processing but after splitting to parts."
   :type 'hook
   :group 'oai)
 
-;; (defvar oai-block--chat-prefixes-re "^[ \t]*\\(?:\\[SYS\\]:\\|\\[ME\\]:\\|\\[ME:\\]\\|\\[AI\\]:\\|\\[AI_REASON\\]:\\)"
-;;   "Prefix should be at the begining of the line with spaces or without.
-;; Or roles regex.")
-
 (defface oai-block--me-ai-chat-prefixes-font-face
   '((t :weight bold))
   "Face font for chat roles (default bold).
@@ -874,8 +870,7 @@ Argument LIM-END ai block ending."
              (unless (oai-block--in-markdown send lim-beg)
                ;; (goto-char send)
                ;; (remove-text-properties sbeg (point) (list 'face '(org-block)))
-               (put-text-property sbeg send 'face '(bold)) ; 'oai-block--me-ai-chat-prefixes-font-face
-               ))
+               (put-text-property sbeg send 'face '(bold)))) ; 'oai-block--me-ai-chat-prefixes-font-face
       (goto-char lim-end))))
 
 (defun oai-block--font-lock-fontify-ai-subblocks (limit)
@@ -907,8 +902,7 @@ TODO: fontify if there is only end of ai block on page"
               (oai-block--fontify-org-tables beg end)))
           (goto-char end))
         ;; required by font lock mode:
-        (goto-char limit) ; return t
-        ))
+        (goto-char limit))) ; return t
 
 (defun oai-block--insert-after (list pos element)
   "Insert ELEMENT at after position POS in LIST."

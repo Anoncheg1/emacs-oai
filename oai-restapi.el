@@ -29,36 +29,23 @@
 ;; Get info block from #begin_ai and call url-retrieve.  Asynchronous
 ;; but only one call per buffer.
 ;;
-;; Interface function: "org-ai-stream-completion".
 ;;
-;; (org-ai-stream-completion service|model messages|prompt context)
-;; -> (org-ai-stream-request service messages|prompt callback)
-;; -> org-ai--get-headers, org-ai--get-endpoint, oai-restapi--payload, url-retrieve
-
-;; - org-ai--get-headers = org-ai-api-creds-token = "api-key" or
-;;   "x-api-key" or "Authorization"
-
-;; - org-ai--get-endpoint = hardcoded URL or oai-restapi-con-chat-endpoint,
-;;     oai-restapi-con-completion-endpoint, org-ai-google-chat-endpoint
-;; -> callback: (oai-restapi--insert-stream-response)
-;;           or (oai-restapi--insert-single-response)
-;;
-;; Main variables:
-;; URL = org-ai--get-endpoint()  or oai-restapi-con-chat-endpoint,
-;;     oai-restapi-con-completion-endpoint, org-ai-google-chat-endpoint
-;; Headers = org-ai--get-headers
-;; Token = org-ai-api-creds-token
+;; Main variables: (old)
+;; URL = oai--get-endpoint()  or oai-restapi-con-chat-endpoint,
+;;     oai-restapi-con-completion-endpoint
+;; Headers = oai--get-headers
+;; Token = oai-api-creds-token
 ;;
 ;; When we create request we count requests, create two timers global
 ;;   one and local inside url buffer.
 ;; When we receive error or final answer we stop local, recount
 ;;   requests and update global.
 ;;
-;; Chat mode
+;; Chat mode (old)
 ;; - :message (oai-restapi--collect-chat-messages ...)
 ;; - (oai-restapi--normalize-response response) -> (cl-loop for response in normalized
-;;   - (setq role (org-ai--response-type response))
-;;   - (setq text (decode-coding-string (org-ai--response-payload response)) 'utf-8)
+;;   - (setq role (oai--response-type response))
+;;   - (setq text (decode-coding-string (oai--response-payload response)) 'utf-8)
 ;; Completion mode
 ;; - :prompt content-string
 ;; - (setq text  (decode-coding-string (oai-restapi--get-single-response-text result)
@@ -84,7 +71,7 @@
 (require 'url-http)
 (require 'cl-lib)
 (require 'gv) ; for setf
-(require 'json)
+(require 'json) ; json-read, json-read-from-string, json-encode
 (require 'oai-debug)
 (require 'oai-block-tags)
 (require 'oai-block)
@@ -240,20 +227,6 @@ If mode is not chat but completion, appropriate model should be set."
                   (plist :key-type symbol :value-type string :tag "Plist with symbol key and string value"))
   :group 'oai)
 
-;; (defcustom org-ai-use-auth-source t
-;;   "If non-nil, use auth-source to retrieve the OpenAI API token.
-;; The secret should be stored in the format
-;;   machine api.openai.com login org-ai password <your token>
-;; in the `auth-sources' file."
-;;   :type 'boolean
-;;   :group 'oai)
-
-;; (defcustom org-ai-creds-completion-model "text-davinci-003"
-;;   "The default model to use for completion requests.  See https://platform.openai.com/docs/models for other options."
-;;   :type '(choice (string :tag "String value")
-;;                   (plist :key-type symbol :value-type string :tag "Plist with symbol key and string value"))
-;;   :group 'oai)
-
 
 (defcustom oai-restapi-openai-known-chat-models '("gpt-4o-mini"
                                                   "gpt-4"
@@ -405,18 +378,6 @@ Used for hook only.")
 ;; (make-oai-restapi--response :type 'role :payload nil) ; #s(oai-restapi--response role nil)
 ;; (oai-restapi--response-type (make-oai-restapi--response :type 'role :payload "asd")) ; 'role
 ;; (oai-restapi--response-payload (make-oai-restapi--response :type 'role :payload "asd")) ; "asd"
-;; -=-= org-ai--debug-data (obsolate)
-;; (defvar org-ai--debug-data nil)
-;; (defvar org-ai--debug-data-raw nil)
-
-;; (with-current-buffer "*scratch*"
-;;   (erase-buffer)
-;;   (pop-to-buffer "*scratch*" t)
-;;   (let ((n 16))
-;;    (insert (car (nth n org-ai--debug-data-raw)))
-;;    (goto-char (cadr (nth n org-ai--debug-data-raw)))
-;;    (beginning-of-line)))
-
 ;; -=-= Debugging
 
 (defun oai-restapi--debug-urllib (source-buf)
@@ -627,14 +588,6 @@ not found in tokens."
 ;; (oai-restapi--get-token "local") => nil, exist
 ;; (oai-restapi--get-token "local") => error!
 
-;; (defun org-ai--openai-get-chat-model (service)
-;;   "Allow to set default model as one string or per service."
-
-;; )
-;; (defun org-ai--openai-get-completion-model (service)
-;;   "Allow to set default model as one string or per service."
-
-;; )
 
 (defun oai-restapi--strip-api-url (url)
   "Strip the leading https:// and trailing / from an URL."
@@ -775,8 +728,7 @@ MAX-TOKENS described in `oai-restapi-request-prepare'."
 
 ;; -=-= Main
 
-;; org-ai-stream-completion - old
-(defun oai-restapi-request-prepare (element req-type sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional info)
+(defun oai-restapi-request-prepare (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional info)
   "Compose API request from data and start a server-sent event stream.
 Call `oai-restapi-request' function as a next step.
 Called from `oai-call-block' in main file.
@@ -916,7 +868,6 @@ Here used for completion mode in `oai-restapi-request'.
             ;; (setq oai-restapi--current-insert-position-marker pos)
 
         ;; - else - DONE
-        ;; (org-ai-reset-stream-state)
         ;; - special cases for DONE
         (when (not text)
           (with-current-buffer buffer
@@ -1184,7 +1135,6 @@ specific role."
       ;; - in let
       normalized)))
 
-;; org-ai-stream-request - old
 (cl-defun oai-restapi-request (service model callback &optional &key prompt messages max-tokens temperature top-p frequency-penalty presence-penalty stream)
   "Use API to LLM to request and get response.
 Executed by `oai-restapi-request-prepare'
@@ -1215,9 +1165,6 @@ For not stream url return event and hook `after-change-functions'
  triggered only after url buffer already kill, that is why we don't use
  this hook.
 Use argument SERVICE to find endpoint, MODEL as parameter to request."
-
-  ;; (setq org-ai--debug-data nil)
-  ;; (setq org-ai--debug-data-raw nil)
 
   ;; (oai--debug service (type-of service))
   ;; (oai--debug stream (type-of stream))
@@ -1282,7 +1229,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
       (oai--debug "Main request after." url-request-buffer)
 
       (with-current-buffer url-request-buffer
-        ; just in case, also reset in `org-ai-reset-stream-state'
+        ; just in case
         ;; (setq oai-restapi--currently-inside-code-markers nil)
         (setq oai-restapi--current-insert-position-marker nil)
         (setq oai-restapi--current-chat-role nil)
