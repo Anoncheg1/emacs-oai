@@ -569,7 +569,7 @@ Uses `oai-block-roles' variable for mapping roles to prefixes."
 
 ;; -=-= Interactive
 
-(defun oai-mark-last-region ()
+(defun oai-block-mark-last-region ()
   "Mark the last prompt in an oai block."
   (interactive)
   (when-let* ((regions (reverse (oai-block--chat-role-regions)))
@@ -578,7 +578,7 @@ Uses `oai-block-roles' variable for mapping roles to prefixes."
         (goto-char last-region-end)
         (push-mark last-region-start t t)))
 
-(defun oai-mark-region-at-point ()
+(defun oai-block-mark-region-at-point ()
   "Mark the prompt at point: [ME:], [AI:]."
   (interactive)
   (when-let* ((regions (oai-block--chat-role-regions))
@@ -594,7 +594,7 @@ Uses `oai-block-roles' variable for mapping roles to prefixes."
       (unless (region-active-p) (push-mark end t t))
       (cons start end))))
 
-(defun oai-forward-section (&optional arg)
+(defun oai-block-forward-section (&optional arg)
   "Move forward to end of section.
 A negative argument ARG = -N means move backward."
   (interactive "^p")
@@ -621,14 +621,64 @@ A negative argument ARG = -N means move backward."
             (unless (region-active-p) (push-mark nil t)) ; save position
             (goto-char (cl-find-if (lambda (x) (>= (1- start) x)) (reverse regions)))))))))
 
-(defun oai-kill-region-at-point (&optional arg)
+(defun oai-block-kill-region-at-point (&optional arg)
   "Kill the prompt at point.
 The numeric ARG can be used for killing the last n."
   (interactive "P")
   (cl-loop repeat (or arg 1)
-           do (when-let ((region (oai-mark-region-at-point)))
+           do (when-let ((region (oai-block-mark-region-at-point)))
                 (cl-destructuring-bind (start . end) region
                   (kill-region end start)))))
+
+;; (defun oai-block-kill-last-region (&optional arg)
+;;   "Kill the prompt at point.
+;; The numeric ARG can be used for killing the last n."
+;;   (interactive "P")
+;;   (when-let* ((regions (reverse (oai-block--chat-role-regions)))
+;;               (last-region-end (pop regions))
+;;               (last-region-start (pop regions)))
+;;         (goto-char last-region-end)
+;;         (push-mark last-region-start t t)))
+
+;;   (cl-loop repeat (or arg 1)
+;;            do (when-let ((region (oai-block-mark-region-at-point)))
+;;                 (cl-destructuring-bind (start . end) region
+;;                   (kill-region end start)))))
+
+(defun oai-block-mark-at-point (arg)
+  "Mark entity at current poin in current buffer.
+Mark Mardkown block or whole ai block.  If universal argument ARG is
+non-nil, then mark one chat message."
+  (interactive "P")
+  (if arg
+      (oai-block-mark-region-at-point)
+    ;; else
+    (oai-block-tags-mark-md-block-body)))
+
+(defun oai-block-set-max-tokens ()
+  "Jump to header of ai block and set max-tokens."
+  (interactive)
+  (if-let ((el (oai-block-p)))
+
+      (let ((beg (progn (push-mark)
+                        (goto-char (org-element-property :contents-begin el))
+                        (forward-line -1)
+                        (point)))
+            pos)
+        (if (search-forward ":max-tokens" (line-end-position) t)
+            (if (eq (line-end-position) (point))
+                (insert " ")
+                ;; else
+              (forward-char))
+          ;; else
+          (goto-char beg)
+          (forward-char 10)
+          (insert " :max-tokens ")
+          (setq pos (point))
+          (insert (format "%s " oai-restapi-default-max-tokens))
+          (goto-char pos)))
+    ;; else
+    (message "Not oai block here.")))
 
 ;; -=-= Markers
 

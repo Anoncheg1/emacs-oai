@@ -1,18 +1,28 @@
-* oai
+* oai - chat interface to LLMs and AI agents in Org block
+
+*Version 0.1*
 Emacs package, provide blocks ~#+begin_ai~ in Org mode for communication with LLMs APIs. Inspired by Robert Krahn's [[https://github.com/rksm/org-ai][org-ai package]]
 
-Features:
+Protocol: “OpenAI”-supported HTTP REST API. (url.el)
+
+*Core principle*: for text, customizability and comfort.
+
+* Features:
 - Tags: expansion of links in block
 - Do parallel request in the same or different buffer without waiting
-- Highlighting: markdown block, Org tables, links. Commands to inspect raw data
+- Highlighting: markdown block, Org tables, links.
+- Commands to inspect raw data, jumping
 - Autofilling, hooks, powerful debugger
 - Provide prompt engineering tools, there is ~:chain~ of calls out-of-the-box
 * Screenshot
 [[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]
-* Dependencies
-- Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/emacs-org-links
+* Prerequisites
+Emacs 29.1+, 30.2
 
-Tested for Emacs 30.2
+Token API for remove LLM.
+
+Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/emacs-org-links
+
 * Files
 | File              | Purpose                                                            |
 |-------------------+--------------------------------------------------------------------|
@@ -42,8 +52,6 @@ Tested for Emacs 30.2
 
 oai-restapi-con-service [[./oai-restapi.el]]
 * Configuration
-: git clone https://github.com/Anoncheg1/oai
-
 #+begin_src elisp :results none :exports code :eval no
 (add-to-list 'load-path "path/to/oai")
 (require 'oai)
@@ -76,10 +84,10 @@ To set use custom function or disable auto-fill by setting it to ~nil~:
 : M-x customize-variable RET oai-restapi-fill-function
 
 ** Key-Token security approaches to keep it safe
-1) Simplies way to set in .emacs (same with “M-x customize”):
+1) Simplies way to set *in .emacs* (same with “M-x customize”):
 : (setq oai-restapi-con-token "xxx")
 
-2) Next level is to keep token in separate Elisp file:
+2) Next level is to keep token *in separate Elisp file*:
 ~/.emacs.d/oai-tokens.el
 : (setq oai-restapi-con-token "xxx")
 
@@ -87,11 +95,17 @@ To set use custom function or disable auto-fill by setting it to ~nil~:
 : (add-to-list 'load-path "~/.emacs.d/oai-tokens.el")
 : (require 'oai-tokens)
 
-3) Keep token in separate “auth-source” file with plain token text
-To get more infomration use commnd:
-: info auth-source
+3) Keep token in separate *”auth-source” file* in plain text
 
-4) Keep token in encrypted “auth-source” file. Full decription will be provided later...
+To get more infomration use Shell commnd:
+: $ info auth-source
+Secret should be stored  in the format:
+: machine openai password <your token>
+or
+: machine openai--0 password <your token>
+: machine openai--1 password <your token>
+
+4) Keep token in *encrypted “auth-source” file*. Full decription will be provided later...
 * Supported “[AI]:” in-text prefixes
 - SYS-EVERYWHERE
 - SYS - role: system
@@ -108,8 +122,8 @@ To get more infomration use commnd:
 - :temperature float
 - :frequency-penalty float
 - :presence-penalty float
-- :sys-everywhere - string (sys-prompt-for-all-messages) [[./oai.el]]
-- :chat :completion - bool (org-ai--request-type) [[./oai-block.el]]
+- :sys-everywhere - string (persistant-sys-prompts) [[./oai-block.el]]
+- :chat :completion - bool
 - :chain - bool [[./oai-prompt.el]]
 
 * Debugging

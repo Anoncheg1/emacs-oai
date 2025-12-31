@@ -62,16 +62,20 @@
 ;; in your ~/.authinfo.gpg file (or other auth-source) and will be picked up
 ;; when the package is loaded.
 ;;
-;; Available commands (TODO to refine):
+;; Keys binded by default:
 ;;
-;; - Inside org-mode / #+begin_ai..#+end_ai blocks:
-;;     - C-c C-c to send the text to the OpenAI API and insert a response
-;;     - Press C-c <backspace> (oai-kill-region-at-point) to remove the chat
+;; - In block #+begin_ai..#+end_ai blocks:
+;;     - C-c C-c - to send the text to the OpenAI API and insert a response
+;;     - C-c . - to inspect raw data (and C-u C-c .)
+;;     - C-c C-. - to see url.el raw HTTP data (working only during request)
+;;     - M-h - mark ai block content
+;;     - C-u M-h - mark chat message
+;;     - C-c <backspace> - (kill-region-at-point) to remove the chat
 ;;       part under point.  (oai-block.el)
-;;     - oai-mark-region-at-point will mark the region at point.  (oai-block.el)
-;;     - oai-mark-last-region will mark the last chat part.  (oai-block.el)
+;;     - C-c m - set :max-tokens
+;; - in buffer with oai-mode enabled:
+;;     - C-g - to stop all requsts.
 
-;; Callback write result to ORG
 
 ;; Other packages:
 ;; - Modern navigation in major modes https://github.com/Anoncheg1/firstly-search
@@ -88,8 +92,6 @@
 ;; - BTC (Bitcoin) address: 1CcDWSQ2vgqv5LxZuWaHGW52B9fkT5io25
 ;; - USDT (Tether) address: TVoXfYMkVYLnQZV3mGZ6GvmumuBfGsZzsN
 ;; - TON (Telegram) address: UQC8rjJFCHQkfdp7KmCkTZCb5dGzLFYe2TzsiZpfsnyTFt9D
-
-;; Touch: Pain, water and warm.
 
 ;;; TODO:
 ;; - make oai-variable.el and pass them to -api.el functions as parameters.
@@ -109,6 +111,7 @@
 
 
 ;;; Code:
+;; Touch: Pain, water and warm.
 
 ;; -=-= includes
 (require 'oai-debug)
@@ -307,6 +310,16 @@ messages."
     (setq oai-debug-buffer   "*debug-oai*")
     (message "Enable oai debugging")))
 
+;; -=-= interactive aliases
+;;;###autoload
+(defalias 'oai-kill-region-at-point #'oai-block-kill-region-at-point)
+;;;###autoload
+(defalias 'oai-mark-at-point #'oai-block-mark-at-point)
+;;;###autoload
+(defalias 'oai-set-max-tokens #'oai-block-set-max-tokens)
+;;;###autoload
+(defalias 'oai-forward-section #'oai-block-forward-section)
+
 ;; -=-= Fontify Markdown blocks and Tags - function for hook
 
 (defun oai-block--set-ai-keywords ()
@@ -323,42 +336,6 @@ messages."
                                         (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
                                         '(oai-block-tags--font-lock-fontify-links)))))
 
-;; -=-= interactive fn: key M-h: Mark at point
-(defun oai-mark-at-point (arg)
-  "Mark entity at current poin in current buffer.
-Mark Mardkown block or whole ai block.  If universal argument ARG is
-non-nil, then mark one chat message."
-  (interactive "P")
-  (if arg
-      (oai-mark-region-at-point)
-    ;; else
-    (oai-block-tags-mark-md-block-body)))
-
-;; -=-= interactive fn: Set max tokens
-(defun oai-set-max-tokens ()
-  "Jump to header of ai block and set max-tokens."
-  (interactive)
-  (if-let ((el (oai-block-p)))
-
-      (let ((beg (progn (push-mark)
-                        (goto-char (org-element-property :contents-begin el))
-                        (forward-line -1)
-                        (point)))
-            pos)
-        (if (search-forward ":max-tokens" (line-end-position) t)
-            (if (eq (line-end-position) (point))
-                (insert " ")
-                ;; else
-              (forward-char))
-          ;; else
-          (goto-char beg)
-          (forward-char 10)
-          (insert " :max-tokens ")
-          (setq pos (point))
-          (insert (format "%s " oai-restapi-default-max-tokens))
-          (goto-char pos)))
-    ;; else
-    (message "Not oai block here.")))
 
 ;; -=-= interactive fn: Summarize *TODO:*
 ;; (defun oai-summarize ()
@@ -383,12 +360,11 @@ non-nil, then mark one chat message."
   "Keymap for `oai-mode'.")
 
 (let ((map oai-mode-map))
-  (define-key map (kbd (string-join (list "C-c" " h"))) #'oai-mark-region-at-point) ; oai-block.el
   (define-key map (kbd (string-join (list "C-c" " <backspace>"))) #'oai-kill-region-at-point) ; oai-block.el
   (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
   (define-key map (kbd "C-c C-.") #'oai-open-request-buffer) ; oai-restapi.el
-  (define-key map (kbd "C-c .") #'oai-expand-block)
-  (define-key map (kbd (concat "C-c " "m")) #'oai-set-max-tokens))
+  (define-key map (kbd "C-c .") #'oai-expand-block) ; oai-block.el
+  (define-key map (kbd (concat "C-c " "m")) #'oai-set-max-tokens)) ; oai-block.el
 
 
 (define-minor-mode oai-mode
