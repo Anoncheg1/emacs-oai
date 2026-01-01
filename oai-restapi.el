@@ -821,7 +821,7 @@ Here used for completion mode in `oai-restapi-request'.
 - TEXT  is  string  from  the  response of  OpenAI  API  extracted  with
   `oai-restapi--get-single-response-text'.
 - END-MARKER is a buffer and position at the end of block.
-- if FINAL is non-nill we add undo-boundary.
+- if FINAL is non-nill we add `undo-boundary'.
 Variable `oai-block-roles' is used to format role to text."
   (oai--debug "oai-restapi--insert-single-response end-marker, text:"
               end-marker
