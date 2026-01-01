@@ -841,7 +841,7 @@ Here used for completion mode in `oai-restapi-request'.
                 (delete-char -1))
               (newline)
               (newline)
-              (insert "[AI]: "
+              (insert "[" (car (rassoc 'assistant oai-block-roles)) "]: "
                       (if (string-match "\n" text) ; multiline answer we start with a new line.
                           "\n"
                         ;; else
@@ -875,7 +875,7 @@ Here used for completion mode in `oai-restapi-request'.
               (save-excursion
                 ;; - go  to the end of previous line and open new one
                 (goto-char pos)
-                (insert "\n[ME]: \n")
+                (insert "\n[" (car (rassoc 'user oai-block-roles)) "]: \n")
                 (forward-char -1)
                 (setq pos (point)))
               (set-marker end-marker (point)))
@@ -1072,16 +1072,10 @@ specific role."
                              (goto-char pos)
 
                              (setq c-chat-role payload)
-                             (let ((payload (and insert-role (oai-restapi--response-payload response))))
-                               (cond
-                                ((string= payload "assistant_reason")
-                                 (insert "\n[AI_REASON]: "))
-                                ((string= payload "assistant")
-                                 (insert "\n[AI]: \n"))
-                                ((string= payload "user")
-                                 (insert "\n[ME]: "))
-                                ((string= payload "system")
-                                 (insert "\n[SYS]: ")))
+                             (let* ((payload (and insert-role (oai-restapi--response-payload response)))
+                                    (rl (intern payload))
+                                    role-prefix (car (rassoc rl oai-block-roles)))
+                               (insert "\n[" role-prefix "]: " (when (eql rl assistant) "\n")) ; "\n[ME:] " or "\n[AI:] \n"
 
                                (condition-case hook-error
                                    (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'role payload pos t)
@@ -1107,7 +1101,7 @@ specific role."
                     ('stop (progn ; payload = stop_reason
                              (oai--debug "oai-restapi--insert-stream-response3 stop_reason: %s" payload)
                              (goto-char pos)
-                             (let ((text "\n\n[ME]: "))
+                             (let ((text (concat "\n\n[" (car (rassoc 'user oai-block-roles)) "]: "))) ; "ME"
                                (if insert-role
                                    (insert text)
                                  ;; else
@@ -1867,28 +1861,28 @@ MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
 ;; (oai-restapi--normalize-response '(id "o3f9cZv-4Yz4kd-9617f234fd6f9d91" object "chat.completion" created 1752904277 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 589067420664432000 logprobs nil index 0 message (role "assistant" content "`(mapcar 'cdr '((a . 2) (x . 3) (2 . 1)))` returns `(2 3 1)`." tool_calls []))] usage (prompt_tokens 84 completion_tokens 34 total_tokens 118 cached_tokens 0)))
 ;; (#s(oai-restapi--response role "assistant") #s(oai-restapi--response text "`(mapcar 'cdr '((a . 2) (x . 3) (2 . 1)))` returns `(2 3 1)`.") #s(oai-restapi--response stop "stop"))
 
-(cl-defun oai-restapi--stringify-chat-messages (messages &optional &key
-                                                    default-system-prompt
-                                                    (system-prefix "[SYS]: ")
-                                                    (user-prefix "[ME]: ")
-                                                    (assistant-prefix "[AI]: "))
-  "Convert a chat message to a string.
-MESSAGES is a vector of (:role :content) pairs.  :role can be
-\='system, \='user or \='assistant.  If DEFAULT-SYSTEM-PROMPT is
-non-nil, a [SYS] prompt is prepended if the first message is not
-a system message.  SYSTEM-PREFIX, USER-PREFIX and
-ASSISTANT-PREFIX are the prefixes for the respective roles
-inside the assembled prompt string."
-  (let ((messages (if (and default-system-prompt
-                           (not (eql (plist-get (aref messages 0) :role) 'system)))
-                      (cl-concatenate 'vector (vector (list :role 'system :content default-system-prompt)) messages)
-                    messages)))
-    (cl-loop for (_ role _ content) across messages
-             collect (cond ((eql role 'system) (concat system-prefix content))
-                           ((eql role 'user) (concat user-prefix content))
-                           ((eql role 'assistant) (concat assistant-prefix content)))
-             into result
-             finally return (string-join result "\n\n"))))
+;; (cl-defun oai-restapi--stringify-chat-messages (messages &optional &key
+;;                                                     default-system-prompt
+;;                                                     (system-prefix "[SYS]: ")
+;;                                                     (user-prefix "[ME]: ")
+;;                                                     (assistant-prefix "[AI]: "))
+;;   "Convert a chat message to a string.
+;; MESSAGES is a vector of (:role :content) pairs.  :role can be
+;; \='system, \='user or \='assistant.  If DEFAULT-SYSTEM-PROMPT is
+;; non-nil, a [SYS] prompt is prepended if the first message is not
+;; a system message.  SYSTEM-PREFIX, USER-PREFIX and
+;; ASSISTANT-PREFIX are the prefixes for the respective roles
+;; inside the assembled prompt string."
+;;   (let ((messages (if (and default-system-prompt
+;;                            (not (eql (plist-get (aref messages 0) :role) 'system)))
+;;                       (cl-concatenate 'vector (vector (list :role 'system :content default-system-prompt)) messages)
+;;                     messages)))
+;;     (cl-loop for (_ role _ content) across messages
+;;              collect (cond ((eql role 'system) (concat system-prefix content))
+;;                            ((eql role 'user) (concat user-prefix content))
+;;                            ((eql role 'assistant) (concat assistant-prefix content)))
+;;              into result
+;;              finally return (string-join result "\n\n"))))
 
 ;; -=-= chat-messages: modify content
 

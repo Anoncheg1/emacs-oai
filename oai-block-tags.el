@@ -225,7 +225,8 @@ mode line."
 Markdown block marked as auto language If optional argument LANG is
 not provided.
 HEADER is a line above mardown to describe it for LLM, should not have
-new line characters at edges."
+new line characters at edges.
+To detect LANG use `oai-block-tags--filepath-to-language'."
   (concat (when header (concat "\n" header))
           (when content (concat "\n```" (or lang "auto") "\n"
                                 (string-replace "```" "\\`\\`\\`" content)
@@ -1182,9 +1183,9 @@ make this function to no relay on oai-block."
         ;; if pointer in Mardown block, we mark Markdown block only
         (or (oai-block-tags--markdown-mark-fenced-code-body beg end)
             ;; else - no markdown - mark ai block only
-            (progn
+            (unless (= beg end)
               (push-mark beg t)
-              (goto-char end)
+              (goto-char (1- end))
               (activate-mark)))
         t)
       (org-mark-element)))

@@ -473,14 +473,14 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (goto-line 1)
       (should (equal (oai-block-tags-mark-md-block-body) t))
       (should (= 91 (region-beginning)))
-      (should (= 106 (region-end)))
+      (should (= 105 (region-end)))
       (goto-line 3)
       (should (equal (oai-block-tags-mark-md-block-body) t))
       (should (= 100 (region-beginning)))
       (should (= 101 (region-end))))))
 
 ;; -=-= Test: oai-block-tags--filepath-to-language
-(ert-deftest oai-tests-oai-block-tags--filepath-to-language ()
+(ert-deftest oai-tests-block-tags--filepath-to-language ()
   (should
    (string-equal (oai-block-tags--filepath-to-language 'emacs-lisp-mode) "elisp"))
   (should

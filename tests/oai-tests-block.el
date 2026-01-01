@@ -434,9 +434,9 @@ as
                                             (:role user :content "user")
                                             (:role assistant :content "assistant")])
     "[SYS]: system\n\n[ME]: user\n\n[AI]: assistant"))
-  (let ((oai-block-roles '(("SYS1"		system)
-                           ("ME2"		user)
-                           ("AI3"		assistant))))
+  (let ((oai-block-roles '(("SYS1" . system)
+                           ("ME2" . user)
+                           ("AI3" . assistant))))
     (should
      (string-equal
       (oai-block--stringify-chat-messages '[(:role user :content "user")

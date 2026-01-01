@@ -66,14 +66,20 @@
   :type 'boolean
   :group 'oai)
 
-(defconst oai-block--ai-block-begin-re "^#\\+begin_ai.*$")
-(defconst oai-block--ai-block-end-re "^#\\+end_ai.*$")
+(defvar oai-block-roles '(("SYS" . system)
+                          ("ME" . user)
+                          ("AI" . assistant)
+                          ("AI_REASON" . assistant_reason)
+                          ("unknown_role" . assistant)
+                          ("missing_role" . user))
+  "May be used to relace [AI]: prefix with other string.
+Symbols \'assistant and \'user symbols used in oai-restapi to insert prefix, and
+here in stringify function.
+Modify with caution.")
 
-(defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
-(defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")
-(defvar oai-block--chat-prefixes-re "^[ \t]*\\[\\([A-Z_]+\\)\\(:\\]\\|\\]:\\)\\s-*"
-  "Prefix should be at the begining of the line with spaces or without.
-Or roles regex.")
+;; (car (rassoc 'user oai-block-roles)) ; => "ME"
+;; (cdr (assoc-string "ME" oai-block-roles)) ; => assistent ; Get value by key:
+
 
 (defcustom oai-block-parse-part-hook nil
   "Call hook function with raw string of current block after role prefix.
@@ -84,6 +90,16 @@ string to each other.  Executed at step of reading ai block from raw
 content of buffer before any processing but after splitting to parts."
   :type 'hook
   :group 'oai)
+
+(defconst oai-block--ai-block-begin-re "^#\\+begin_ai.*$")
+(defconst oai-block--ai-block-end-re "^#\\+end_ai.*$")
+
+(defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
+(defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")
+(defvar oai-block--chat-prefixes-re "^[ \t]*\\[\\([A-Z_]+\\)\\(:\\]\\|\\]:\\)\\s-*"
+  "Prefix should be at the begining of the line with spaces or without.
+Or roles regex.")
+
 
 (defface oai-block--me-ai-chat-prefixes-font-face
   '((t :weight bold))
@@ -376,20 +392,6 @@ Joining non-empty content by SEP (defaults to newline)."
 
 ;; (progn (re-search-forward oai-block--chat-prefixes-re)
 ;;        (print (match-string 1)))
-(defvar oai-block-roles '(("SYS"		system)
-                          ("ME"		user)
-                          ("AI"		assistant)
-                          ("unknown_role"	assistant)
-                          ("missing_role"	user)))
-;; Get value by key: (cadr (assoc-string "unknown_role" oai-block-roles))
-
-(defun oai-block--roles-get-key (role-value)
-  "Return string prefix for ROLE-VALUE symbol.
-Uses `oai-block-roles' variable."
-  (or (car (seq-find (lambda (pair) (eq (cadr pair) role-value)) oai-block-roles))
-      (error "Role symbol not found in oai-block-roles")))
-
-;; (oai-block--roles-get-key 'user) ; => "ME"
 
 ;; Parse parts and build messages
 (defun oai-block--parse-part (pos-beg pos-end)
@@ -417,11 +419,11 @@ If content is empty string return nil otherwise plist."
       (unless (string= role-str "AI_REASON") ; works for nil
         ;; get role symbol
         (when role-str
-          (setq role (cadr (assoc-string role-str oai-block-roles))))
+          (setq role (cdr (assoc-string role-str oai-block-roles))))
         (setq role (if role-str
-                       (or role (cadr (assoc-string "unknown_role" oai-block-roles)))
+                       (or role (cdr (assoc-string "unknown_role" oai-block-roles)))
                      ;; else - no role-str
-                     (cadr (assoc-string "missing_role" oai-block-roles)) ; user for the first message
+                     (cdr (assoc-string "missing_role" oai-block-roles)) ; user for the first message
                      ))
         ;; get content
         (setq content (string-trim (buffer-substring-no-properties (or pre-end-pos pos-beg)
@@ -548,25 +550,34 @@ MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
 ;; -=-= stringify-chat-messages
 
 ;; [[file:~/sources/emacs-oai/oai-restapi.el::1986::(cl-defun oai-restapi--stringify-chat-messages (messages &optional &key]]
+(defun oai-block--format-message (msg)
+  "Return converted to a string plist MSG."
+  (let* ((role (plist-get msg :role))
+         (content (plist-get msg :content))
+         (role-str (car (rassoc role oai-block-roles))))
+    (concat "[" role-str "]: " content)))
+
 (defun oai-block--stringify-chat-messages (messages &optional default-system-prompt)
   "Convert a chat message to a string.
-MESSAGES is a vector of (:role :content) pairs.  :role can be
+MESSAGES is a vector of plist with :role :content keys.  :role can be
 \='system, \='user or \='assistant.
 If DEFAULT-SYSTEM-PROMPT non-nil, a [SYS] prompt is prepended if the
 first message is not a system message, otherwise DEFAULT-SYSTEM-PROMPT
 argument is ignored.
 Uses `oai-block-roles' variable for mapping roles to prefixes."
+  ;; 1) add default-system-prompt as first [SYS]: if not exist
   (let ((messages (if (and default-system-prompt
-                           (not (eql (plist-get (aref messages 0) :role) 'system)))
-                      (cl-concatenate 'vector (vector (list :role 'system :content default-system-prompt)) messages)
+                           (not (eql (plist-get (aref messages 0) :role) 'system))) ; enforce that vector should consist of plists
+                      ;; (cl-concatenate 'vector (vector (list :role 'system :content default-system-prompt)) messages)
+                      (vconcat (vector (list :role 'system :content default-system-prompt)) messages)
                     messages)))
-    (cl-loop for (_ role _ content) across messages
-             collect (let ((role-str (oai-block--roles-get-key role)))
-                       (concat "[" role-str "]: " content))
-             into result
-             finally return (string-join result "\n\n"))))
+    ;; 2) convert every message to a string and join them.
+    (string-join
+     (mapcar #'oai-block--format-message messages)
+     "\n\n")))
 
-
+;; (car (rassoc 'sysa oai-block-roles))
+;; (oai-block--stringify-chat-messages '[(:role assistant :content "Be helpful; then answer.") (:role user :content "Be hnswer.")] "as")
 ;; -=-= Interactive
 
 (defun oai-block-mark-last-region ()
@@ -626,9 +637,11 @@ A negative argument ARG = -N means move backward."
 The numeric ARG can be used for killing the last n."
   (interactive "P")
   (cl-loop repeat (or arg 1)
-           do (when-let ((region (oai-block-mark-region-at-point)))
-                (cl-destructuring-bind (start . end) region
-                  (kill-region end start)))))
+           do (when-let* ((region (oai-block-mark-region-at-point))
+                          (start (car region))
+                          (end (cdr region)))
+                ;; (cl-destructuring-bind (start . end) region
+                  (kill-region end start))))
 
 ;; (defun oai-block-kill-last-region (&optional arg)
 ;;   "Kill the prompt at point.
