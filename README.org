@@ -5,7 +5,7 @@ Emacs package, provide blocks ~#+begin_ai~ in Org mode for communication with LL
 
 Protocol: “OpenAI like” HTTP REST API. (url.el)
 
-*Core principle*: for text, customizability and comfort.
+*Core principle*: for text, extensibility and comfort.
 
 * Features:
 - Tags: expansion of links in block

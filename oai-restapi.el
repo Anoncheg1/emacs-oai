@@ -1065,7 +1065,7 @@ Variable `oai-block-roles' is used to format role."
 
                   (goto-char pos)
                   ;; - Remove lines above and provide space below, should be covered with tests.
-                  (when (looking-at "#\\+end")
+                  (when (looking-at oai-block--ai-block-end-re) ; "#\\+end"
                     (oai-restapi--remove-empty-lines-above-at-point)
                     (setq pos (point))
                     (insert "\n"))
