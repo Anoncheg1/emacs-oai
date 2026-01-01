@@ -98,16 +98,13 @@
 ;; - provide ability to replace url-http with plz or oai-restapi with llm(plz)
 ;; - implement "#+PROPERTY: var foo=1" and "#+begin_ai :var
 ;;       foo=1" and to past to text in [foo]
-;; - implement contant-tags "Fix @problems then document the
+;; - more tags? like: "Fix @problems then document the
 ;;         changes in @/CHANGELOG.md" @url, @file, @folder, @header? (Org)
-;; - Force stop stream on C-g
 ;; - use oai-restapi-prepare-content for :chain
 ;; - Think about to pass callback for writing to chain implementations
 ;;    and main implementation, to make it more general.
 ;; - make org-block-tags optional
-;; - Architecture: (raw info) Interface -> (structured Org info + raw
-;;   Org body) Agent -> API to LLM + Callback (may be part of Agent or
-;;   API)
+;; - move oai-restapi--insert-stream-response and oai-restapi--insert-single-response to oai-body
 
 
 ;;; Code:

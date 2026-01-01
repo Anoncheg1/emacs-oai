@@ -40,12 +40,10 @@
 ;; (org-element-property :contents-end  (oai-block-p)) return #+end line position
 ;; may be fixed with org-element-put-property, but it is not KISS.
 
-;; Changelog
-;; - DONE: complete is short for completion
-;; - DONE: oai-block-get-info fail if there is nothing in block.
-;; - DONE: rename all CONTEXT to ELEMENT because context cause confusing (Org terms).
-;; - DONE: rename all except interface functions to "oai-block-" prefix.
-
+;;; TODO:
+;; - replace all cl-lib with built-in Elisp code
+;; - simplify some functions
+;; - replace Vibe-coding with human-readable code with comments where required, without lambdas.
 
 ;;; Code:
 ;; -=-= includes

@@ -530,7 +530,44 @@
 
 
 (provide 'oai-tests-restapi)
+;; -=-= For: `oai-restapi--insert-stream-response'
 
+;; (defun my/diff-strings (str1 str2)
+;;   "Return and print verbose diff between STR1 and STR2 as a list."
+;;   (let ((len1 (length str1))
+;;         (len2 (length str2))
+;;         (maxlen (max len1 len2))
+;;         (diffs '()))
+;;     (dotimes (i maxlen)
+;;       (let ((c1 (if (< i len1) (aref str1 i) nil))
+;;             (c2 (if (< i len2) (aref str2 i) nil)))
+;;         (unless (equal c1 c2)
+;;           (let ((d (list i
+;;                          (if c1 (format "%S" (string c1)) "<none>")
+;;                          (if c2 (format "%S" (string c2)) "<none>"))))
+;;             (push d diffs)
+;;             (message "Difference at index %d: %s vs %s"
+;;                      i (nth 1 d) (nth 2 d))))))
+;;     (unless diffs (message "No differences found"))
+;;     (nreverse diffs)))
+
+;; (verbose-string-diff "hello" "hxlpo")
+
+(ert-deftest oai-tests-restapi--insert-stream-response ()
+  (with-temp-buffer
+
+    (let* ((role-payload "assistant")
+           (rl (intern role-payload))
+           (role-prefix (car (rassoc rl oai-block-roles)))
+           res)
+
+    (oai-restapi--insert-stream-response (copy-marker (point))
+                                         (list (make-oai-restapi--response :type 'role :payload role-payload)))
+    ;; (print (concat "\n[" role-prefix  "]: \n"))
+    (setq res (buffer-substring-no-properties (point-min) (point-max)))
+    ;; (my/diff-strings res (concat "\n[" role-prefix  "]: \n"))))
+    ;; (print role-prefix)))
+    (string-equal res (concat "\n[" role-prefix  "]: \n")))))
 ;; -=-= For: `oai-restapi--collect-chat-messages' (old)
 ;; (ert-deftest oai-tests-restapi--collect-chat-messages ()
 ;;   ;; deal with unspecified prefix

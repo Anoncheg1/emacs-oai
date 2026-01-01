@@ -175,19 +175,6 @@ Used for :aggregator."
         (delq key new-plist))
     plist))
 
-;; (defun oai-async1-plist-get (plist key) ; &optional default
-;;   "Get value by KEY from PLIST.
-;; `plist-get' don't work if list have  one missed values or keys, it don't
-;; resplect :keywords, only order or key-value.
-;; Used for :aggregator."
-;;   (if (memq key plist)
-;;       (let ((value (cadr (memq key plist))))
-;;         (if (eql (car value) 'function)
-;;             (cadr value)  ;; Extract symbol from function
-;;           ;; else
-;;           value))
-;;     ;; else
-;;     nil))
 
 (defun oai-async1-plist-get (plist key &optional default)
   "Get value by KEY from PLIST.
