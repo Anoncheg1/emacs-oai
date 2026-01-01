@@ -71,9 +71,8 @@
                           ("unknown_role" . assistant)
                           ("missing_role" . user))
   "May be used to relace [AI]: prefix with other string.
-Symbols \='assistant and \='user symbols used in oai-restapi to insert prefix, and
-here in stringify function.
-Modify with caution.")
+Symbols \='assistant and \='user symbols used in oai-restapi to insert
+prefix, and here in stringify function.  Modify with caution.")
 
 ;; (car (rassoc 'user oai-block-roles)) ; => "ME"
 ;; (cdr (assoc-string "ME" oai-block-roles)) ; => assistent ; Get value by key:

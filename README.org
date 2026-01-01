@@ -3,7 +3,7 @@
 *Version 0.1*
 Emacs package, provide blocks ~#+begin_ai~ in Org mode for communication with LLMs APIs. Inspired by Robert Krahn's [[https://github.com/rksm/org-ai][org-ai package]]
 
-Protocol: “OpenAI”-supported HTTP REST API. (url.el)
+Protocol: “OpenAI like” HTTP REST API. (url.el)
 
 *Core principle*: for text, customizability and comfort.
 
