@@ -420,17 +420,17 @@ Variable `oai-block-roles' is used to format role to text."
 ;; (oai-block--response-type (make-oai-block--response :type 'role :payload "asd")) ; 'role
 ;; (oai-block--response-payload (make-oai-block--response :type 'role :payload "asd")) ; "asd"
 
-(defun oai-block--remove-empty-lines-above-at-point ()
-  "Remove multiple empty lines above current to make it one."
-  (let ((start (point)))
-    (while (and
-             (= (forward-line -1) 0)
-             (looking-at-p "^[ \t]*$"))
-      ;; continue loop
-      )
-    (forward-line 1)
-    (when (/= (line-number-at-pos start) (line-number-at-pos (point)))
-      (delete-region (point) start))))
+;; (defun oai-block--remove-empty-lines-above-at-point ()
+;;   "Remove multiple empty lines above current to make it one."
+;;   (let ((start (point)))
+;;     (while (and
+;;              (= (forward-line -1) 0)
+;;              (looking-at-p "^[ \t]*$"))
+;;       ;; continue loop
+;;       )
+;;     (forward-line 1)
+;;     (when (/= (line-number-at-pos start) (line-number-at-pos (point)))
+;;       (delete-region (point) start))))
 
 (defvar-local oai-block--current-insert-position-marker nil
   "Where to insert the result.
@@ -483,9 +483,16 @@ Variable `oai-block-roles' is used to format role."
                   (goto-char pos)
                   ;; - Remove lines above and provide space below, should be covered with tests.
                   (when (looking-at oai-block--ai-block-end-re) ; "#\\+end"
-                    (oai-block--remove-empty-lines-above-at-point)
+                    (goto-char (1- pos)) ; to use insert before end-marker to preserve it at the end of block
+                    (while (bolp)
+                      (delete-char -1))
                     (setq pos (point))
-                    (newline))
+                    (newline)
+
+                    ;; (oai-block--remove-empty-lines-above-at-point)
+                    ;; (setq pos (point))
+                    ;; (newline)
+                    )
 
                   ;; - Type of message
                   (pcase type
