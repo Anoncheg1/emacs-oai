@@ -590,9 +590,7 @@ MAX-TOKENS described in `oai-restapi-request-prepare'."
                                                                   (oai-restapi--get-lenght-recommendation max-tokens))))
            (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
            (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
-           (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages))
-
-           )
+           (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
       messages))) ; return vector
 
 

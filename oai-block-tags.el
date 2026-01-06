@@ -103,10 +103,11 @@ Used to set `org-link-search-must-match-exact-headline' before
 (defvar oai-block-tags--regexes-backtrace "\\(@\\(Backtrace\\|B\\)\\)\\([^a-zA-Z\"']\\|$\\)")
 (defvar oai-block-tags--regexes-path "@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*"
   "See: .
-[[file:./tests/oai-tests-block-tags.el::94::;; -=-= Test: oai-block-tags--regexes-path]].")
-(let ((s "`@/asd vv`"))
-  (when (string-match oai-block-tags--regexes-path s)
-    (substring s (match-beginning 0) (match-end 0))))
+[[file:./tests/oai-tests-block-tags.el::94:
+:;; -=-= Test: oai-block-tags--regexes-path]].")
+;; (let ((s "`@/asd vv`"))
+;;   (when (string-match oai-block-tags--regexes-path s)
+;;     (substring s (match-beginning 0) (match-end 0))))
 
 (defvar oai-block-tags--markdown-prefixes '(:backtrace "elisp-backtrace"
                                             :path-directory "ls-output")
