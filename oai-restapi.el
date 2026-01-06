@@ -101,35 +101,6 @@ machine openai--1 password <your token>"
                  (const :tag "Use auth-source." nil))
   :group 'oai)
 
-;; (defun my/org-fill-element-advice (orig-fun &optional justify)
-;;   "Advice around `org-fill-element`.
-;; If at headline, skip filling. Otherwise call original function."
-;;   (let ((element (save-excursion (end-of-line) (org-element-at-point))))
-;;     (unless (oai-block-tags--markdown-fenced-code-body-get-range)
-;;       (funcall orig-fun justify))))
-
-;; (advice-add 'org-fill-element :around #'my/org-fill-element-advice)
-
-
-;; (defun oai-restapi--forward-paragraph (arg)
-;;   "Normal with `forward-paragraph' Skipping markdown blocks.
-;; Works for positive ARG now only, negative not supported now."
-;;   (print (list "oai-restapi--forward-paragraph" arg))
-;;   (funcall #'forward-paragraph arg)
-;;   (or arg (setq arg 1))
-;;   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range))
-;;                     (beg (car r)) ; after header
-;;                     (end (cadr r))) ; at end line
-;;     (when (< arg 0) (not (bobp))
-;;           (when (> end (point))
-;;             (goto-char beg)
-;;             (forward-line -1)))
-;;     (when (> arg 0) (not (eobp))
-;;         ;; inside or at the first line? if at first line, do nothin, if in the middle of mardkown, then go to the end
-;;         (unless (save-excursion (forward-line -1) (eq beg (point)))
-;;           (goto-char end)
-;;           (forward-line)))))
-
 (defcustom oai-restapi-con-service 'openai
   "Service to use if not specified."
   :type '(choice (const :tag "OpenAI" openai)
@@ -612,11 +583,6 @@ MAX-TOKENS described in `oai-restapi-request-prepare'."
       ;; - *Completion*
       (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
     ;; - else - *Chat*
-    ;; (print (oai-block--collect-chat-messages-at-point element
-    ;;                                                             sys-prompt
-    ;;                                                             sys-prompt-for-all-messages
-    ;;                                                             (when oai-restapi-add-max-tokens-recommendation
-    ;;                                                               (oai-restapi--get-lenght-recommendation max-tokens))))
     (let* ((messages (oai-block--collect-chat-messages-at-point element
                                                                 sys-prompt
                                                                 sys-prompt-for-all-messages
@@ -625,25 +591,7 @@ MAX-TOKENS described in `oai-restapi-request-prepare'."
            (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
            (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
            (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages))
-           ;; (oai-block--collect-chat-messages-from-string
-           ;;  sys-prompt
-           ;;  sys-prompt-for-all-messages
-           ;;  (when oai-restapi-add-max-tokens-recommendation
-           ;;    (oai-restapi--get-lenght-recommendation max-tokens)))
 
-            ;; (oai-block--collect-chat-messages-at-point element
-            ;;                                                     sys-prompt
-            ;;                                                     sys-prompt-for-all-messages
-            ;;                                                     (when oai-restapi-add-max-tokens-recommendation
-            ;;                                                       (oai-restapi--get-lenght-recommendation max-tokens)))
-
-            ;; (oai-restapi--collect-chat-messages-at-point element
-            ;;  sys-prompt
-            ;;  sys-prompt-for-all-messages
-            ;;  (when oai-restapi-add-max-tokens-recommendation
-            ;;    (oai-restapi--get-lenght-recommendation max-tokens))))
-           ;; replace tags at last "[ME]:" only
-           ;; run-hook-with-args-until-success
            )
       messages))) ; return vector
 

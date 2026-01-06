@@ -420,18 +420,6 @@ Variable `oai-block-roles' is used to format role to text."
 ;; (oai-block--response-type (make-oai-block--response :type 'role :payload "asd")) ; 'role
 ;; (oai-block--response-payload (make-oai-block--response :type 'role :payload "asd")) ; "asd"
 
-;; (defun oai-block--remove-empty-lines-above-at-point ()
-;;   "Remove multiple empty lines above current to make it one."
-;;   (let ((start (point)))
-;;     (while (and
-;;              (= (forward-line -1) 0)
-;;              (looking-at-p "^[ \t]*$"))
-;;       ;; continue loop
-;;       )
-;;     (forward-line 1)
-;;     (when (/= (line-number-at-pos start) (line-number-at-pos (point)))
-;;       (delete-region (point) start))))
-
 (defvar-local oai-block--current-insert-position-marker nil
   "Where to insert the result.
 Used for `oai-restapi--insert-stream-response'.")
@@ -486,13 +474,7 @@ Variable `oai-block-roles' is used to format role."
                     (goto-char (1- pos)) ; to use insert before end-marker to preserve it at the end of block
                     (while (bolp)
                       (delete-char -1))
-                    (setq pos (point))
-                    (newline)
-
-                    ;; (oai-block--remove-empty-lines-above-at-point)
-                    ;; (setq pos (point))
-                    ;; (newline)
-                    )
+                    (setq pos (point)))
 
                   ;; - Type of message
                   (pcase type
@@ -1346,6 +1328,35 @@ to begin of paragraph."
       ;; else not stream, single response. We add hack to skip markdown blocks.
       (oai-block-fill-paragraph) ; fill per line. wrapped in save-excursion inside.
       )))
+
+;; (defun my/org-fill-element-advice (orig-fun &optional justify)
+;;   "Advice around `org-fill-element`.
+;; If at headline, skip filling. Otherwise call original function."
+;;   (let ((element (save-excursion (end-of-line) (org-element-at-point))))
+;;     (unless (oai-block-tags--markdown-fenced-code-body-get-range)
+;;       (funcall orig-fun justify))))
+
+;; (advice-add 'org-fill-element :around #'my/org-fill-element-advice)
+
+
+;; (defun oai-restapi--forward-paragraph (arg)
+;;   "Normal with `forward-paragraph' Skipping markdown blocks.
+;; Works for positive ARG now only, negative not supported now."
+;;   (print (list "oai-restapi--forward-paragraph" arg))
+;;   (funcall #'forward-paragraph arg)
+;;   (or arg (setq arg 1))
+;;   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range))
+;;                     (beg (car r)) ; after header
+;;                     (end (cadr r))) ; at end line
+;;     (when (< arg 0) (not (bobp))
+;;           (when (> end (point))
+;;             (goto-char beg)
+;;             (forward-line -1)))
+;;     (when (> arg 0) (not (eobp))
+;;         ;; inside or at the first line? if at first line, do nothin, if in the middle of mardkown, then go to the end
+;;         (unless (save-excursion (forward-line -1) (eq beg (point)))
+;;           (goto-char end)
+;;           (forward-line)))))
 
 
 (provide 'oai-block)

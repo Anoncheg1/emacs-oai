@@ -57,7 +57,8 @@
 ;; - `oai-block-tags--line-num-to-positon'
 
 ;;; TODO:
-;; - remove `? in regex and disable links inside quotes and disable higlighting of links in quotes.
+;; - disable links inside quotes
+;; - dissable highlighting of links insede ` ` markdown quotes for line
 
 ;; -=-= includes
 (require 'org)
@@ -73,16 +74,6 @@
 ;;                                :backtrace "\\(`?@\\(Backtrace\\|Bt\\)`?\\)\\([^a-zA-Z\"']\\|$\\)"
 ;;                                :path "`?@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*`?"
 ;;                                           ))
-(defvar oai-block-tags--regexes-backtrace "\\(`?@\\(Backtrace\\|B\\)`?\\)\\([^a-zA-Z\"']\\|$\\)")
-(defvar oai-block-tags--regexes-path "`?@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*`?"
-  "See: .
-[[file:./tests/oai-tests-block-tags.el::94
-::;; -=-= Test: oai-block-tags--regexes-path]].")
-
-(defvar oai-block-tags--markdown-prefixes '(:backtrace "elisp-backtrace"
-                                            :path-directory "ls-output")
-  "Right after ``` markdown block begining.")
-(defvar oai-block-tags--markdown-postfix "\n```\n")
 
 (defcustom oai-block-tags-backtrace-max-lines 12
   "Max lines to get from Backtrace buffer from begining.
@@ -108,6 +99,20 @@ Used to set `org-link-search-must-match-exact-headline' before
   "Non-nil means signal error if link in ai block point to targets in same file."
   :type 'boolean
   :group 'oai)
+
+(defvar oai-block-tags--regexes-backtrace "\\(@\\(Backtrace\\|B\\)\\)\\([^a-zA-Z\"']\\|$\\)")
+(defvar oai-block-tags--regexes-path "@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*"
+  "See: .
+[[file:./tests/oai-tests-block-tags.el::94::;; -=-= Test: oai-block-tags--regexes-path]].")
+(let ((s "`@/asd vv`"))
+  (when (string-match oai-block-tags--regexes-path s)
+    (substring s (match-beginning 0) (match-end 0))))
+
+(defvar oai-block-tags--markdown-prefixes '(:backtrace "elisp-backtrace"
+                                            :path-directory "ls-output")
+  "Right after ``` markdown block begining.")
+(defvar oai-block-tags--markdown-postfix "\n```\n")
+
 
 
 (defvar oai-block-tags-org-blocks-types '(comment-block center-block dynamic-block example-block
@@ -619,6 +624,7 @@ Move pointer to the end of block."
             ;; supported sub-elements: headline, blocks
             (setq el (org-element-context))
             (setq type (org-element-type el))
+
             (push (cond
                    ;; 1. Sub: Headline
                    ((eq type 'headline)
@@ -634,6 +640,7 @@ Move pointer to the end of block."
                       ;; (error nil))
                       ))
                    (t ; others
+                    ;; (oai--debug "AAA1 %s" (buffer-substring-no-properties (line-beginning-position) (point-max)))
                     (prog1
                         (concat "\n" (buffer-substring-no-properties (line-beginning-position) (org-element-property :end el)))
                       ;; (condition-case nil
@@ -641,7 +648,9 @@ Move pointer to the end of block."
                       ;; (org-next-item)
                       ;; (error nil))
                       )))
-                  replacement-list)) ; push to
+                  replacement-list)
+            ;; (oai--debug "AAA" replacement-list)
+            ) ; push to
           (push "\n```\n" replacement-list)
           ;; (print (list "!!!!!!!!!" (reverse replacement-list)))
           (apply #'concat (reverse replacement-list))))

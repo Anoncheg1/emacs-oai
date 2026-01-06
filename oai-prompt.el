@@ -60,9 +60,9 @@
 ;;; Code:
 ;; -=-= all
 (defvar oai-prompt-chain-list
-  (list "Make plan of three steps; do only the first part of the plan. Provide small seed answer and enhance it at next steps."
-        "Complete the second part of plan only."
-        "Do the third part; provide a final full answer."))
+  (list "Give three steps plan. Do only the first step of the plan. Provide tiny seed answer."
+        "Complete the second step of plan only. Enhance answer."
+        "Do the third step. Provide a final full answer."))
 
 
 (defun oai-prompt-collect-chat-research-steps-prompt (commands ind messages &optional default-system-prompt max-tokens)
