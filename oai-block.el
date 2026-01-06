@@ -72,7 +72,9 @@
                           ("missing_role" . user))
   "May be used to relace [AI]: prefix with other string.
 Symbols \='assistant and \='user symbols used in oai-restapi to insert
-prefix, and here in stringify function.  Modify with caution.")
+prefix, and here in stringify function.
+Closely bound with `oai-block--chat-prefixes-re' variable.
+Modify with caution.")
 
 ;; (car (rassoc 'user oai-block-roles)) ; => "ME"
 ;; (cdr (assoc-string "ME" oai-block-roles)) ; => assistent ; Get value by key:
@@ -87,6 +89,25 @@ string to each other.  Executed at step of reading ai block from raw
 content of buffer before any processing but after splitting to parts."
   :type 'hook
   :group 'oai)
+
+(defcustom oai-block-jump-to-end-of-block t
+  "If non-nil, jump to the end of the block after inserting response."
+  :type 'boolean
+  :group 'oai)
+
+(defcustom oai-block-fill-function #'oai-block--fill-region
+  "If non-nil this function will be called after insertion of text.
+Current buffer is buffer with ai block with position of pointer right
+after insertion of text.
+Accept parameters: POS before insertion and and STREAM boolean flag.
+Should check that position is not inside markdown block
+and string is not quoted with \"> \".  Should be executed in
+save-excursion to preserve relative point position.
+TODO: for streaming: save and pass begining of paragraph or line."
+  :type '(choice (const :tag "None" nil)
+                 (function :tag "Function"))
+  :group 'oai)
+
 
 (defconst oai-block--ai-block-begin-re "^#\\+begin_ai.*$")
 (defconst oai-block--ai-block-end-re "^#\\+end_ai.*$")
@@ -310,7 +331,224 @@ Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS is nil."
 ;;  nil
 ;;  "ss") ; => "ss"
 
-;; -=-= fn: collect-chat-messages
+;; -=-= chat: insert message
+(defun oai-block--insert-single-response (end-marker &optional text insert-me final)
+  "Insert result to ai block.
+Should be used in two steps: 1) for insertion of text 2) with TEXT equal
+to nil, for finalizing by setting pointer to the end and insertion of me
+role.
+Here used for completion mode in `oai-restapi-request'.
+- END-MARKER is where to put result, is a buffer and position at the end
+  of block, from `oai-block--get-content-end-marker' function.
+- TEXT  is  string  from  the  response of  OpenAI  API  extracted  with
+  `oai-restapi--get-single-response-text'.
+- END-MARKER
+- if FINAL is non-nill we add `undo-boundary'.
+Variable `oai-block-roles' is used to format role to text."
+  (oai--debug "oai-block--insert-single-response end-marker, text:" end-marker text)
+    (let ((buffer (marker-buffer end-marker))
+          (pos (marker-position end-marker)))
+      (oai--debug "oai-block--insert-single-response buffer,pos:" buffer pos "")
+      ;; - write in target buffer
+      (when (and text (not (string-empty-p (string-trim text))))
+          (with-current-buffer buffer ; Where target ai block located.
+            ;; set mark (point) to allow user "C-u C-SPC" command to easily select the generated text
+            (push-mark end-marker t)
+            (save-excursion
+              ;; - go  to the end of previous line and open new one
+              (goto-char pos)
+              ;; - remove empty lines between end of block and user question.
+              (goto-char (1- pos)) ; to use insert before end-marker to preserve it at the end of block
+              (while (bolp)
+                (delete-char -1))
+              (newline)
+              (newline)
+              (insert "[" (car (rassoc 'assistant oai-block-roles)) "]: "
+                      (if (string-match "\n" text) ; multiline answer we start with a new line.
+                          "\n"
+                        ;; else
+                        "")
+                      text)
+              (newline)
+
+              (condition-case hook-error
+                  (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos nil)
+                (error
+                 (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
+              (when final
+                ;; - "auto-fill"
+                (when oai-block-fill-function
+                  (undo-boundary)
+                  (funcall oai-block-fill-function pos nil))
+                (org-element-cache-reset)
+                (undo-boundary))
+              ;; (setq pos (point))
+              ;; (set-marker end-marker (point))
+              )))
+
+        ;; - else - DONE
+        ;; - special cases for DONE
+        (when (not text)
+          (with-current-buffer buffer
+            (when insert-me
+              (save-excursion
+                ;; - go  to the end of previous line and open new one
+                (goto-char pos)
+                (insert "\n[" (car (rassoc 'user oai-block-roles)) "]: \n")
+                (forward-char -1)
+                (setq pos (point)))
+              (set-marker end-marker (point)))
+            (when oai-block-jump-to-end-of-block
+              (goto-char pos))
+            ;; final
+            (org-element-cache-reset)
+            (undo-boundary)))))
+
+;; Used in `oai-restapi--normalize-response' and in `oai-block--insert-stream-response'
+(cl-deftype oai-block--response-type ()
+  '(member role text stop error))
+
+(cl-defstruct oai-block--response ; :type is not enforced now
+  (type (user-error "No default value") :type oai-block--response-type)
+  (payload (user-error "No default value") :type string))
+
+;; (make-oai-block--response :type 'role :payload "user") ; #s(oai-block--response role "user")
+;; (make-oai-block--response :type 'role) ; error
+;; (make-oai-block--response :payload "role") ; error
+;; (make-oai-block--response :type nil :payload "role") ; #s(oai-block--response nil "role")
+;; (make-oai-block--response :type 'role :payload nil) ; #s(oai-block--response role nil)
+;; (oai-block--response-type (make-oai-block--response :type 'role :payload "asd")) ; 'role
+;; (oai-block--response-payload (make-oai-block--response :type 'role :payload "asd")) ; "asd"
+
+(defun oai-block--remove-empty-lines-above-at-point ()
+  "Remove multiple empty lines above current to make it one."
+  (let ((start (point)))
+    (while (and
+             (= (forward-line -1) 0)
+             (looking-at-p "^[ \t]*$"))
+      ;; continue loop
+      )
+    (forward-line 1)
+    (when (/= (line-number-at-pos start) (line-number-at-pos (point)))
+      (delete-region (point) start))))
+
+(defvar-local oai-block--current-insert-position-marker nil
+  "Where to insert the result.
+Used for `oai-restapi--insert-stream-response'.")
+
+(defvar-local oai-block--current-chat-role nil
+  "During chat response streaming, this holds the role of the \"current speaker\".
+Used for `oai-restapi--insert-stream-response'.")
+
+(defun oai-block--insert-stream-response (end-marker &optional responses insert-me)
+  "Insert result to ai block for chat mode.
+When first chunk received we stop waiting timer for request.
+END-MARKER'is where to put result,
+RESPONSES is a list of oai-block--response, processed by
+`oai-restapi--normalize-response', consist of type symbol and payload
+string.
+Used as callback for `oai-restapi-request', called in url buffer.
+
+Called within url-buffer.
+Use buffer-local variables:
+`oai-block--current-insert-position-marker',
+`oai-block--current-chat-role'.
+
+If response is multiline `oai-block-fill-function' may not
+work properly.(may be old)
+Argument INSERT-ME insert [ME]: at stop type of message.
+Variable `oai-block-roles' is used to format role."
+  ;; (oai--debug "oai-block--insert-stream-response1 %s" (oai-restapi--normalize-response response)) ; response
+  (oai--debug "oai-block--insert-stream-response1" responses)
+  (when responses
+    (let ((buffer (marker-buffer end-marker))
+          (pos (or oai-block--current-insert-position-marker
+                   (marker-position end-marker)))
+          (c-chat-role oai-block--current-chat-role)
+          stop-flag)
+      ;; (oai--debug "oai-block--insert-stream-response2 %s" normalized)
+      ;; (oai--debug "oai-block--insert-stream-response" normalized)
+      (unwind-protect ; we need to save variables to url buffer
+          (with-current-buffer buffer ; target buffer with block
+            (save-excursion
+              ;; - LOOP Per message
+              (dolist (response responses)
+                (let ((type (oai-block--response-type response)) ; symbol
+                      (payload (oai-block--response-payload response))) ; string
+                  ;; (oai--debug "oai-block--insert-stream-response: %s %s %s" type end-marker oai-block--current-insert-position-marker)
+                  ;; - Type of message: error
+                  (when (eq type 'error)
+                    (error (oai-block--response-payload response))) ; not used
+
+                  (goto-char pos)
+                  ;; - Remove lines above and provide space below, should be covered with tests.
+                  (when (looking-at oai-block--ai-block-end-re) ; "#\\+end"
+                    (oai-block--remove-empty-lines-above-at-point)
+                    (setq pos (point))
+                    (newline))
+
+                  ;; - Type of message
+                  (pcase type
+                    ('role (when (not (string= payload c-chat-role)) ; payload = role
+                             (goto-char pos)
+
+                             (setq c-chat-role payload)
+                             (let* ((rl (intern payload)) ; string to symbol
+                                    (role-prefix (car (rassoc rl oai-block-roles))))
+
+                               (insert "\n[" role-prefix "]: " (when (eql rl 'assistant) "\n")) ; "\n[ME:] " or "\n[AI:] \n"
+
+                               (condition-case hook-error
+                                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'role payload pos t)
+                                 (error
+                                  (message "Error during \"after-chat-insertion-hook\" for role: %s" hook-error)))
+
+                               (setq pos (point)))))
+                    ('text (progn ; payload = text
+                             (goto-char pos)
+                             (insert payload)
+                             ;; - "auto-fill" if not in code block
+                             (when oai-block-fill-function
+                               (funcall oai-block-fill-function pos t))
+
+                             (condition-case hook-error
+                                 (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'text payload pos t)
+                               (error
+                                (message "Error during \"after-chat-insertion-hook\" for text: %s" hook-error)))
+                             (setq pos (point))
+                             ;; (setq not-first t)
+                             ))
+
+                    ('stop (progn ; payload = stop_reason
+                             (oai--debug "oai-block--insert-stream-response3 stop_reason: %s" payload)
+                             (goto-char pos)
+                             (let ((text (concat "\n\n[" (car (rassoc 'user oai-block-roles)) "]: "))) ; "ME"
+                               (if insert-me
+                                   (insert text)
+                                 ;; else
+                                 (setq text ""))
+
+                               (condition-case hook-error
+                                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos t)
+                                 (error
+                                  (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
+                               (setq pos (point)))
+
+                             (org-element-cache-reset)
+                             (setq stop-flag t)))))))
+            ;; - without save-excursion - stop: go to the end.
+            (when (and oai-block-jump-to-end-of-block
+                       stop-flag)
+              ;; for jumping
+              (unless (region-active-p)
+                (push-mark nil t))
+
+              (goto-char pos)))
+        ;; - after buffer - UNWINDFORMS - save variables to url-buffer
+        (setq oai-block--current-insert-position-marker pos)
+        (setq oai-block--current-chat-role c-chat-role)))))
+
+;; -=-= chat: collect-chat-messages
 (defun oai-block--get-chat-messages-positions (content-start content-end prefix-re)
   "Return a flat list of positions for chat messages in current buffer.
 Positions CONTENT-START CONTENT-END used as boundaries.
@@ -544,7 +782,7 @@ MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
           (content-end   (point-max)))
       (oai-block--collect-chat-messages content-start content-end default-system-prompt persistant-sys-prompts max-token-recommendation separator))))
 
-;; -=-= stringify-chat-messages
+;; -=-= chat: stringify-chat-messages
 
 ;; [[file:~/sources/emacs-oai/oai-restapi.el::1986::(cl-defun oai-restapi--stringify-chat-messages (messages &optional &key]]
 (defun oai-block--format-message (msg)
@@ -1061,6 +1299,46 @@ Was causing freezing."
                 (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg end justify)
                 (setq beg end)))
             t))))))
+
+
+(defun oai-block--fill-region (&optional pos stream)
+  "Fill ai block for not streaming and for streaming.
+If STREAM is non-nil this function  called after insertion of a chink of
+text, otherwise after insertion of full response.
+Ignore markdown blocks, quoted text and Org tables.
+Optional argument POS position before insertion not used, TODO: set to
+to begin of paragraph."
+
+  (interactive)
+  (ignore pos)
+  ;; (setq _pos _pos) ; for melpazoid
+  (oai--debug "oai-block--fill-region %s %s" stream (point))
+  (save-excursion
+    (if stream
+        ;; if at current line ``` or we are at begining of markdown block in ai block.
+        (let ((case-fold-search t) ; if nil
+              (p (point)))
+          (unless
+              ;; not markdown blocks
+              (or (with-syntax-table org-mode-transpose-word-syntax-table
+                    ;; backward for ai block
+                    (when (re-search-backward oai-block--ai-block-begin-re nil t)
+                      (goto-char p)
+                      ;; backward for markdown block "begin". Same logic as in finction `oai-block-tags--is-special'
+                      (when (re-search-backward oai-block--markdown-begin-re (match-end 0) t)
+                        (goto-char p)
+                        ;; backward for markdown block "end" after "begin"
+                        (not (re-search-backward oai-block--markdown-end-re nil t)))))
+                  ;; not quotes and not tables
+                  (progn (goto-char p)
+                         (beginning-of-line)
+                         (or (looking-at "^> ") ; from `oai-block-fill-region-as-paragraph'
+                             (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
+            (goto-char p)
+            (fill-region-as-paragraph (line-beginning-position) (line-end-position))))
+      ;; else not stream, single response. We add hack to skip markdown blocks.
+      (oai-block-fill-paragraph) ; fill per line. wrapped in save-excursion inside.
+      )))
 
 
 (provide 'oai-block)

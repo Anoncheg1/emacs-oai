@@ -80,11 +80,6 @@
 
 ;;; Code:
 ;; -=-= Constants, variables
-(defcustom oai-restapi-jump-to-end-of-block t
-  "If non-nil, jump to the end of the block after inserting the completion."
-  :type 'boolean
-  :group 'oai)
-
 (defcustom oai-restapi-con-token nil
   "This is your OpenAI API token.
 If not-nil, store token as a string or may be as a list of key-value:
@@ -134,59 +129,6 @@ machine openai--1 password <your token>"
 ;;         (unless (save-excursion (forward-line -1) (eq beg (point)))
 ;;           (goto-char end)
 ;;           (forward-line)))))
-
-(defun oai-restapi--fill-region (&optional pos stream)
-  "Fill ai block for not streaming and for streaming.
-If STREAM is non-nil this function  called after insertion of a chink of
-text, otherwise after insertion of full response.
-Ignore markdown blocks, quoted text and Org tables.
-Optional argument POS position before insertion not used, TODO: set to
-to begin of paragraph."
-
-  (interactive)
-  (ignore pos)
-  ;; (setq _pos _pos) ; for melpazoid
-  (oai--debug "oai-restapi--fill-region %s %s" stream (point))
-  (save-excursion
-    (if stream
-        ;; if at current line ``` or we are at begining of markdown block in ai block.
-        (let ((case-fold-search t) ; if nil
-              (p (point)))
-          (unless
-              ;; not markdown blocks
-              (or (with-syntax-table org-mode-transpose-word-syntax-table
-                    ;; backward for ai block
-                    (when (re-search-backward oai-block--ai-block-begin-re nil t)
-                      (goto-char p)
-                      ;; backward for markdown block "begin". Same logic as in finction `oai-block-tags--is-special'
-                      (when (re-search-backward oai-block--markdown-begin-re (match-end 0) t)
-                        (goto-char p)
-                        ;; backward for markdown block "end" after "begin"
-                        (not (re-search-backward oai-block--markdown-end-re nil t)))))
-                  ;; not quotes and not tables
-                  (progn (goto-char p)
-                         (beginning-of-line)
-                         (or (looking-at "^> ") ; from `oai-block-fill-region-as-paragraph'
-                             (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
-            (goto-char p)
-            (fill-region-as-paragraph (line-beginning-position) (line-end-position))))
-      ;; else not stream, single response. We add hack to skip markdown blocks.
-      (oai-block-fill-paragraph) ; fill per line. wrapped in save-excursion inside.
-      )))
-
-
-(defcustom oai-restapi-fill-function #'oai-restapi--fill-region
-  "If non-nil this function will be called after insertion of text.
-Current buffer is buffer with ai block with position of pointer right
-after insertion of text.
-Accept parameters: POS before insertion and and STREAM boolean flag.
-Should check that position is not inside markdown block
-and string is not quoted with \"> \".  Should be executed in
-save-excursion to preserve relative point position.
-TODO: for streaming: save and pass begining of paragraph or line."
-  :type '(choice (const :tag "None" nil)
-                 (function :tag "Function"))
-  :group 'oai)
 
 (defcustom oai-restapi-con-service 'openai
   "Service to use if not specified."
@@ -350,34 +292,14 @@ Arguments: type, role-text, pos, buffer
 - POS - position before text insertion
 - STREAM - stream mode or a single insertion.")
 
-(defvar-local oai-restapi--current-insert-position-marker nil
-  "Where to insert the result.")
-
-(defvar-local oai-restapi--current-chat-role nil
-  "During chat response streaming, this holds the role of the \"current speaker\".
-Used for hook only.")
-
-(defvar-local oai-restapi--currently-reasoning nil)
+;; (defvar-local oai-restapi--currently-reasoning nil)
 
 (defvar-local oai-restapi--url-buffer-last-position-marker nil
-  "Local buffer var to store last read position.")
+  "Local buffer var to store url-buffer read position.")
 ;; (make-variable-buffer-local 'oai-restapi--url-buffer-last-position-marker)
 ;; (makunbound 'oai-restapi--url-buffer-last-position-marker)
 
-(cl-deftype oai-restapi--response-type ()
-  '(member role text stop error))
 
-(cl-defstruct oai-restapi--response ; :type is not enforced now
-  (type (user-error "No default value") :type oai-restapi--response-type)
-  (payload (user-error "No default value") :type string))
-
-;; (make-oai-restapi--response :type 'role :payload "user") ; #s(oai-restapi--response role "user")
-;; (make-oai-restapi--response :type 'role) ; error
-;; (make-oai-restapi--response :payload "role") ; error
-;; (make-oai-restapi--response :type nil :payload "role") ; #s(oai-restapi--response nil "role")
-;; (make-oai-restapi--response :type 'role :payload nil) ; #s(oai-restapi--response role nil)
-;; (oai-restapi--response-type (make-oai-restapi--response :type 'role :payload "asd")) ; 'role
-;; (oai-restapi--response-payload (make-oai-restapi--response :type 'role :payload "asd")) ; "asd"
 ;; -=-= Debugging
 
 (defun oai-restapi--debug-urllib (source-buf)
@@ -757,16 +679,16 @@ STREAM string - as bool, indicates whether to stream the response."
          (end-marker (oai-block--get-content-end-marker element))
          (callback (if (eql req-type 'completion) ; chat - ; set to oai-restapi--current-url-request-callback
                        ;; completion mode
-                       (lambda (result) (oai-restapi--insert-single-response end-marker
+                       (lambda (result) (oai-block--insert-single-response end-marker
                                                                              (oai-restapi--get-single-response-text result)
                                                                              nil))
-                     ;; else - chat mode
+                     ;; else - chat mode - RESULT is JSON in plist format
                      (if stream
-                         (lambda (result) (oai-restapi--insert-stream-response end-marker
+                         (lambda (result) (oai-block--insert-stream-response end-marker
                                                                                (oai-restapi--normalize-response result) ; [DONE] is ignored. we use "finish_reason":"stop" instead.
                                                                                 t))
                        ;; else - not stream
-                       (lambda (result) (oai-restapi--insert-single-response end-marker
+                       (lambda (result) (oai-block--insert-single-response end-marker
                                                                              (oai-restapi--get-single-response-text result)
                                                                              t 'final))))))
     ;; - Call and save buffer.
@@ -795,7 +717,11 @@ STREAM string - as bool, indicates whether to stream the response."
 (defun oai-restapi--get-single-response-text (&optional response)
   "Return text from RESPONSE or nil and signal error if it have \"error\" field.
 For Completion LLM mode. Used as callback for `oai-restapi-request'.
-Same to `oai-restapi--normalize-response' that used for stream."
+Same to `oai-restapi--normalize-response' that used for stream.
+We use separate version, because streaming is complicated,
+but we will keep them interchangable.
+Result used for `oai-block--insert-single-response'.
+Return text of message."
   (when response
     ;; (oai--debug "oai-restapi--get-single-response-text response:" response)
     (if-let ((err-obj (plist-get response 'error)))
@@ -805,89 +731,11 @@ Same to `oai-restapi--normalize-response' that used for stream."
       ;; else - no "error" field
       (if-let* ((choice (aref (plist-get response 'choices) 0))
                 (text (or (plist-get choice 'text)
-                          ;; Together.xyz way
+                          ;; Together.xyz, Github
                           (plist-get (plist-get choice 'message) 'content))))
           ;; - Decode text
           (decode-coding-string text 'utf-8)))))
 
-
-(defun oai-restapi--insert-single-response (end-marker &optional text insert-me final)
-  "Insert result to ai block.
-Should be used in two steps: 1) for insertion of text 2) with TEXT equal
-to nil, for finalizing by setting pointer to the end and insertion of me
-role.
-Here used for completion mode in `oai-restapi-request'.
-- END-MARKER is where to put result,
-- TEXT  is  string  from  the  response of  OpenAI  API  extracted  with
-  `oai-restapi--get-single-response-text'.
-- END-MARKER is a buffer and position at the end of block.
-- if FINAL is non-nill we add `undo-boundary'.
-Variable `oai-block-roles' is used to format role to text."
-  (oai--debug "oai-restapi--insert-single-response end-marker, text:"
-              end-marker
-              text
-              (when text
-                (string-match "\n" text)))
-    (let ((buffer (marker-buffer end-marker))
-          (pos (marker-position end-marker)))
-      (oai--debug "oai-restapi--insert-single-response buffer,pos:" buffer pos "")
-      ;; - write in target buffer
-      (when (and text (not (string-empty-p (string-trim text))))
-          (with-current-buffer buffer ; Where target ai block located.
-            ;; set mark (point) to allow user "C-u C-SPC" command to easily select the generated text
-            (push-mark end-marker t)
-            (save-excursion
-              ;; - go  to the end of previous line and open new one
-              (goto-char pos)
-              ;; - remove empty lines between end of block and user question.
-              (goto-char (1- pos)) ; to use insert before end-marker to preserve it at the end of block
-              (while (bolp)
-                (delete-char -1))
-              (newline)
-              (newline)
-              (insert "[" (car (rassoc 'assistant oai-block-roles)) "]: "
-                      (if (string-match "\n" text) ; multiline answer we start with a new line.
-                          "\n"
-                        ;; else
-                        "")
-                      text)
-              (newline)
-
-              (condition-case hook-error
-                  (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos nil)
-                (error
-                 (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
-              (when final
-                ;; - "auto-fill"
-                (when oai-restapi-fill-function
-                  (undo-boundary)
-                  (funcall oai-restapi-fill-function pos nil))
-                (org-element-cache-reset)
-                (undo-boundary))
-              ;; (setq pos (point))
-              ;; (set-marker end-marker (point))
-              )))
-
-            ;; ;; - save in url buffer. for what?
-            ;; (setq oai-restapi--current-insert-position-marker pos)
-
-        ;; - else - DONE
-        ;; - special cases for DONE
-        (when (not text)
-          (with-current-buffer buffer
-            (when insert-me
-              (save-excursion
-                ;; - go  to the end of previous line and open new one
-                (goto-char pos)
-                (insert "\n[" (car (rassoc 'user oai-block-roles)) "]: \n")
-                (forward-char -1)
-                (setq pos (point)))
-              (set-marker end-marker (point)))
-            (when oai-restapi-jump-to-end-of-block
-              (goto-char pos))
-            ;; final
-            (org-element-cache-reset)
-            (undo-boundary)))))
 
 
 ;; Here is an example for how a full sequence of OpenAI responses looks like:
@@ -920,10 +768,10 @@ Variable `oai-block-roles' is used to format role to text."
   "This function normalizes JSON data in OpenAI-style but with some differences.
 RESPONSE is one JSON message of the stream response as a chunk of full
 response.
-Return list or responses, with every response as `oai-restapi--response'."
+Return list or responses, with every response as `oai-block--response'."
   ;; (oai--debug "response:" response)
   (if-let ((error-message (plist-get response 'error)))
-      (list (make-oai-restapi--response :type 'error :payload (or (plist-get response 'message) error-message)))
+      (list (make-oai-block--response :type 'error :payload (or (plist-get response 'message) error-message)))
 
     (let ((response-type (plist-get response 'type)))
 
@@ -932,20 +780,20 @@ Return list or responses, with every response as `oai-restapi--response'."
        ((string= response-type "ping") nil)
        ((string= response-type "message_start")
         (when-let ((role (plist-get (plist-get response 'message) 'role)))
-          (list (make-oai-restapi--response :type 'role :payload role))))
+          (list (make-oai-block--response :type 'role :payload role))))
        ((string= response-type "content_block_start")
         (when-let* ((text (plist-get (plist-get response 'content_block) 'text))
                     (text (when text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8))))
-          (list (make-oai-restapi--response :type 'text :payload text))))
+          (list (make-oai-block--response :type 'text :payload text))))
        ((string= response-type "content_block_delta")
         (when-let* ((text (plist-get (plist-get response 'delta) 'text))
                     (text (when text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8))))
-          (list (make-oai-restapi--response :type 'text :payload text))))
+          (list (make-oai-block--response :type 'text :payload text))))
        ((string= response-type "content_block_stop") nil)
        ((string= response-type "message_delta")
         (when-let* ((stop-reason (plist-get (plist-get response 'delta) 'stop_reason))
                     (stop-reason (when stop-reason (decode-coding-string (encode-coding-string stop-reason 'utf-8 't) 'utf-8))))
-          (list (make-oai-restapi--response :type 'stop :payload stop-reason))))
+          (list (make-oai-block--response :type 'stop :payload stop-reason))))
        ((string= response-type "message_stop") nil)
 
 
@@ -961,14 +809,14 @@ Return list or responses, with every response as `oai-restapi--response'."
                    (finish-reason (plist-get choice 'finish_reason)))
               (append
                (when role
-                 (list (make-oai-restapi--response :type 'role :payload role)))
+                 (list (make-oai-block--response :type 'role :payload role)))
                (when text
                  (setq text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8))
-                 (list (make-oai-restapi--response :type 'text :payload text)))
+                 (list (make-oai-block--response :type 'text :payload text)))
                (when finish-reason
-                 (list (make-oai-restapi--response :type 'stop :payload finish-reason))))))))
+                 (list (make-oai-block--response :type 'stop :payload finish-reason))))))))
 
-       ;; single message e.g. from non-streamed completion
+       ;; single message e.g. from non-streamed completion. Repeat `oai-restapi--get-single-response-text'
        ((let ((choices (plist-get response 'choices)))
           (and (= 1 (length choices))
                (plist-get (aref choices 0) 'message)))
@@ -978,9 +826,9 @@ Return list or responses, with every response as `oai-restapi--response'."
                (text (when text (decode-coding-string (encode-coding-string text 'utf-8 't) 'utf-8)))
                (role (plist-get (plist-get choice 'message) 'role))
                (finish-reason (or (plist-get choice 'finish_reason) 'stop)))
-          (list (make-oai-restapi--response :type 'role :payload role)
-                (make-oai-restapi--response :type 'text :payload text)
-                (make-oai-restapi--response :type 'stop :payload finish-reason))))
+          (list (make-oai-block--response :type 'role :payload role)
+                (make-oai-block--response :type 'text :payload text)
+                (make-oai-block--response :type 'stop :payload finish-reason))))
 
        ;; try openai, deepseek, gemini streamed
        (t (let ((choices (plist-get response 'choices)))
@@ -998,138 +846,19 @@ Return list or responses, with every response as `oai-restapi--response'."
                                    (finish-reason (plist-get choice 'finish_reason))
                                    (result nil))
                               (when finish-reason
-                                (push (make-oai-restapi--response :type 'stop :payload finish-reason) result))
-                              (when reasoning-text
-                                (setq oai-restapi--currently-reasoning t)
-                                (push (make-oai-restapi--response :type 'text :payload reasoning-text) result))
+                                (push (make-oai-block--response :type 'stop :payload finish-reason) result))
+                              (when (and reasoning-text (> (length reasoning-text) 0))
+                                ;; (setq oai-restapi--currently-reasoning t)
+                                (push (make-oai-block--response :type 'text :payload reasoning-text) result))
                               (when (and text (> (length text) 0))
-                                (push (make-oai-restapi--response :type 'text :payload text) result)
-                                (when oai-restapi--currently-reasoning
-                                  (setq oai-restapi--currently-reasoning nil)
-                                  (push (make-oai-restapi--response :type 'role :payload "assistant") result)))
+                                (push (make-oai-block--response :type 'text :payload text) result))
+                                ;; (when oai-restapi--currently-reasoning
+                                ;;   (setq oai-restapi--currently-reasoning nil)
+                                ;;   (push (make-oai-block--response :type 'role :payload "assistant") result)))
                               (when role
-                                (push (make-oai-restapi--response :type 'role :payload role) result))
+                                (push (make-oai-block--response :type 'role :payload role) result))
                               result))))))))
 
-(defun oai-restapi--remove-empty-lines-above-at-point ()
-  "Remove multiple empty lines above current to make it one."
-  (let ((start (point)))
-    (while (and
-             (= (forward-line -1) 0)
-             (looking-at-p "^[ \t]*$"))
-      ;; continue loop
-      )
-    (forward-line 1)
-    (when (/= (line-number-at-pos start) (line-number-at-pos (point)))
-      (delete-region (point) start))))
-
-
-(defun oai-restapi--insert-stream-response (end-marker &optional responses insert-me)
-  "Insert result to ai block for chat mode.
-When first chunk received we stop waiting timer for request.
-END-MARKER'is where to put result,
-RESPONSES is a list of oai-restapi--response, processed by
-`oai-restapi--normalize-response', consist of type symbol and payload
-string.
-Used as callback for `oai-restapi-request', called in url buffer.
-Save variables:
-`oai-restapi--current-insert-position-marker',
-`oai-restapi--currently-inside-code-markers'
-`oai-restapi--current-chat-role' in current buffer.
-Called within url-buffer.
-If response is multiline `oai-restapi-fill-function' may not
-work properly.(may be old)
-Argument INSERT-ME .
-Variable `oai-block-roles' is used to format role."
-  ;; (oai--debug "oai-restapi--insert-stream-response1 %s" (oai-restapi--normalize-response response)) ; response
-  (oai--debug "oai-restapi--insert-stream-response1" responses)
-  (when responses
-    (let ((buffer (marker-buffer end-marker))
-          (pos (or oai-restapi--current-insert-position-marker
-                   (marker-position end-marker)))
-          (c-chat-role oai-restapi--current-chat-role)
-          stop-flag)
-      ;; (oai--debug "oai-restapi--insert-stream-response2 %s" normalized)
-      ;; (oai--debug "oai-restapi--insert-stream-response" normalized)
-      (unwind-protect ; we need to save variables to url buffer
-          (with-current-buffer buffer ; target buffer with block
-            (save-excursion
-              ;; - LOOP Per message
-              (dolist (response responses)
-                (let ((type (oai-restapi--response-type response))
-                      (payload (oai-restapi--response-payload response)))
-                  ;; (oai--debug "oai-restapi--insert-stream-response: %s %s %s" type end-marker oai-restapi--current-insert-position-marker)
-                  ;; - Type of message: error
-                  (when (eq type 'error)
-                    (error (oai-restapi--response-payload response))) ; not used
-
-                  (goto-char pos)
-                  ;; - Remove lines above and provide space below, should be covered with tests.
-                  (when (looking-at oai-block--ai-block-end-re) ; "#\\+end"
-                    (oai-restapi--remove-empty-lines-above-at-point)
-                    (setq pos (point))
-                    (insert "\n"))
-
-                  ;; - Type of message
-                  (pcase type
-                    ('role (when (not (string= payload c-chat-role)) ; payload = role
-                             (goto-char pos)
-
-                             (setq c-chat-role payload)
-                             (let* ((payload (oai-restapi--response-payload response))
-                                    (rl (intern payload)) ; string to symbol
-                                    (role-prefix (car (rassoc rl oai-block-roles))))
-                               (insert "\n[" role-prefix "]: " (when (eql rl 'assistant) "\n")) ; "\n[ME:] " or "\n[AI:] \n"
-
-                               (condition-case hook-error
-                                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'role payload pos t)
-                                 (error
-                                  (message "Error during \"after-chat-insertion-hook\" for role: %s" hook-error)))
-
-                               (setq pos (point)))))
-                    ('text (progn ; payload = text
-                             (goto-char pos)
-                             (insert payload)
-                             ;; - "auto-fill" if not in code block
-                             (when oai-restapi-fill-function
-                               (funcall oai-restapi-fill-function pos t))
-
-                             (condition-case hook-error
-                                 (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'text payload pos t)
-                               (error
-                                (message "Error during \"after-chat-insertion-hook\" for text: %s" hook-error)))
-                             (setq pos (point))
-                             ;; (setq not-first t)
-                             ))
-
-                    ('stop (progn ; payload = stop_reason
-                             (oai--debug "oai-restapi--insert-stream-response3 stop_reason: %s" payload)
-                             (goto-char pos)
-                             (let ((text (concat "\n\n[" (car (rassoc 'user oai-block-roles)) "]: "))) ; "ME"
-                               (if insert-me
-                                   (insert text)
-                                 ;; else
-                                 (setq text ""))
-
-                               (condition-case hook-error
-                                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos t)
-                                 (error
-                                  (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
-                               (setq pos (point)))
-
-                             (org-element-cache-reset)
-                             (setq stop-flag t)))))))
-            ;; - without save-excursion - stop: go to the end.
-            (when (and oai-restapi-jump-to-end-of-block
-                       stop-flag)
-              ;; for jumping
-              (unless (region-active-p)
-                (push-mark nil t))
-
-              (goto-char pos)))
-        ;; - after buffer - UNWINDFORMS - save variables to url-buffer
-        (setq oai-restapi--current-insert-position-marker pos)
-        (setq oai-restapi--current-chat-role c-chat-role)))))
 
 (cl-defun oai-restapi-request (service model callback &optional &key prompt messages max-tokens temperature top-p frequency-penalty presence-penalty stream)
   "Use API to LLM to request and get response.
@@ -1146,9 +875,10 @@ PRESENCE-PENALTY is the presence penalty.
 Variables used to save state:
 not buffer local:
 buffer local and nil by default:
-- `oai-restapi--current-insert-position-marker' - in url callback to
+- `oai-block--current-insert-position-marker' - in url callback to
   track where we insert.
-- `oai-restapi--currently-inside-code-markers' - code block received, bool.
+- `oai-block--current-chat-role'
+For `oai-restapi--url-request-on-change-function':
 - `oai-restapi--current-request-is-streamed'
 - `oai-restapi--current-url-request-callback'.
 
@@ -1161,10 +891,6 @@ For not stream url return event and hook `after-change-functions'
  triggered only after url buffer already kill, that is why we don't use
  this hook.
 Use argument SERVICE to find endpoint, MODEL as parameter to request."
-
-  ;; (oai--debug service (type-of service))
-  ;; (oai--debug stream (type-of stream))
-
   ;; - HTTP body preparation as a string
   (let ((url-request-extra-headers (oai-restapi--get-headers service))
         (url-request-method "POST")
@@ -1198,8 +924,6 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
             (lambda (events)
               ;; "Called within url-request-buffer after `after-change-functions'"
               (ignore events)
-              ;; (setq _events _events) ; for melpazoid
-              ;; (setq _events _events) ; noqa left unused
               ;; called one time at error or at the end of all receiving.
 
               (oai--debug "oai-restapi-request *url-retrieve callback*")
@@ -1225,11 +949,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
       (oai--debug "Main request after." url-request-buffer)
 
       (with-current-buffer url-request-buffer
-        ; just in case
-        ;; (setq oai-restapi--currently-inside-code-markers nil)
-        (setq oai-restapi--current-insert-position-marker nil)
-        (setq oai-restapi--current-chat-role nil)
-        ;; - it is `oai-restapi--insert-stream-response' or `oai-restapi--insert-single-response'
+        ;; - it is `oai-block--insert-stream-response' or `oai-block--insert-single-response'
         (setq oai-restapi--current-url-request-callback callback)
         ;; - `oai-restapi--url-request-on-change-function', `oai-restapi--current-request-is-streamed'
         (setq oai-restapi--current-request-is-streamed stream)
@@ -1310,7 +1030,7 @@ see `oai-restapi-request-prepare'."
             ;;             ;;       (res2 (json-read-from-string res1))
             ;;             ;;       (res3 (oai-restapi--normalize-response res2))
             ;;             ;;       (res4 (nth 1 res3))
-            ;;             ;;       (res5 (oai-restapi--response-payload res4))
+            ;;             ;;       (res5 (oai-block--response-payload res4))
             ;;             ;;       (res (decode-coding-string res5 'utf-8))
             ;;             ;;       )
             ;;             ;;   (print (list "HERE6" res3 ))
@@ -1326,7 +1046,7 @@ see `oai-restapi-request-prepare'."
             ;;             (oai--debug "oai-restapi-request-llm 9) decoded: %s"
             ;;                         (oai-restapi--normalize-response (json-read-from-string line)))
             ;;                                               'utf-8))
-            ;;             (funcall callback (decode-coding-string (oai-restapi--response-payload (oai-restapi--normalize-response
+            ;;             (funcall callback (decode-coding-string (oai-block--response-payload (oai-restapi--normalize-response
             ;;                                                                                     (json-read-from-string
             ;;                                                                                      line)))
             ;;                                                     'utf-8))
@@ -1628,14 +1348,16 @@ Return nil if error."
 
 (defun oai-restapi--url-request-on-change-function (_beg _end _len)
   "First function that read url-request buffer and extracts JSON stream responses.
-Three arguments are passed to each function: the positions of
-the beginning and end of the range of changed text,
+Arguments _BEG _END _LEN are not used. They are:
+the positions of the beginning and end of the range of changed text,
 and the length in chars of the pre-change text replaced by that range.
+
 Call `oai-restapi--current-url-request-callback' with data.
 After processing call `oai-restapi--current-url-request-callback' with nil.
-This  callback  here  is `oai-restapi--insert-stream-response'  for  chat  or
-`oai-restapi--insert-single-response' for completion.
-Called within `url-retrieve' buffer."
+This  callback  here  is `oai-block--insert-stream-response'  for  chat  or
+`oai-block--insert-single-response' for completion.
+Called within `url-retrieve' buffer.
+Return JSOIN in plist format."
   (when (and (boundp 'url-http-end-of-headers)
              url-http-end-of-headers
              (if oai-restapi--url-buffer-last-position-marker
@@ -1859,9 +1581,9 @@ MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
    default-system-prompt persistant-sys-prompts max-token-recommendation separator))
 
 ;; (oai-restapi--normalize-response '(id "o3fA4D4-62bZhn-9617f44f6d399d91" object "chat.completion" created 1752904364 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 819567834314233700 logprobs nil index 0 message (role "assistant" content "It works: `(2 3 1)` is returned." tool_calls []))] usage (prompt_tokens 131 completion_tokens 14 total_tokens 145 cached_tokens 0)))
-;; (#s(oai-restapi--response role "assistant") #s(oai-restapi--response text "It works: `(2 3 1)` is returned.") #s(oai-restapi--response stop "stop"))
+;; (#s(oai-block--response role "assistant") #s(oai-block--response text "It works: `(2 3 1)` is returned.") #s(oai-block--response stop "stop"))
 ;; (oai-restapi--normalize-response '(id "o3f9cZv-4Yz4kd-9617f234fd6f9d91" object "chat.completion" created 1752904277 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 589067420664432000 logprobs nil index 0 message (role "assistant" content "`(mapcar 'cdr '((a . 2) (x . 3) (2 . 1)))` returns `(2 3 1)`." tool_calls []))] usage (prompt_tokens 84 completion_tokens 34 total_tokens 118 cached_tokens 0)))
-;; (#s(oai-restapi--response role "assistant") #s(oai-restapi--response text "`(mapcar 'cdr '((a . 2) (x . 3) (2 . 1)))` returns `(2 3 1)`.") #s(oai-restapi--response stop "stop"))
+;; (#s(oai-block--response role "assistant") #s(oai-block--response text "`(mapcar 'cdr '((a . 2) (x . 3) (2 . 1)))` returns `(2 3 1)`.") #s(oai-block--response stop "stop"))
 
 ;; (cl-defun oai-restapi--stringify-chat-messages (messages &optional &key
 ;;                                                     default-system-prompt

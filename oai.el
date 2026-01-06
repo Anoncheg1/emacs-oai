@@ -104,9 +104,9 @@
 ;; - Think about to pass callback for writing to chain implementations
 ;;    and main implementation, to make it more general.
 ;; - make org-block-tags optional
-;; - move oai-restapi--insert-stream-response and oai-restapi--insert-single-response to oai-body
-
-
+;; - key to enable full Org highlighting.
+;; - fontify latex [[file:/usr/share/emacs/30.2/lisp/org/org.el::16097::(defun org-inside-latex-macro-p ()]]
+;; [[file:/usr/share/emacs/30.2/lisp/textmodes/tex-mode.el::1277::(setq-local font-lock-defaults]]
 ;;; Code:
 ;; Touch: Pain, water and warm.
 

@@ -56,6 +56,9 @@
 ;; - `line-number-at-pos'
 ;; - `oai-block-tags--line-num-to-positon'
 
+;;; TODO:
+;; - remove `? in regex and disable links inside quotes and disable higlighting of links in quotes.
+
 ;; -=-= includes
 (require 'org)
 (require 'ol)

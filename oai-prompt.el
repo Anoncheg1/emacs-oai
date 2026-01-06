@@ -174,15 +174,15 @@ SERVICE, STREAM, INFO see `oai-restapi-request-prepare'."
                         "Called in (current-buffer)."
                         (when data ; if not data it is fail
                           (oai--debug "calbackmy %s %s %s" oai-timers--element-marker-variable-dict (current-buffer) data)
-                          (oai-restapi--insert-single-response end-marker data nil)
+                          (oai-block--insert-single-response end-marker data nil)
                           (run-at-time 0 nil callback data))))
           (calbafin (lambda (data callback)
                       (ignore callback)
                       ;; (setq _callback _callback)
                       (when data ; if not data it is fail
                         (oai--debug "calbafin")
-                        (oai-restapi--insert-single-response end-marker data nil 'final)
-                        (oai-restapi--insert-single-response end-marker nil 'insertrole 'final) ; finalize
+                        (oai-block--insert-single-response end-marker data nil 'final)
+                        (oai-block--insert-single-response end-marker nil 'insertrole 'final) ; finalize
                         (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request)))))
 
       (oai--debug "oai-prompt-request-chain2 %s %s %s %s" header-marker service model oai-timers-duration)

@@ -38,14 +38,17 @@ Solution:
 For not stream
 - `oai-restapi--url-request-on-change-function' ->
 - `oai-restapi--get-single-response-text' ->
-- `oai-restapi--insert-single-response' ->
+- `oai-block--insert-single-response' ->
 - `insert'
 
 for stream:
 - `oai-restapi--url-request-on-change-function' ->
-- `oai-restapi--insert-stream-response' -> may be used for single response.
+- `oai-block--insert-stream-response' -> may be used for single response.
 - `oai-restapi--normalize-response' ->
 - `insert'
 
 To read data from JSON there is two ways (json-read) and (json-read-from-string), we specify plist as target,
  so we use (plist-get data 'choices) instead of (alist-get 'choices data).
+* Tests: Not covered staff
+- font-locks
+- fill paragraph

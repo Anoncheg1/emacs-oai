@@ -280,19 +280,19 @@
    (equal
     (let ((test-val '(id "o3fA4D4-62bZhn-9617f44f6d399d91" object "chat.completion" created 1752904364 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 819567834314233700 logprobs nil index 0 message (role "assistant" content "It works: `(2 3 1)` is returned." tool_calls []))] usage (prompt_tokens 131 completion_tokens 14 total_tokens 145 cached_tokens 0))))
       (oai-restapi--normalize-response test-val))
-    '(#s(oai-restapi--response role "assistant") #s(oai-restapi--response text "It works: `(2 3 1)` is returned.") #s(oai-restapi--response stop "stop")))))
+    '(#s(oai-block--response role "assistant") #s(oai-block--response text "It works: `(2 3 1)` is returned.") #s(oai-block--response stop "stop")))))
 
-;; -=-= For: `oai-restapi--response-payload'
+;; -=-= For: `oai-block--response-payload'
 
 (ert-deftest oai-tests-restapi--response-payload ()
-  (let* ((test-val '(#s(oai-restapi--response role "assistant") #s(oai-restapi--response text "It seems ") #s(oai-restapi--response stop "length")))
+  (let* ((test-val '(#s(oai-block--response role "assistant") #s(oai-block--response text "It seems ") #s(oai-block--response stop "length")))
        (test-val0 (nth 0 test-val))
        (test-val1 (nth 1 test-val)))
    (should (equal (length test-val) 3))
-   (should (equal (oai-restapi--response-type test-val0) 'role))
-   (should (string-equal (decode-coding-string (oai-restapi--response-payload test-val0) 'utf-8) "assistant"))
-   (should (equal (oai-restapi--response-type test-val1) 'text))
-   (should (string-equal (decode-coding-string (oai-restapi--response-payload test-val1) 'utf-8) "It seems "))))
+   (should (equal (oai-block--response-type test-val0) 'role))
+   (should (string-equal (decode-coding-string (oai-block--response-payload test-val0) 'utf-8) "assistant"))
+   (should (equal (oai-block--response-type test-val1) 'text))
+   (should (string-equal (decode-coding-string (oai-block--response-payload test-val1) 'utf-8) "It seems "))))
 
 ;; -=-= For: `oai-restapi--url-request-on-change-function'
 (defvar callback-n-test 0)
@@ -426,7 +426,7 @@
       ;; (print (list "aa" (plist-get (plist-get (aref (plist-get callback-test 'choices) 0) 'message) 'content) "bb"))))
       ;; (print (oai-restapi--normalize-response callback-test))))
       ;; (print (oai-restapi--normalize-response callback-test))))
-      (setq data (decode-coding-string (oai-restapi--response-payload (nth 0 (oai-restapi--normalize-response callback-test))) 'utf-8))
+      (setq data (decode-coding-string (oai-block--response-payload (nth 0 (oai-restapi--normalize-response callback-test))) 'utf-8))
       ;; (print (list (length data) data))))
       ;; ;; (print (list "data2" (length data) data ))
       ;; (should (string-equal "Text ÿ"  data)
@@ -530,44 +530,6 @@
 
 
 (provide 'oai-tests-restapi)
-;; -=-= For: `oai-restapi--insert-stream-response'
-
-;; (defun my/diff-strings (str1 str2)
-;;   "Return and print verbose diff between STR1 and STR2 as a list."
-;;   (let ((len1 (length str1))
-;;         (len2 (length str2))
-;;         (maxlen (max len1 len2))
-;;         (diffs '()))
-;;     (dotimes (i maxlen)
-;;       (let ((c1 (if (< i len1) (aref str1 i) nil))
-;;             (c2 (if (< i len2) (aref str2 i) nil)))
-;;         (unless (equal c1 c2)
-;;           (let ((d (list i
-;;                          (if c1 (format "%S" (string c1)) "<none>")
-;;                          (if c2 (format "%S" (string c2)) "<none>"))))
-;;             (push d diffs)
-;;             (message "Difference at index %d: %s vs %s"
-;;                      i (nth 1 d) (nth 2 d))))))
-;;     (unless diffs (message "No differences found"))
-;;     (nreverse diffs)))
-
-;; (verbose-string-diff "hello" "hxlpo")
-
-(ert-deftest oai-tests-restapi--insert-stream-response ()
-  (with-temp-buffer
-
-    (let* ((role-payload "assistant")
-           (rl (intern role-payload))
-           (role-prefix (car (rassoc rl oai-block-roles)))
-           res)
-
-    (oai-restapi--insert-stream-response (copy-marker (point))
-                                         (list (make-oai-restapi--response :type 'role :payload role-payload)))
-    ;; (print (concat "\n[" role-prefix  "]: \n"))
-    (setq res (buffer-substring-no-properties (point-min) (point-max)))
-    ;; (my/diff-strings res (concat "\n[" role-prefix  "]: \n"))))
-    ;; (print role-prefix)))
-    (string-equal res (concat "\n[" role-prefix  "]: \n")))))
 ;; -=-= For: `oai-restapi--collect-chat-messages' (old)
 ;; (ert-deftest oai-tests-restapi--collect-chat-messages ()
 ;;   ;; deal with unspecified prefix

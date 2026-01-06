@@ -293,7 +293,6 @@ Should be called in target buffer with global timer.
 INTERRUPT-REQUEST-FUNC may be `oai-restapi--stop-tracking-url-request'
 or `oai-restapi--interrupt-url-request'
 Called from
-`oai-restapi--insert-stream-response' after receiving first chunk,
 `oai-restapi--url-request-on-change-function' for  not stream after  reply or
 \"DONE\" string found for stream.
 `oai-restapi-stop-url-request'."
