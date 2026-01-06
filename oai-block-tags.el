@@ -1105,6 +1105,26 @@ Return modified STRING."
 
 
 ;; -=-= Fontify @Backtrace & @path & [[links]]
+(defun oai-block-tags--in-markdown-single-quotes-p (pos)
+  "Return t if POS is inside a markdown single backquote.
+Region (`...`) on the current line."
+  (goto-char pos)
+  (prog1 (let ((bol (line-beginning-position))
+               (eol (line-end-position))
+               (pos (point))
+               found)
+           (goto-char bol)
+           ;; Search for paired backquotes (`...`)
+           (while (and (re-search-forward "`" eol t) (not found))
+             (let ((start (match-beginning 0)))
+               (when (re-search-forward "`" eol t)
+                 (let ((end (match-end 0)))
+                   (when (and (>= pos start)
+                              (< pos end)) ; strictly between the two backquotes
+                     (setq found t))))))
+           found)
+    (goto-char pos)))
+
 
 (defun oai-block-tags--is-special (pos &optional lim-beg)
   "Check if POS in markdown block, quoted or is a table.
@@ -1136,14 +1156,13 @@ TODO: maybe we should use something like
 `oai-block-tags--position-in-markdown-block-str-p'"
   (let ((case-fold-search t)
         ret)
-    ;; (print limit)
+    ;; - loop per ai block
     (while (and (re-search-forward oai-block--ai-block-begin-re limit t)
                 (< (point) limit))
       (let ((beg (match-end 0))
             end lbeg lend)
         (when (re-search-forward oai-block--ai-block-end-re nil t)
           (setq end (match-beginning 0))
-          ;; (print (list beg limit))
           (save-match-data
             ;; fontify Org links [[..]]
             ;; (message beg)
@@ -1154,7 +1173,8 @@ TODO: maybe we should use something like
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
                 ;; (print (list lbeg beg end (oai-block-tags--is-special lbeg beg)))
-                (unless (oai-block-tags--is-special lbeg beg)
+                (unless (or (oai-block-tags--is-special lbeg beg)
+                            (oai-block-tags--in-markdown-single-quotes-p lbeg))
                   (setq ret (org-activate-links lend)))
                 (goto-char lend)))
             ;; - @Backtrace
@@ -1163,7 +1183,8 @@ TODO: maybe we should use something like
               (while (re-search-forward oai-block-tags--regexes-backtrace end t)
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
-                (unless (oai-block-tags--is-special lbeg beg)
+                (unless (or (oai-block-tags--is-special lbeg beg)
+                            (oai-block-tags--in-markdown-single-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))
@@ -1173,7 +1194,8 @@ TODO: maybe we should use something like
               (while (re-search-forward oai-block-tags--regexes-path end t)
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
-                (unless (oai-block-tags--is-special lbeg beg)
+                (unless (or (oai-block-tags--is-special lbeg beg)
+                            (oai-block-tags--in-markdown-single-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))))))
