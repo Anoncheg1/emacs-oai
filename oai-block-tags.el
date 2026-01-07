@@ -546,6 +546,7 @@ Works in any mode buffers.
 1) Use `outline-regexp' if outline or outline-minor mode active
 2) Use `beginning-of-defun' for programming mode
 3) Use `paragraph-separate' variable."
+  (oai--debug "oai-block-tags--get-content-at-point-not-org")
   (cond
    ;; 2) defun
    ((and (derived-mode-p 'prog-mode)
@@ -697,7 +698,9 @@ Target may be not in Org buffer."
                 (progn
                   (oai--debug "oai-block-tags--get-org-links-content3 %s %s" pos1 pos2)
                   (oai-block-tags--compose-m-block (buffer-substring-no-properties pos1 pos2)
-                   :lang (oai-block-tags--filepath-to-language major-mode)))
+                                                   :lang (oai-block-tags--filepath-to-language (or (and (derived-mode-p 'fundamental-mode)
+                                                                                                        buffer-file-name)
+                                                                                                   major-mode))))
               ;; pos1 is nil
               (user-error "In link %s of NUM-NUM format was not possible to find first NUM in buffer %s" link (current-buffer)))
           ;; else - 1) Case1: only num1, num2 is nil - get object at num1 or just line.
@@ -747,7 +750,9 @@ Called for file type.
   (oai--debug "oai-block-tags--get-replacement-for-org-file-link-in-other-file %s %s" path option)
   ;; Code from org-open-file -> find-file-other-window was used:
   ;; (error "as")
-  (let ((value (find-file-noselect path nil t nil))) ; buf name
+  (setq path (abbreviate-file-name path))
+  (let ((value (or (get-file-buffer path)
+                (find-file-noselect path t t nil)))) ; buf name
     (when (listp value)
       (setq value (car value)))
     (with-current-buffer value

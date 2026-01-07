@@ -58,7 +58,7 @@ asd2")
       (setq res (oai-expand-block nil))
       (should
        (string-equal
-        #("[ME]: ```text
+        #("[ME]: \n```text
 # tt1
 asd
 
@@ -71,7 +71,9 @@ asd
 ```text
 # tt2
 asd2
-```" 6 30 (face region) 32 55 (face region))
+```
+
+" 6 32 (face region) 34 59 (face region))
         res)))))
 
 

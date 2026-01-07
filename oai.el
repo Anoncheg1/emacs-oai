@@ -249,13 +249,15 @@ messages."
               (res-str (if arg
                            (pp-to-string (oai-expand-block-deep))
                          ;; else
+                         ;; (print (oai-block-tags-replace (oai-block-get-content element)))
                          (let* (
                                 ;; get block
                                 (expanded (string-trim
                                            (oai-block-get-content element))) ; oai-block.el
-                                (expanded (oai-block-tags-replace expanded))
+                                ;; (expanded (oai-block-tags-replace expanded))
                                 ;; vector
                                 (expanded (oai-block--collect-chat-messages-from-string expanded))
+                                (expanded (oai-restapi--modify-vector-content expanded 'user #'oai-block-tags-replace))
                                 ;; one string
                                 (expanded (oai-block--stringify-chat-messages expanded)))
                            expanded))))
