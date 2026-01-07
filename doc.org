@@ -49,6 +49,76 @@ for stream:
 
 To read data from JSON there is two ways (json-read) and (json-read-from-string), we specify plist as target,
  so we use (plist-get data 'choices) instead of (alist-get 'choices data).
+* Regex: file path
+: "@\\(\\.\\.?\\|\\.\\.?/\\|\\.\\.?\\\\\\|/\\|\\\\\\|[A-Za-z]:\\\\\\|~[a-zA-Z0-9_.-]*/*\\)[a-zA-Z0-9_./\\\\-]*"
+
+### 1. Prefix: `"@"`
+- **Matches:** Literal character `@` at the start of the path string.
+- **Purpose:** Likely used in a markup or custom syntax to indicate
+ the start of a path.
+
+---
+### 2. Initial Path Segment:
+`\\( ... \\)` is a group using alternation (`\\|`) to match different
+ path prefixes:
+
+#### `\\.\\.?`
+- **Matches:** `.` or `..`
+- **Purpose:** Bare dot or double dot for current/parent directory
+ (less common alone).
+
+####  `\\.\\.?/`
+- **Matches:** `./` or `../`
+- **Purpose:** Relative Unix paths (current and parent directory).
+
+####  `\\.\\.?\\\\`
+- **Matches:** `.\\` or `..\\`
+- **Purpose:** Relative Windows paths.
+
+####  `/`
+- **Matches:** `/`
+- **Purpose:** Unix-style absolute path.
+
+####  `\\\\`
+- **Matches:** `\`
+- **Purpose:** Windows-style absolute path.
+
+####  `[A-Za-z]:\\\\`
+- **Matches:** For example, `C:\`
+- **Purpose:** Windows drive letter root.
+
+####  `~[a-zA-Z0-9_.-]*/*`
+- **Matches:** `~`, `~/`, `~user/`, `~user`
+- **Purpose:** Linux/Unix home or other user's home directory, with
+ optional trailing slash.
+
+---
+### 3. Path Body: `[a-zA-Z0-9_./\\\\-]*`
+- **Matches:** Zero or more valid path characters:
+    - Letters (`a-zA-Z`)
+    - Digits (`0-9`)
+    - Underscore (`_`)
+    - Dot (`.`)
+    - Slash (`/`)
+    - Backslash (`\\`)
+    - Dash (`-`)
+- **Purpose:** Matches the remainder of the path, including
+ directories and filenames composed of these characters.
+
+---
+## Summary Table
+| Segment                   | Example Match      | Interpretation                |
+|---------------------------|-------------------|-------------------------------|
+| `@`                       | `@`               | Path marker                   |
+| `./`, `../`               | `@./foo`          | Unix relative path            |
+| `.\\`, `..\\`             | `@.\\foo`         | Windows relative path         |
+| `/`                       | `@/etc/passwd`    | Unix absolute path            |
+| `\`                       | `@\\windows`      | Windows absolute path         |
+| `[A-Za-z]:\`              | `@C:\Users`       | Windows drive letter root     |
+| `~`, `~/foo`, `~user/doc` | `@~/.bashrc`      | Unix home directories         |
+| Path body                 | `/foo/bar-1`      | Subdirectories/files          |
+
+
 * Tests: Not covered staff
 - font-locks
 - fill paragraph

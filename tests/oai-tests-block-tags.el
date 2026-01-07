@@ -90,17 +90,23 @@
       (delete-file tmpfile))))
 
 ;; -=-= Test: oai-block-tags--regexes-path
+;; (setq oai-block-tags--regexes-path "@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\|~[a-zA-Z0-9_.-]*/*\\)[a-zA-Z0-9_./\\\\-]*")
+(defun any (l) (seq-some #'identity l))
+
 (ert-deftest oai-tests-block-tags--regexes-path ()
   (should
-   (equal (mapcar (lambda (s)
+   (equal (print (mapcar (lambda (s)
                     (when (string-match oai-block-tags--regexes-path s)
                       (substring s (match-beginning 0) (match-end 0))))
-                  '("@/file-s_s"
+                  '(
+                    "@/file-s_s"
                     "@/file.t_xt"
                     "@./file.txt"
+
                     "@/some/path/file.txt"
                     "@C:\\some\\file.txt"
                     "@L:\\folder\\file.txt"
+
                     "@\\network\\share"
                     "@.\\windowsfile"
                     "@/file/"
@@ -111,17 +117,33 @@
                     "@L:\\folder\\file.txt\\"
                     "@\\network\\share\\"
                     "@.\\windowsfile\\"
-                    "@Backtrace"
-                    "@not/a/path"
-                    "@Backtrace"
-                    "@not/a/path"
-                    "@not/a/path/"
                     "@../right"
                     "@../right/"
+
+                    "@/"
                     "@.."
                     "@."
-                    "@/"))
-          '("@/file-s_s" "@/file.t_xt" "@./file.txt" "@/some/path/file.txt" "@C:\\some\\file.txt" "@L:\\folder\\file.txt" "@\\network\\share" "@.\\windowsfile" "@/file/" "@/file.txt/" "@./file.txt/" "@/some/path/file.txt/" "@C:\\some\\file.txt\\" "@L:\\folder\\file.txt\\" "@\\network\\share\\" "@.\\windowsfile\\" nil nil nil nil nil "@../right" "@../right/" "@.." "@." "@/"))))
+                    ;; new
+                    "@~/a"
+                    "@~/"
+                    )))
+          '("@/file-s_s" "@/file.t_xt" "@./file.txt"
+            "@/some/path/file.txt" "@C:\\some\\file.txt" "@L:\\folder\\file.txt"
+            "@\\network\\share" "@.\\windowsfile" "@/file/" "@/file.txt/" "@./file.txt/"
+            "@/some/path/file.txt/" "@C:\\some\\file.txt\\" "@L:\\folder\\file.txt\\"
+            "@\\network\\share\\" "@.\\windowsfile\\" "@../right" "@../right/"
+            "@/" "@.." "@." "@~/a" "@~/")
+          ))
+
+  (should (not (any (mapcar (lambda (s)
+                              (when (string-match oai-block-tags--regexes-path s)
+                                (substring s (match-beginning 0) (match-end 0))))
+                            '(
+                              "@Backtrace"
+                              "@not/a/path"
+                              "@Backtrace"
+                              "@not/a/path"
+                              "@not/a/path/"))))))
 ;; -=-= Tests: oai-block-tags--markdown-fenced-code-body-get-range
 (ert-deftest oai-tests-block-tags--markdown-mark-fenced-code-body-get-range1 ()
   "Test fenced code detection."

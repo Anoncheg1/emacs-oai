@@ -57,8 +57,6 @@
 ;; - `oai-block-tags--line-num-to-positon'
 
 ;;; TODO:
-;; - disable links inside quotes
-;; - dissable highlighting of links insede ` ` markdown quotes for line
 
 ;; -=-= includes
 (require 'org)
@@ -101,10 +99,15 @@ Used to set `org-link-search-must-match-exact-headline' before
   :group 'oai)
 
 (defvar oai-block-tags--regexes-backtrace "\\(@\\(Backtrace\\|B\\)\\)\\([^a-zA-Z\"']\\|$\\)")
-(defvar oai-block-tags--regexes-path "@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*"
-  "See: .
+;; (defvar oai-block-tags--regexes-path "@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*"
+(defvar oai-block-tags--regexes-path "@\\(\\.\\.?\\|\\.\\.?/\\|\\.\\.?\\\\\\|/\\|\\\\\\|[A-Za-z]:\\\\\\|~[a-zA-Z0-9_.-]*/*\\)[a-zA-Z0-9_./\\\\-]*"
+  " Unix Posix and Windows, currently we support Linux only.
+See: .
+[[file:./doc.org::*Regex: file path][Regex: file path]]
+and
 [[file:./tests/oai-tests-block-tags.el::94:
 :;; -=-= Test: oai-block-tags--regexes-path]].")
+
 ;; (let ((s "`@/asd vv`"))
 ;;   (when (string-match oai-block-tags--regexes-path s)
 ;;     (substring s (match-beginning 0) (match-end 0))))
