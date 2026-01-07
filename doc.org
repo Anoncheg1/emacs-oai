@@ -118,6 +118,65 @@ To read data from JSON there is two ways (json-read) and (json-read-from-string)
 | `~`, `~/foo`, `~user/doc` | `@~/.bashrc`      | Unix home directories         |
 | Path body                 | `/foo/bar-1`      | Subdirectories/files          |
 
+* Regex: markdown ** asterisk
+: "\\(^\\|[^*]\\)\\(\\*\\*\\*\\|\\*\\*\\)"
+used in the markdown fontifier.
+
+---
+# Explanation by Parts
+## 1. Regex Structure
+- `\\(^\\|[^*]\\)` — **Group 1**:
+  Matches either the beginning of a line (`^`),
+  **OR** any character that is NOT an asterisk (`[^*]`).
+
+- `\\(\\*\\*\\*\\|\\*\\*\\)` — **Group 2**:
+  Matches either three asterisks (`***`)
+  **OR** two asterisks (`**`).
+  (The backslashes `\\` are needed for escaping in Elisp strings.)
+
+## 2. Why This Structure?
+- **Objective:**
+  Find "**" or "***" markers in the text,
+  but avoid matching sequences where asterisks are part of a longer
+ run (like "****")
+  and avoid overlapping matches.
+
+- By requiring either line start or a non-asterisk before the marker,
+  you reduce false positives and overlapping matches.
+
+## 3. Match Groups
+- **Group 1**: Context before the marker (not fontified).
+- **Group 2**: The bold marker itself (to be fontified).
+
+## 4. How It Works in Practice
+### Example 1: Simple start-of-line
+```
+**bold**
+```
+- At position 0: Line start, matches `^`
+- Next: "**" matches Group 2.
+
+### Example 2: After space
+```
+some **bold**
+```
+- The space is not an asterisk, so `[^*]` matches.
+- "**" matches Group 2.
+
+### Example 3: Avoid overlap
+```
+****bold****
+```
+- After the first "**", the next "*" is part of "****",
+  so `[^*]` doesn't match.
+- Only the initial "**" or "***" are targeted.
+
+---
+# Summary Table
+| Part                | Meaning                               |
+|---------------------|---------------------------------------|
+| `\\(^\\|[^*]\\)`    | Start of line OR not an asterisk      |
+| `\\*\\*\\*\\|\\*\\*`| "***" OR "**" (the marker itself)     |
 
 * Tests: Not covered staff
 - font-locks

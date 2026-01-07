@@ -101,7 +101,7 @@ Used to set `org-link-search-must-match-exact-headline' before
 (defvar oai-block-tags--regexes-backtrace "\\(@\\(Backtrace\\|B\\)\\)\\([^a-zA-Z\"']\\|$\\)")
 ;; (defvar oai-block-tags--regexes-path "@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*"
 (defvar oai-block-tags--regexes-path "@\\(\\.\\.?\\|\\.\\.?/\\|\\.\\.?\\\\\\|/\\|\\\\\\|[A-Za-z]:\\\\\\|~[a-zA-Z0-9_.-]*/*\\)[a-zA-Z0-9_./\\\\-]*"
-  " Unix Posix and Windows, currently we support Linux only.
+  "Unix Posix and Windows, currently we support Linux only.
 See: .
 [[file:./doc.org::*Regex: file path][Regex: file path]]
 and
@@ -740,12 +740,14 @@ either `dedicated' or `fuzzy'.  If not found give raise error."
 
 (defun oai-block-tags--get-replacement-for-org-file-link-in-other-file (path option)
   "Find link target and return prepared block for LLM.
+Change buffer to file
 Called for file type.
 1) open file PATH in new buffer
 2) call `oai-block-tags--get-replacement-for-org-link'.  with OPTION"
   (oai--debug "oai-block-tags--get-replacement-for-org-file-link-in-other-file %s %s" path option)
   ;; Code from org-open-file -> find-file-other-window was used:
-  (let ((value (find-file-noselect path nil nil nil))) ; buf name
+  ;; (error "as")
+  (let ((value (find-file-noselect path nil t nil))) ; buf name
     (when (listp value)
       (setq value (car value)))
     (with-current-buffer value

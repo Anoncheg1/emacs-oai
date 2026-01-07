@@ -64,6 +64,11 @@
   :type 'boolean
   :group 'oai)
 
+(defcustom oai-block-fontify-markdown-headers-and-formatting t
+  "Non-nil means enable fontinfication for Org tables."
+  :type 'boolean
+  :group 'oai)
+
 (defvar oai-block-roles '(("SYS" . system)
                           ("ME" . user)
                           ("AI" . assistant)
@@ -1077,7 +1082,28 @@ the rest of the result."
 	   (progn (forward-line) (org-babel-result-end))))))))
 
 
-;; -=-= Markdown block, fontify mostly
+;; -=-= Markdown block
+
+(defun oai-block--in-markdown (pos &optional lim-beg)
+  "Check if POS in markdown block, quoted or is a table.
+Optional argument LIM-BEG is ai block begining position.
+Return t if pos in markdown block, table or quote.
+Side-effect: set pointer position to POS.
+Same as `oai-block-tags--is-special'."
+  (goto-char pos)
+  (prog1 (or
+          ;; not markdown blocks
+          ;; backward for markdown block "begin"
+          (when (re-search-backward oai-block--markdown-begin-re lim-beg t)
+            (goto-char pos)
+            ;; backward for markdown block "end" after "begin"
+            (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))
+          (progn (goto-char pos)
+                 (beginning-of-line)
+                 (looking-at "^> ")))
+    (goto-char pos)))
+
+;; -=-= Fontify
 (defun oai-block--fontify-markdown-subblocks (start end)
   "Fontify ```language ... ``` fenced mardown code blocks.
 We search for begining of block, then for end of block, then fontify
@@ -1110,25 +1136,6 @@ Argument START and END are limits for searching."
               (org-src-font-lock-fontify-block lang block-begin block-end)
               t)))))))
 
-(defun oai-block--in-markdown (pos &optional lim-beg)
-  "Check if POS in markdown block, quoted or is a table.
-Optional argument LIM-BEG is ai block begining position.
-Return t if pos in markdown block, table or quote.
-Side-effect: set pointer position to POS.
-Same as `oai-block-tags--is-special'."
-  (goto-char pos)
-  (prog1 (or
-          ;; not markdown blocks
-          ;; backward for markdown block "begin"
-          (when (re-search-backward oai-block--markdown-begin-re lim-beg t)
-            (goto-char pos)
-            ;; backward for markdown block "end" after "begin"
-            (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))
-          (progn (goto-char pos)
-                 (beginning-of-line)
-                 (looking-at "^> ")))
-    (goto-char pos)))
-
 (defun oai-block--fontify-org-tables (start end)
   "Set face for lines like Org tables.
 For current buffer in position between START and END.
@@ -1145,6 +1152,69 @@ Executed in `font-lock-defaults' chain."
                            'face 'org-table)
         t))))
 
+(defface markdown-bold-marker-face
+  '((t :foreground "#d33682" :weight ultra-bold))
+  "Face for markdown bold markers (** and ***).")
+
+(defface markdown-header-hash-face
+  '((t :foreground "#268bd2" :weight bold))
+  "Face for markdown header '#' characters.")
+
+(defface markdown-header-text-face
+  '((t :foreground "#859900" :weight bold))
+  "Face for markdown header text.")
+;; (defface markdown-bold-marker-face
+;;   '((t . (:foreground "red")))
+;;   "Face for markdown bold/italic markers.")
+
+;; (defface markdown-header-hash-face
+;;   '((t . (:foreground "blue")))
+;;   "Face for markdown '#' header characters.")
+
+;; (defface markdown-header-text-face
+;;   '((t . (:foreground "green")))
+;;   "Face for markdown header text.")
+
+(defun oai-block--fontify-markdown-headers-and-formatting (start end)
+  "Fontify markdown features between START and END.
+- Bold markers (** and ***).
+- Headers: '#' vs header text."
+  (let (b1 e1 b2 e2)
+    (goto-char start)
+    (while (re-search-forward "\\(^\\|[^*]\\)\\(\\*\\*\\*\\|\\*\\*\\)" end t)
+             (setq b2 (match-beginning 2))
+             (setq e2 (match-end 2))
+             (unless (oai-block--in-markdown b2 start)
+
+               ;; Only fontify the marker, not surrounding text
+               (put-text-property b2 e2
+                                  'face '(bold)))
+             (goto-char e2))
+
+
+    ;; 2. Headers: separate font for '#' chars and header text
+    (goto-char start)
+    (prog1 (while (re-search-forward "^\\(#+\\)\\s-+\\(.*\\)$" end t)
+
+             (setq b1 (match-beginning 1))
+             (setq e1 (match-end 1))
+             (setq b2 (match-beginning 2))
+             (setq e2 (match-end 2))
+             ;; (print "wtf1")
+             (unless (oai-block--in-markdown b1 start)
+               ;; Group 1: the '#' chars
+               (put-text-property b1 e1
+                                  'face 'outline-2)
+               ;; Group 2: the header text
+               (put-text-property b2 e2
+                                  'face 'outline-1)
+               (goto-char e2))
+             )
+      (goto-char end))
+
+    ;; Optional: Return t if performed work.
+    ))
+
 (defun oai-block--fontify-me-ai-chat-prefixes (lim-beg lim-end)
   "Fontify chat message prefixes like [ME:] with face.
 Argument LIM-BEG ai block begining.
@@ -1160,15 +1230,14 @@ Argument LIM-END ai block ending."
                (put-text-property sbeg send 'face '(bold)))) ; 'oai-block--me-ai-chat-prefixes-font-face
       (goto-char lim-end))))
 
-(defun oai-block--font-lock-fontify-ai-subblocks (limit)
+(defun oai-block--font-lock-fontify-markdown-and-org (limit)
   "Fontify markdown subblocks in ai blocks, up to LIMIT.
 This is special fontify function, that return t when match found.
 We insert advice right after `org-fontify-meta-lines-and-blocks-1' witch
 called as a part of Org Font Lock mode configuration of keywords (in
 `org-set-font-lock-defaults' and corresponding font-lock highlighting
 rules in `font-lock-defaults' variable.
-TODO: fontify if there is only end of ai block on page"
-
+TODO: fontify if there is only end of ai block on page."
       (let ((case-fold-search t)
             beg end)
         (while (and (< (point) limit)
@@ -1187,12 +1256,16 @@ TODO: fontify if there is only end of ai block on page"
           (when oai-block-fontify-org-tables-flag
             (save-match-data
               (oai-block--fontify-org-tables beg end)))
+          (when oai-block-fontify-markdown-headers-and-formatting
+            (save-match-data
+              (oai-block--fontify-markdown-headers-and-formatting beg end)))
           (goto-char end))
         ;; required by font lock mode:
         (goto-char limit))) ; return t
 
 (defun oai-block--insert-after (list pos element)
-  "Insert ELEMENT at after position POS in LIST."
+  "Insert ELEMENT at after position POS in LIST.
+Used to inject font-locks to `org-font-lock-extra-keywords' variable."
   (nconc (take (1+ pos) list) (list element) (nthcdr (1+ pos) list)))
 
 

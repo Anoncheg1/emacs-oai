@@ -119,7 +119,7 @@
 
 ;; -=-= C-c C-c main interface
 (defcustom oai-fontification-flag t
-  "Non-nil means enable fontification."
+  "Non-nil means enable fontification for markdown and Org elements in block."
   :type 'boolean
   :group 'oai)
 
@@ -326,7 +326,7 @@ messages."
     (setq org-font-lock-extra-keywords (oai-block--insert-after
                                         org-font-lock-extra-keywords
                                         (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
-                                        '(oai-block--font-lock-fontify-ai-subblocks)))
+                                        '(oai-block--font-lock-fontify-markdown-and-org)))
     ;; add fontify-links
     (setq org-font-lock-extra-keywords (oai-block--insert-after
                                         org-font-lock-extra-keywords
