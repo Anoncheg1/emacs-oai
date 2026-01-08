@@ -1182,38 +1182,35 @@ Executed in `font-lock-defaults' chain."
   (let (b1 e1 b2 e2)
     (goto-char start)
     (while (re-search-forward "\\(^\\|[^*]\\)\\(\\*\\*\\*\\|\\*\\*\\)" end t)
-             (setq b2 (match-beginning 2))
-             (setq e2 (match-end 2))
-             (unless (oai-block--in-markdown b2 start)
+      (setq b2 (match-beginning 2))
+      (setq e2 (match-end 2))
+      (unless (oai-block--in-markdown b2 start)
 
-               ;; Only fontify the marker, not surrounding text
-               (put-text-property b2 e2
-                                  'face '(bold)))
-             (goto-char e2))
+        ;; Only fontify the marker, not surrounding text
+        (put-text-property b2 e2
+                           'face '(bold)))
+      (goto-char e2))
 
 
     ;; 2. Headers: separate font for '#' chars and header text
     (goto-char start)
-    (prog1 (while (re-search-forward "^\\(#+\\)\\s-+\\(.*\\)$" end t)
+    (while (re-search-forward "^\\(#+\\)\\s-+\\(.*\\)$" end t)
 
-             (setq b1 (match-beginning 1))
-             (setq e1 (match-end 1))
-             (setq b2 (match-beginning 2))
-             (setq e2 (match-end 2))
-             ;; (print "wtf1")
-             (unless (oai-block--in-markdown b1 start)
-               ;; Group 1: the '#' chars
-               (put-text-property b1 e1
-                                  'face 'outline-2)
-               ;; Group 2: the header text
-               (put-text-property b2 e2
-                                  'face 'outline-1)
-               (goto-char e2))
-             )
-      (goto-char end))
+      (setq b1 (match-beginning 1))
+      (setq e1 (match-end 1))
+      (setq b2 (match-beginning 2))
+      (setq e2 (match-end 2))
+      ;; (print "wtf1")
+      (unless (oai-block--in-markdown b1 start)
+        ;; Group 1: the '#' chars
+        (put-text-property b1 e1
+                           'face 'outline-2)
+        ;; Group 2: the header text
+        (put-text-property b2 e2
+                           'face 'outline-1))
+      (goto-char e2))
+    (goto-char end))) ;; Return t if performed work.
 
-    ;; Optional: Return t if performed work.
-    ))
 
 (defun oai-block--fontify-me-ai-chat-prefixes (lim-beg lim-end)
   "Fontify chat message prefixes like [ME:] with face.
