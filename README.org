@@ -11,7 +11,7 @@ O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organ
 * Features:
 - Tags: expansion of links in block
 - Do parallel request in the same or different buffer without waiting
-- Highlighting: markdown block, Org tables, links.
+- Highlighting: markdown big blocks, tags and links, headers, bold text, Org tables.
 - Commands to inspect raw data, jumping
 - Autofilling, hooks, powerful debugger
 - Provide prompt engineering tools, there is ~:chain~ of calls out-of-the-box
