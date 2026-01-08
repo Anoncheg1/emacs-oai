@@ -1152,29 +1152,6 @@ Executed in `font-lock-defaults' chain."
                            'face 'org-table)
         t))))
 
-(defface markdown-bold-marker-face
-  '((t :foreground "#d33682" :weight ultra-bold))
-  "Face for markdown bold markers (** and ***).")
-
-(defface markdown-header-hash-face
-  '((t :foreground "#268bd2" :weight bold))
-  "Face for markdown header '#' characters.")
-
-(defface markdown-header-text-face
-  '((t :foreground "#859900" :weight bold))
-  "Face for markdown header text.")
-;; (defface markdown-bold-marker-face
-;;   '((t . (:foreground "red")))
-;;   "Face for markdown bold/italic markers.")
-
-;; (defface markdown-header-hash-face
-;;   '((t . (:foreground "blue")))
-;;   "Face for markdown '#' header characters.")
-
-;; (defface markdown-header-text-face
-;;   '((t . (:foreground "green")))
-;;   "Face for markdown header text.")
-
 (defun oai-block--fontify-markdown-headers-and-formatting (start end)
   "Fontify markdown features between START and END.
 - Bold markers (** and ***).

@@ -749,7 +749,6 @@ Called for file type.
 2) call `oai-block-tags--get-replacement-for-org-link'.  with OPTION"
   (oai--debug "oai-block-tags--get-replacement-for-org-file-link-in-other-file %s %s" path option)
   ;; Code from org-open-file -> find-file-other-window was used:
-  ;; (error "as")
   (setq path (abbreviate-file-name path))
   (let ((value (or (get-file-buffer path)
                 (find-file-noselect path t t nil)))) ; buf name
