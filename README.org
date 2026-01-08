@@ -37,10 +37,6 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 | oai-optional.el   | (optional) Hooks functions for postprocessing                      |
 
 * Connection configuration
-~oai-restapi-con-token~ - "token-string" or token per service: ~'(:openai "token-string1" :deepseek "token-string2")~ or nil for reading from "~/.authinfo" or "~/.authinfo.gpg"
-
-~oai-restapi-con-service~ - 'openai or 'deepseek or use parameter at block like this: ~#+begin_ai :service openai~
-
 * Supported services
 - OpenAI
 - Azure-OpenAI
@@ -53,6 +49,11 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 
 oai-restapi-con-service [[./oai-restapi.el]]
 * Configuration
+** Connection
+~oai-restapi-con-token~ - "token-string" or token per service: ~'(:openai "token-string1" :deepseek "token-string2")~ or nil for reading from "~/.authinfo" or "~/.authinfo.gpg"
+
+~oai-restapi-con-service~ - 'openai or 'deepseek or use parameter at block like this: ~#+begin_ai :service openai~
+
 #+begin_src elisp :results none :exports code :eval no
 (add-to-list 'load-path "path/to/oai")
 (require 'oai)
