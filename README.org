@@ -16,6 +16,9 @@ O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organ
 - Autofilling, hooks, powerful debugger
 - Provide prompt engineering tools, there is ~:chain~ of calls out-of-the-box
 * Screenshot
+At left part of screenshot is the main window with chat
+ and AI answer. At right part is a help window with
+ expanded link.
 [[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]
 * Prerequisites
 Emacs 29.1+, 30.2

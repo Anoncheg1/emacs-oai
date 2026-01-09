@@ -1136,6 +1136,19 @@ Argument START and END are limits for searching."
               (org-src-font-lock-fontify-block lang block-begin block-end)
               t)))))))
 
+(defun oai-block--fontify-markdown-subblocks-shallow (lim-beg lim-end)
+  "Fontify chat message prefixes like [ME:] with face.
+Argument LIM-BEG ai block begining.
+Argument LIM-END ai block ending."
+  (let (sbeg send)
+    (goto-char lim-beg)
+    (prog1 (while (re-search-forward oai-block--markdown-end-re lim-end t)
+             (setq sbeg (match-beginning 0))
+             (setq send (match-end 0))
+             (unless (oai-block--in-markdown send lim-beg)
+               (put-text-property sbeg send 'face '(org-meta-line))))
+      (goto-char lim-end))))
+
 (defun oai-block--fontify-org-tables (start end)
   "Set face for lines like Org tables.
 For current buffer in position between START and END.
@@ -1226,6 +1239,7 @@ TODO: fontify if there is only end of ai block on page."
             (oai-block--fontify-me-ai-chat-prefixes beg end))
           (when oai-block-fontify-markdown-flag
             (save-match-data
+              (oai-block--fontify-markdown-subblocks-shallow beg end)
               (oai-block--fontify-markdown-subblocks beg end)))
           (when oai-block-fontify-org-tables-flag
             (save-match-data
