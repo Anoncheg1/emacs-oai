@@ -1,3 +1,7 @@
+![build](https://github.com/Anoncheg1/emacs-oai/workflows/melpazoid/badge.svg)
+[![MELPA](https://melpa.org/packages/oai-badge.svg)](http://melpa.org/#/oai)
+[![MELPA Stable](https://stable.melpa.org/packages/oai-badge.svg)](https://stable.melpa.org/#/oai)
+
 * oai - chat interface to LLMs and AI agents in Org blocks.
 
 *Version 0.1*
@@ -11,7 +15,7 @@ O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organ
 * Features:
 - Tags: expansion of links in block
 - Do parallel request in the same or different buffer without waiting
-- Highlighting: markdown big blocks, tags and links, headers, bold text, Org tables.
+- Highlighting: markdown big blocks, tags and links, headers, bold text, Org tables, LaTeX.
 - Commands to inspect raw data, jumping
 - Autofilling, hooks, powerful debugger
 - Provide prompt engineering tools, there is ~:chain~ of calls out-of-the-box
@@ -51,6 +55,17 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 - Together
 
 oai-restapi-con-service [[./oai-restapi.el]]
+* Installation
+** Installation - from MELPA
+1) add to ~.emacs~
+#+begin_src elisp
+(require 'package)
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+(add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
+(package-initialize)
+#+end_src
+2) Install via ~M-x package-install RET oai RET~ or ~M-x package-list-packages~
+
 * Configuration
 ** Connection
 ~oai-restapi-con-token~ - "token-string" or token per service: ~'(:openai "token-string1" :deepseek "token-string2")~ or nil for reading from "~/.authinfo" or "~/.authinfo.gpg"
