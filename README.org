@@ -202,7 +202,7 @@ We add “ai” as a type of special block to variables ~org-protecting-blocks~ 
 
 *Org-mode* intrernally use  ~org-element-special-block-parser~ to process our “ai” block as special.
 
-For *highlighting* we use hack to inject our font-lock staff to ~font-lock-defaults~ variable initialized by ~org-set-font-lock-defaults~ function.
+For *highlighting* we use hack to inject our font-lock staff to ~font-lock-defaults~ variable initialized by ~org-set-font-lock-defaults~ function. Source blocks only fontified with ~org-src-font-lock-fontify-block~ and not exposed as Org element for now, that is why it is not possible to use ~org-babel-do-in-edit-buffer~ to call functions inside of it with its major-mode of language.
 
 For *parallel* requests we use ~oai-timers--element-marker-variable-dict~ variable that keeps pairs: url-buffer (key) -> Header-marker (variable). This allow for same block have many url-buffers.
 
