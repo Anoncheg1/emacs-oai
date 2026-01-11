@@ -1115,26 +1115,6 @@ Return modified STRING."
 
 
 ;; -=-= Fontify @Backtrace & @path & [[links]]
-(defun oai-block-tags--in-markdown-single-quotes-p (pos)
-  "Return t if POS is inside a markdown single backquote.
-Region (`...`) on the current line."
-  (goto-char pos)
-  (prog1 (let ((bol (line-beginning-position))
-               (eol (line-end-position))
-               (pos (point))
-               found)
-           (goto-char bol)
-           ;; Search for paired backquotes (`...`)
-           (while (and (re-search-forward "`" eol t) (not found))
-             (let ((start (match-beginning 0)))
-               (when (re-search-forward "`" eol t)
-                 (let ((end (match-end 0)))
-                   (when (and (>= pos start)
-                              (< pos end)) ; strictly between the two backquotes
-                     (setq found t))))))
-           found)
-    (goto-char pos)))
-
 
 (defun oai-block-tags--is-special (pos &optional lim-beg)
   "Check if POS in markdown block, quoted or is a table.
@@ -1184,7 +1164,7 @@ TODO: maybe we should use something like
                 (setq lend (match-end 0))
                 ;; (print (list lbeg beg end (oai-block-tags--is-special lbeg beg)))
                 (unless (or (oai-block-tags--is-special lbeg beg)
-                            (oai-block-tags--in-markdown-single-quotes-p lbeg))
+                            (oai-block-tags--in-markdown-any-quotes-p lbeg))
                   (setq ret (org-activate-links lend)))
                 (goto-char lend)))
             ;; - @Backtrace
@@ -1194,7 +1174,7 @@ TODO: maybe we should use something like
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
                 (unless (or (oai-block-tags--is-special lbeg beg)
-                            (oai-block-tags--in-markdown-single-quotes-p lbeg))
+                            (oai-block-tags--in-markdown-any-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))
@@ -1205,7 +1185,7 @@ TODO: maybe we should use something like
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
                 (unless (or (oai-block-tags--is-special lbeg beg)
-                            (oai-block-tags--in-markdown-single-quotes-p lbeg))
+                            (oai-block-tags--in-markdown-any-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))))))

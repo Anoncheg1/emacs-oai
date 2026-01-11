@@ -94,9 +94,7 @@ and INFO-ALIST is the parameters from its header."
       (let* ((element (org-element-at-point)))
         (unless (eq (org-element-type element) 'special-block)
           (error "No valid Oai block found at point"))
-        element)) ; return
-  ))
-
+        element)))) ; return
 
 ;; (oai-test-setup-buffer "#+begin_ai\nTest content\n#+end_ai")
 
@@ -112,7 +110,7 @@ and INFO-ALIST is the parameters from its header."
       (should (eq (org-element-type element) 'special-block))
       (should (equal (org-element-property :type element) "ai")))))
 
-;; -=-= oai-block--let-params
+;; -=-= Test for `oai-block--let-params'
 
 (ert-deftest oai-tests-block--let-params-all-from-info-test1 ()
   "Test when all parameters are provided in the block header (info alist)."
@@ -315,7 +313,7 @@ and INFO-ALIST is the parameters from its header."
 ;;     ;; Removing `non-existent-param` from the test list.
 ;;     ))
 
-;; -=-= Test: oai-block-fill-region-as-paragraph
+;; -=-= Test: `oai-block-fill-region-as-paragraph'
 (ert-deftest oai-tests-block--oai-block-fill-region-as-paragraph ()
   (should (with-temp-buffer
             (progn
@@ -327,7 +325,7 @@ and INFO-ALIST is the parameters from its header."
               (goto-char 1)
               (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph (point-min) (point-max) nil)
               (let ((strings (string-split (buffer-substring-no-properties (point-min) (point-max)) "\n")))
-                (< (length (nth 1 strings)) 10))))))
+                (< (length (nth 1 strings)) 10))))))'
 ;; -=-= Test: parse-part
 (ert-deftest oai-tests-block--parse-part ()
   (should (equal (with-temp-buffer
@@ -356,7 +354,7 @@ and INFO-ALIST is the parameters from its header."
               (equal res
                      '(:role user :content "zz"))))))
 
-;; -=-= Test: oai-block--get-chat-messages-positions, oai-block--collect-chat-messages-from-string
+;; -=-= Test: `oai-block--get-chat-messages-positions', `oai-block--collect-chat-messages-from-string'
 (ert-deftest oai-tests-block--chat-messages-tests ()
   (let ((payload "text before
 as
@@ -381,7 +379,7 @@ as
       (setq res (oai-block--collect-chat-messages-from-string payload))
       (should (equal correct-merged res)))))
 
-;; -=-= Test: oai-block--merge-by-role
+;; -=-= Test: `oai-block--merge-by-role'
 (ert-deftest oai-tests-block--oai-block--merge-consecutive-messages-by-role1()
   (should (equal (let ((parts
          (list
@@ -407,7 +405,7 @@ as
   (oai-block--merge-by-role parts "::"))
                  '((:role system :content "Hi.") (:role user :content "How are you?") (:role assistant :content "I'm fine.") (:role user :content "Hi.")))))
 
-;; -=-= Test: oai-block--stringify-chat-messages
+;; -=-= Test: `oai-block--stringify-chat-messages'
 (ert-deftest oai-tests-block--stringify-chat-messages1()
   (let ((parts
          (list
@@ -444,7 +442,7 @@ as
                                           "system1")
       "[SYS1]: system1\n\n[ME2]: user\n\n[AI3]: assistant"))))
 
-;; -=-= Test: oai-block--collect-chat-messages
+;; -=-= Test: `oai-block--collect-chat-messages
 (ert-deftest oai-tests-block--collect-chat-messages()
   (let ((parts
          (list
@@ -455,7 +453,7 @@ as
         res)
     (oai-block--collect-chat-messages-from-string (oai-block--stringify-chat-messages (apply #'vector parts)))))
 
-;; -=-= Test: oai-block--collect-chat-messages-from-string
+;; -=-= Test: `oai-block--collect-chat-messages-from-string'
 (ert-deftest oai-tests-block--collect-chat-messages-from-string ()
   ;; deal with unspecified prefix
   ;; (should
@@ -515,7 +513,7 @@ as
     (let ((test-string "[ME:] hello world")) (oai-block--collect-chat-messages-from-string test-string))
     '[(:role user :content "hello world")])))
 
-;; -=-= Testn: `oai-block--insert-stream-response'
+;; -=-= Test: `oai-block--insert-stream-response'
 
 ;; (defun my/diff-strings (str1 str2)
 ;;   "Return and print verbose diff between STR1 and STR2 as a list."
@@ -553,6 +551,128 @@ as
     ;; (my/diff-strings res (concat "\n[" role-prefix  "]: \n"))))
     ;; (print role-prefix)))
     (string-equal res (concat "\n[" role-prefix  "]: \n")))))
+
+;; -=-= Test: `oai-block-tags--in-markdown-quotes-at-line-p'
+(defun oai-tests-block--test--with-temp-buffer-at-pos (text pos func)
+  (with-temp-buffer
+    (insert text)
+    (goto-char (point-min))
+    (forward-char pos)
+    (funcall func (point))))
+
+;; 1. No backquotes
+
+;; 4. Position exactly on first backquote
+(ert-deftest oai-tests-block--in-markdown-quotes-at-line-p-on-first-backquote ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 0 #'oai-block-tags--in-markdown-single-quotes-p)))
+
+;; 5. Multiple regions – inside second
+(ert-deftest oai-tests-block--in-markdown-quotes-at-line-p-multiple-second-region ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and `bar`" 12 #'oai-block-tags--in-markdown-single-quotes-p)))
+
+
+;; 1. None present: Should NOT be inside for any
+(ert-deftest oai-block-tags--in-markdown-single-quotes-p-no-quotes ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "foobar" 2 #'oai-block-tags--in-markdown-single-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-triple-quotes-p-no-quotes ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "foobar" 2 #'oai-block-tags--in-markdown-triple-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-no-quotes ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "foobar" 2 #'oai-block-tags--in-markdown-any-quotes-p)))
+;; 2. Only one backquote
+(ert-deftest oai-block-tags--in-markdown-single-quotes-p-one-backquote ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "`foobar" 2 #'oai-block-tags--in-markdown-single-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-triple-quotes-p-one-triple-backquote ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "```foobar" 4 #'oai-block-tags--in-markdown-triple-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-one-backquote ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "`foobar" 2 #'oai-block-tags--in-markdown-any-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-one-triple-backquote ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "```foobar" 4 #'oai-block-tags--in-markdown-any-quotes-p)))
+;; 3. Strictly inside single and triple region
+(ert-deftest oai-block-tags--in-markdown-single-quotes-p-inside ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 2 #'oai-block-tags--in-markdown-single-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-triple-quotes-p-inside ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 5 #'oai-block-tags--in-markdown-triple-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-inside-single ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 2 #'oai-block-tags--in-markdown-any-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-inside-triple ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 5 #'oai-block-tags--in-markdown-any-quotes-p)))
+;; 4. On first quote of region
+(ert-deftest oai-block-tags--in-markdown-single-quotes-p-on-first-backquote ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 0 #'oai-block-tags--in-markdown-single-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-triple-quotes-p-on-first-backquote ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 0 #'oai-block-tags--in-markdown-triple-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-on-first-single-backquote ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 0 #'oai-block-tags--in-markdown-any-quotes-p)))
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-on-first-triple-backquote ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 0 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+;; ## E. Multiple regions, inside second
+(ert-deftest oai-block-tags--in-markdown-single-quotes-p-multiple-second-region ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and `bar`" 12 #'oai-block-tags--in-markdown-single-quotes-p)))
+
+;; Triple quotes: strictly inside second region
+(ert-deftest oai-block-tags--in-markdown-triple-quotes-p-multiple-second-region ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```foo``` and ```bar```" 18 #'oai-block-tags--in-markdown-triple-quotes-p)))
+
+;; Any quotes: strictly inside second region, single quotes
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-multiple-second-region-single ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and `bar`" 12 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+;; Any quotes: strictly inside second region, triple quotes
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-multiple-second-region-triple ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```foo``` and ```bar```" 18 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+;; ## G. Empty region (strictly between two quotes)
+(ert-deftest oai-block-tags--in-markdown-single-quotes-p-empty-region ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 1 #'oai-block-tags--in-markdown-single-quotes-p)))
+
+;; Triple quotes: empty region
+(ert-deftest oai-block-tags--in-markdown-triple-quotes-p-empty-region ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 3 #'oai-block-tags--in-markdown-triple-quotes-p)))
+
+;; Any quotes: empty region single
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-empty-region-single ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 1 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+;; Any quotes: empty region triple
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-empty-region-triple ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 3 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+;; ## H. At first quote of empty region
+;; Single quotes: on first backquote
+(ert-deftest oai-block-tags--in-markdown-single-quotes-p-empty-region-at-first ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 0 #'oai-block-tags--in-markdown-single-quotes-p)))
+
+;; Triple quotes: on first triple backquote
+(ert-deftest oai-block-tags--in-markdown-triple-quotes-p-empty-region-at-first ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 0 #'oai-block-tags--in-markdown-triple-quotes-p)))
+
+;; Any quotes: on first of single
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-empty-region-at-first-single ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 0 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+;; Any quotes: on first of triple
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-empty-region-at-first-triple ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 0 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+;; ## I. Mixed region: both types present - t
+;; Cursor inside single-quote region, both present
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-mixed-single-inside ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and ```bar```" 2 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+;; Cursor inside triple-quote region, both present
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-mixed-triple-inside ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and ```bar```" 10 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+;; Cursor in plain in-between (should not match)
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-mixed-outside ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and ```bar```" 7 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+;; Cursor in plain in-between (should not match)
+(ert-deftest oai-block-tags--in-markdown-any-quotes-p-mixed-outside2 ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "ss`foo` and ```bar```" 0 #'oai-block-tags--in-markdown-any-quotes-p)))
+
+
 ;; -=-= provide
 (provide 'oai-tests-block)
 

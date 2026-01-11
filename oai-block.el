@@ -69,6 +69,11 @@
   :type 'boolean
   :group 'oai)
 
+(defcustom oai-block-fontify-latex t
+  "Non-nil means enable fontinfication for not quoted LaTex."
+  :type 'boolean
+  :group 'oai)
+
 (defvar oai-block-roles '(("SYS" . system)
                           ("ME" . user)
                           ("AI" . assistant)
@@ -1082,7 +1087,7 @@ the rest of the result."
 	   (progn (forward-line) (org-babel-result-end))))))))
 
 
-;; -=-= Markdown block
+;; -=-= Markdown block check pos
 
 (defun oai-block--in-markdown (pos &optional lim-beg)
   "Check if POS in markdown block, quoted or is a table.
@@ -1102,6 +1107,62 @@ Same as `oai-block-tags--is-special'."
                  (beginning-of-line)
                  (looking-at "^> ")))
     (goto-char pos)))
+
+;; (defun oai-block-tags--in-markdown-quotes-at-line-p (pos)
+;;   "Return t if POS is inside a markdown single backquote.
+;; Region (`...`) on the current line.
+;; Return t at first and last quote too."
+;;   (goto-char pos)
+;;   (prog1 (let ((bol (line-beginning-position))
+;;                (eol (line-end-position))
+;;                (pos (point))
+;;                found)
+;;            (goto-char bol)
+;;            ;; Search for paired backquotes (`...`)
+;;            (while (and (re-search-forward "`" eol t) (not found))
+;;              (let ((start (match-beginning 0)))
+;;                (when (re-search-forward "`" eol t)
+;;                  (let ((end (match-end 0)))
+;;                    (when (and (>= pos start)
+;;                               (< pos end)) ; strictly between the two backquotes
+;;                      (setq found t))))))
+;;            found)
+;;     (goto-char pos)))
+
+(defun oai-block-tags--in-markdown-quotes-p (pos &optional delimiter)
+  "Return t if POS is inside a markdown quote block on the current line.
+DELIMITER should be a string (\"`\" or \"```\"), defaults to \"`\"."
+  (let ((delimiter (or delimiter "`"))
+        (bol (save-excursion (goto-char pos) (line-beginning-position)))
+        (eol (save-excursion (goto-char pos) (line-end-position)))
+        (found nil))
+    (save-excursion
+      (goto-char bol)
+      (while (and (search-forward delimiter eol t) (not found))
+        (let ((start (match-beginning 0)))
+          (when (search-forward delimiter eol t)
+            (let ((end (match-end 0)))
+              (when (and (>= pos start)
+                         (< pos end))
+                (setq found t)))))))
+    found))
+
+(defun oai-block-tags--in-markdown-single-quotes-p (pos)
+  "Return t if POS is inside a markdown single backquote (`...`).
+On current line or at quote itself."
+  (oai-block-tags--in-markdown-quotes-p pos "`"))
+
+(defun oai-block-tags--in-markdown-triple-quotes-p (pos)
+  "Return t if POS is inside a markdown triple backquote (```...```).
+ on current line or at quote itself."
+  (oai-block-tags--in-markdown-quotes-p pos "```"))
+
+(defun oai-block-tags--in-markdown-any-quotes-p (pos)
+  "Return t if POS is inside any markdown backquote block.
+(`...` or ```...```) on current line or at quote itself."
+  (or (oai-block-tags--in-markdown-quotes-p pos "`")
+      (oai-block-tags--in-markdown-quotes-p pos "```")))
+
 
 ;; -=-= Fontify
 (defun oai-block--fontify-markdown-subblocks (start end)
@@ -1171,6 +1232,7 @@ Executed in `font-lock-defaults' chain."
 - Headers: '#' vs header text."
   (let (b1 e1 b2 e2)
     (goto-char start)
+    ;; 1. *Bold*
     (while (re-search-forward "\\(^\\|[^*]\\)\\(\\*\\*\\*\\|\\*\\*\\)" end t)
       (setq b2 (match-beginning 2))
       (setq e2 (match-end 2))
@@ -1181,8 +1243,7 @@ Executed in `font-lock-defaults' chain."
                            'face '(bold)))
       (goto-char e2))
 
-
-    ;; 2. Headers: separate font for '#' chars and header text
+    ;; 2. "## Headers": separate font for '#' chars and header text
     (goto-char start)
     (while (re-search-forward "^\\(#+\\)\\s-+\\(.*\\)$" end t)
 
@@ -1217,6 +1278,36 @@ Argument LIM-END ai block ending."
                (put-text-property sbeg send 'face '(bold)))) ; 'oai-block--me-ai-chat-prefixes-font-face
       (goto-char lim-end))))
 
+(defun oai-block--fontify-latex-blocks (lim-beg lim-end)
+  "Fontify LaTeX math blocks \\[...\\] and \\(...\\) from LIM-BEG to LIM-END."
+  (let (sbeg send)
+    (goto-char lim-beg)
+    ;; Multiline \\[ ... \\]
+    (while (re-search-forward "^[\s-]*\\\\\\[\\(.\\|\n\\)*?\\\\\\]" lim-end t)
+      ;; Mybe we should use two separate regexs?: "^[ \t]*\\\\\\[[ \t]*$" and "^[ \t]*\\\\\\][ \t]*$"
+      (setq sbeg (match-beginning 0))
+      (setq send (match-end 0))
+      ;; (print (list "sss" sbeg lim-end (oai-block-tags--in-markdown-any-quotes-p sbeg)))
+      ;; (print (list "sss1" sbeg lim-end (oai-block--in-markdown sbeg lim-end))) ; (oai-block--in-markdown 228 4842)
+      ;; (print (list "sss3" sbeg lim-end (oai-block-tags--in-markdown-any-quotes-p sbeg) (oai-block--in-markdown sbeg lim-end)))
+
+      (unless (or (oai-block--in-markdown send lim-beg)
+                  (oai-block-tags--in-markdown-any-quotes-p send))
+        ;; (print "sss2")
+        (org-src-font-lock-fontify-block "latex" sbeg send))
+      (goto-char send))
+    ;; Inline \\( ... \\) - at one line
+    (goto-char lim-beg)
+    (while (re-search-forward "\\\\\(.*\\\\\)" lim-end t)
+      (setq sbeg (match-beginning 0))
+      (setq send (match-end 0))
+      (unless (or (oai-block--in-markdown send lim-beg)
+                  (oai-block-tags--in-markdown-any-quotes-p send))
+        (org-src-font-lock-fontify-block "latex" sbeg send))
+      (goto-char send)
+      )
+    (goto-char lim-end)))
+
 (defun oai-block--font-lock-fontify-markdown-and-org (limit)
   "Fontify markdown subblocks in ai blocks, up to LIMIT.
 This is special fontify function, that return t when match found.
@@ -1237,13 +1328,19 @@ TODO: fontify if there is only end of ai block on page."
       ;; - apply fontification
       (save-match-data
         (oai-block--fontify-me-ai-chat-prefixes beg end)
+        ;; ```block
         (when oai-block-fontify-markdown-flag
           (oai-block--fontify-markdown-subblocks-shallow beg end)
           (oai-block--fontify-markdown-subblocks beg end))
+        ;; table
         (when oai-block-fontify-org-tables-flag
           (oai-block--fontify-org-tables beg end))
+        ;; headers and *bold*
         (when oai-block-fontify-markdown-headers-and-formatting
-          (oai-block--fontify-markdown-headers-and-formatting beg end)))
+          (oai-block--fontify-markdown-headers-and-formatting beg end))
+        ;;
+        (when oai-block-fontify-latex
+          (oai-block--fontify-latex-blocks beg end)))
       (goto-char end))
     ;; required by font lock mode:
     (goto-char limit))) ; return t

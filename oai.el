@@ -107,6 +107,7 @@
 ;; - key to enable full Org highlighting? think about it
 ;; - fontify latex [[file:/usr/share/emacs/30.2/lisp/org/org.el::16097::(defun org-inside-latex-macro-p ()]]
 ;; [[file:/usr/share/emacs/30.2/lisp/textmodes/tex-mode.el::1277::(setq-local font-lock-defaults]]
+;; - add support for one line code blocks: ```toon users[3]{id,name,role}: 1,Alice,admin 2,Bob,user 3,Charlie,user
 ;;; Code:
 ;; Touch: Pain, water and warm.
 
