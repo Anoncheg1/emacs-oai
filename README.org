@@ -2,7 +2,7 @@
 [[http://melpa.org/#/oai][file:https://melpa.org/packages/oai-badge.svg]]
 [[https://stable.melpa.org/#/oai][file:https://stable.melpa.org/packages/oai-badge.svg]]
 
-* oai - chat interface to LLMs and AI agents in Org blocks.
+* OAI - chat interface to LLMs and AI agents in Org blocks.
 
 *Version 0.1*
 Emacs package, provide blocks ~#+begin_ai~ in Org mode for communication with LLMs APIs. Inspired by Robert Krahn's [[https://github.com/rksm/org-ai][org-ai package]]
