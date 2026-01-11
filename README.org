@@ -15,14 +15,12 @@ O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organ
 * Features:
 - Tags: expansion of links in block
 - Do parallel request in the same or different buffer without waiting
-- Highlighting: markdown big blocks, tags and links, headers, bold text, Org tables, LaTeX.
+- Highlighting: markdown big blocks, tags and links, headers, bold text, Org tables, LaTeX
 - Commands to inspect raw data, jumping
 - Autofilling, hooks, powerful debugger
 - Provide prompt engineering tools, there is ~:chain~ of calls out-of-the-box
 * Screenshot
-At left part of screenshot is the main window with chat
- and AI answer. At right part is a help window with
- expanded link.
+At left - main window with AI answer. At right - help window with expanded link.
 [[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]
 * Prerequisites
 Emacs 29.1+, 30.2
@@ -112,8 +110,10 @@ To set use custom function or disable auto-fill by setting it to ~nil~:
 : (setq oai-restapi-con-token "xxx")
 
 .emacs
-: (add-to-list 'load-path "~/.emacs.d/oai-tokens.el")
-: (require 'oai-tokens)
+#+begin_src elisp
+(add-to-list 'load-path "~/.emacs.d/oai-tokens.el")
+(require 'oai-tokens)
+#+end_src
 
 3) Keep token in separate *”auth-source” file* in plain text
 
