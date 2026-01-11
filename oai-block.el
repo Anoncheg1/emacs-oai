@@ -1154,12 +1154,12 @@ On current line or at quote itself."
 
 (defun oai-block-tags--in-markdown-triple-quotes-p (pos)
   "Return t if POS is inside a markdown triple backquote (```...```).
- on current line or at quote itself."
+On current line or at quote itself."
   (oai-block-tags--in-markdown-quotes-p pos "```"))
 
 (defun oai-block-tags--in-markdown-any-quotes-p (pos)
   "Return t if POS is inside any markdown backquote block.
-(`...` or ```...```) on current line or at quote itself."
+\(`...` or ```...```\) on current line or at quote itself."
   (or (oai-block-tags--in-markdown-quotes-p pos "`")
       (oai-block-tags--in-markdown-quotes-p pos "```")))
 
@@ -1304,8 +1304,7 @@ Argument LIM-END ai block ending."
       (unless (or (oai-block--in-markdown send lim-beg)
                   (oai-block-tags--in-markdown-any-quotes-p send))
         (org-src-font-lock-fontify-block "latex" sbeg send))
-      (goto-char send)
-      )
+      (goto-char send))
     (goto-char lim-end)))
 
 (defun oai-block--font-lock-fontify-markdown-and-org (limit)
