@@ -197,6 +197,20 @@ For [[oai-restapi.el]] uses symbols as in `oai-block-roles'.
 - org-babel-where-is-src-block-result = oai-block-where-is-result
 - org-fill-paragraph = oai-block-fill-paragraph
 
+* How this works?
+We add “ai” as a type of special block to variables ~org-protecting-blocks~ and ~org-structure-template-alist~.
+
+*Org-mode* intrernally use  ~org-element-special-block-parser~ to process our “ai” block as special.
+
+For *highlighting* we use hack to inject our font-lock staff to ~font-lock-defaults~ variable initialized by ~org-set-font-lock-defaults~ function.
+
+For *parallel* requests we use ~oai-timers--element-marker-variable-dict~ variable that keeps pairs: url-buffer (key) -> Header-marker (variable). This allow for same block have many url-buffers.
+
+For *RESTAPI* requesting LLMs we provide two functions:
+- ~oai-restapi-request-prepare~ - support streaming
+- ~oai-restapi-request-llm-retries~ - retrie request if it fails.
+
+For make *chain of calls* we have ~oai-async1.el~ static framework that simplify making parallel and sequencial requests.
 * Other packages
 - Navigation in Dired, Packages, Buffers modes https://github.com/Anoncheg1/firstly-search
 - Search with Chinese	https://github.com/Anoncheg1/pinyin-isearch

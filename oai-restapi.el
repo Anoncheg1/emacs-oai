@@ -141,7 +141,8 @@ If mode is not chat but completion, appropriate model should be set."
   :group 'oai)
 
 
-(defcustom oai-restapi-openai-known-chat-models '("gpt-4o-mini"
+(defcustom oai-restapi-openai-known-chat-models '("gpt-5-chat-latest"
+                                                  "gpt-4o-mini"
                                                   "gpt-4"
                                                   "gpt-4-32k"
                                                   "gpt-4-turbo"
@@ -160,6 +161,7 @@ If mode is not chat but completion, appropriate model should be set."
                                                   "o1-mini"
                                                   "o3"
                                                   "o3-mini"
+                                                  "o3-pro"
                                                   "o4-mini"
                                                   "chatgpt-4o-latest")
   "Alist of OpenAI chat models from https://platform.openai.com/docs/models."
