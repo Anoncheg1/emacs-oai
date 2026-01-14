@@ -597,7 +597,6 @@ MAX-TOKENS described in `oai-restapi-request-prepare'."
 
 
 ;; -=-= Main
-
 (defun oai-restapi-request-prepare (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional info)
   "Compose API request from data and start a server-sent event stream.
 Call `oai-restapi-request' function as a next step.

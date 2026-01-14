@@ -5,7 +5,7 @@
 * OAI - chat interface to LLMs and AI agents in Org blocks.
 
 *Version 0.1*
-Emacs package, provide blocks ~#+begin_ai~ in Org mode for communication with LLMs APIs. Inspired by Robert Krahn's [[https://github.com/rksm/org-ai][org-ai package]]
+Emacs package, provide block ~#+begin_ai~ in Org mode for communication with LLMs APIs. Inspired by Robert Krahn's [[https://github.com/rksm/org-ai][org-ai package]]
 
 Protocol: “OpenAI like” HTTP REST API. (url.el)
 
@@ -208,7 +208,7 @@ For *parallel* requests we use ~oai-timers--element-marker-variable-dict~ variab
 
 For *RESTAPI* requesting LLMs we provide two functions:
 - ~oai-restapi-request-prepare~ - support streaming
-- ~oai-restapi-request-llm-retries~ - retrie request if it fails.
+- ~oai-restapi-request-llm-retries~ - retry request if it fails.
 
 For make *chain of calls* we have ~oai-async1.el~ static framework that simplify making parallel and sequencial requests.
 * Other packages
