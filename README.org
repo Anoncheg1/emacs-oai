@@ -41,7 +41,6 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 | oai-async1.el     | (optional) Solve “callback hell” for url.el, used by oai-prompt.el |
 | oai-optional.el   | (optional) Hooks functions for postprocessing                      |
 
-* Connection configuration
 * Supported services
 - OpenAI
 - Azure-OpenAI

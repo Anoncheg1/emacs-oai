@@ -266,7 +266,7 @@ messages."
                                 (expanded (oai-block--stringify-chat-messages expanded)))
                            expanded))))
     (if (called-interactively-p 'any)
-        (let ((buf (get-buffer-create "*OAi Preview*")))
+        (let ((buf (get-buffer-create "*OAI Preview*")))
           (with-help-window buf (with-current-buffer buf
                                   (insert res-str)))
           (switch-to-buffer buf))
