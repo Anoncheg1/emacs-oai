@@ -102,18 +102,20 @@ Return last argument, but should not be used for return value."
                      (get-buffer-create oai-debug-buffer)))
              (current-window (selected-window))
              (bu-window (or (get-buffer-window bu)
-                            (if (>= (count-windows) 2)
+                            (when (not (eq last-input-event 7)) ; not C-g exit - too much verbose
+                              (if (>= (count-windows) 2)
+                                  (display-buffer-in-direction ; exist but hidden
+                                   bu
+                                   '((direction . left)
+                                     (window . new)
+                                     (window-width . 0.2)))
+                                ;; else
                                 (display-buffer-in-direction ; exist but hidden
                                  bu
                                  '((direction . left)
-                                   (window . new)
-                                   (window-width . 0.2)))
-                              ;; else
-                              (display-buffer-in-direction ; exist but hidden
-                               bu
-                               '((direction . left)
-                                 (window . new))))
-                            (select-window current-window)))
+                                   (window . new)))))
+                            (when (not (eq last-input-event 7)) ; not C-g exit - too much verbose
+                              (select-window current-window))))
              result-string)
 
         (with-current-buffer bu

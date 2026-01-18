@@ -1279,7 +1279,8 @@ Argument LIM-END ai block ending."
       (goto-char lim-end))))
 
 (defun oai-block--fontify-latex-blocks (lim-beg lim-end)
-  "Fontify LaTeX math blocks \\[...\\] and \\(...\\) from LIM-BEG to LIM-END."
+  "Fontify LaTeX math blocks.
+We search for \\[...\\] multiline \\(...\\) from LIM-BEG to LIM-END."
   (let (sbeg send)
     (goto-char lim-beg)
     ;; Multiline \\[ ... \\]
@@ -1337,7 +1338,7 @@ TODO: fontify if there is only end of ai block on page."
         ;; headers and *bold*
         (when oai-block-fontify-markdown-headers-and-formatting
           (oai-block--fontify-markdown-headers-and-formatting beg end))
-        ;;
+        ;; LaTeX startin with [ or (
         (when oai-block-fontify-latex
           (oai-block--fontify-latex-blocks beg end)))
       (goto-char end))

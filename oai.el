@@ -111,6 +111,8 @@
 ;; - small markdown mode on highlighting
 ;; - simple Elisp function to ask LLM
 ;; - add guide to use `oai-restapi-request' and with retries for simple ELisp LLM call and get result
+;; - add option for tag to expand only the last user prompt or in all.
+;; - C-c C-k should jump to current begining of message, not next
 ;;; Code:
 ;; Touch: Pain, water and warm.
 
