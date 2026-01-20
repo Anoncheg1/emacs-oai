@@ -885,9 +885,10 @@ Used in `oai-block-tags-mark-md-block-body'."
 
 
 (defun oai-block-tags--check-if-char-at-in-direction (string position char direction)
-  "Return t if CHAR appears in DIRECTION ('left or 'right) from POSITION.
-POSITION from 0 (inclusive) before newline or any non-space character.
-Stops at newline or any character that is not CHAR and not a space."
+  "Return t if CHAR appears in DIRECTION (\'left or \'right) from POSITION.
+POSITION In STRING from 0 (inclusive) before newline or any non-space
+character.  Stops at newline or any character that is not CHAR and not a
+space."
   (let* ((len (length string))
          (incr (if (eq direction 'right) 1 -1))
          (i (max 0 (min position (1- len)))))
@@ -1153,7 +1154,7 @@ TODO: maybe we should use something like
                             (oai-block--in-markdown-any-quotes-p lbeg)
                             ;; for  compatibility with `oai-block-tags--replace-last-regex-smart'
                             ;; that use `oai-block-tags--check-if-char-at-in-direction'
-                            (progn (goto-char lbeg)(looking-back "`[ \t]*")))
+                            (progn (goto-char lbeg) (looking-back "`[ \t]*" (line-beginning-position)))
                   (setq ret (org-activate-links lend)))
                 (goto-char lend)))
             ;; - @Backtrace
@@ -1164,8 +1165,7 @@ TODO: maybe we should use something like
                 (setq lend (match-end 0))
                 (unless (or (oai-block-tags--is-special lbeg beg)
                             (oai-block--in-markdown-any-quotes-p lbeg)
-                            (progn (goto-char lbeg)(looking-back "`[ \t]*"))
-                            )
+                            (progn (goto-char lbeg)(looking-back "`[ \t]*" (line-beginning-position))))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))
@@ -1177,7 +1177,7 @@ TODO: maybe we should use something like
                 (setq lend (match-end 0))
                 (unless (or (oai-block-tags--is-special lbeg beg)
                             (oai-block--in-markdown-any-quotes-p lbeg)
-                            (progn (goto-char lbeg)(looking-back "`[ \t]*")))
+                            (progn (goto-char lbeg)(looking-back "`[ \t]*" (line-beginning-position))))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))))))
