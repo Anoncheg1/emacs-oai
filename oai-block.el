@@ -1129,7 +1129,7 @@ Same as `oai-block-tags--is-special'."
 ;;            found)
 ;;     (goto-char pos)))
 
-(defun oai-block-tags--in-markdown-quotes-p (pos &optional delimiter)
+(defun oai-block--in-markdown-quotes-p (pos &optional delimiter)
   "Return t if POS is inside a markdown quote block on the current line.
 DELIMITER should be a string (\"`\" or \"```\"), defaults to \"`\"."
   (let ((delimiter (or delimiter "`"))
@@ -1147,21 +1147,21 @@ DELIMITER should be a string (\"`\" or \"```\"), defaults to \"`\"."
                 (setq found t)))))))
     found))
 
-(defun oai-block-tags--in-markdown-single-quotes-p (pos)
+(defun oai-block--in-markdown-single-quotes-p (pos)
   "Return t if POS is inside a markdown single backquote (`...`).
 On current line or at quote itself."
-  (oai-block-tags--in-markdown-quotes-p pos "`"))
+  (oai-block--in-markdown-quotes-p pos "`"))
 
-(defun oai-block-tags--in-markdown-triple-quotes-p (pos)
+(defun oai-block--in-markdown-triple-quotes-p (pos)
   "Return t if POS is inside a markdown triple backquote (```...```).
 On current line or at quote itself."
-  (oai-block-tags--in-markdown-quotes-p pos "```"))
+  (oai-block--in-markdown-quotes-p pos "```"))
 
-(defun oai-block-tags--in-markdown-any-quotes-p (pos)
+(defun oai-block--in-markdown-any-quotes-p (pos)
   "Return t if POS is inside any markdown backquote block.
 \(`...` or ```...```\) on current line or at quote itself."
-  (or (oai-block-tags--in-markdown-quotes-p pos "`")
-      (oai-block-tags--in-markdown-quotes-p pos "```")))
+  (or (oai-block--in-markdown-quotes-p pos "`")
+      (oai-block--in-markdown-quotes-p pos "```")))
 
 
 ;; -=-= Fontify
