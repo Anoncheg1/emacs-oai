@@ -379,23 +379,19 @@ ss2
 ;; -=-= tags tests
 (ert-deftest oai-tests-block-tags--replace-test ()
     (let* ((temp-file (make-temp-file "mytest"))
-           (res
-            ;; (unwind-protect
-                (progn
-                  (with-temp-file temp-file
-                    (insert "Hello, world test!"))
-
-                  (prog1 (oai-block-tags-replace (format "aas `@%s`bb." temp-file))
-                    ;; (should (string= (oai-block-tags-replace temp-file) "Expected result")))
-                    (delete-file temp-file))))
-           (res (string-split res "\n"))
-           )
-      ;; res)
-      (should (string-equal "aas `" (nth 0 res)))
+       (res (progn
+              (with-temp-file temp-file
+                (insert "Hello, world test!"))
+              (prog1
+                  (oai-block-tags-replace (format "aas @%s bb." temp-file))
+                (delete-file temp-file))))
+       (res (string-split res "\n")))
+      ;; (pp res))
+      (should (string-equal "aas" (nth 0 res)))
       (should (string-equal "```auto" (nth 2 res)))
       (should (string-equal "Hello, world test!" (nth 3 res)))
       (should (string-equal "```" (nth 4 res)))
-      (should (string-equal "`bb." (nth 5 res)))))
+      (should (string-equal " bb." (nth 5 res)))))
 
 
 ;; -=-= Test: oai-block-tags-replace - for directory
@@ -418,13 +414,13 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
 
 (ert-deftest oai-tests-block-tags--oai-block-tags-replace ()
   (with-temp-files '("file1.txt" "file2.txt")
-                   (let ((res (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" temp-dir)) "\n"))
+                   (let ((res (string-split (oai-block-tags-replace (format "ssvv @%s bbb" temp-dir)) "\n"))
                          (regex-pattern "ssvv \nHere test[^ ]+ folder:\n```ls-output\n  /tmp/test[^ ]+:\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file1.txt\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file2.txt\n\n```\n bbb")
                          ;; (dired-listing-switches "-AlthG")
                          )
                      ;; (pp res)))
                      ;; LINES of regex-pattern:
-                     (should (string-match-p "^ssvv `" (nth 0 res)))
+                     (should (string-match-p "^ssvv" (nth 0 res)))
                      (should (string-match-p "^Here test[^ ]+ folder:" (nth 1 res)))
                      (should (string-match-p "^```ls-output" (nth 2 res)))
                      (should (string-match-p "^  /tmp/test[^ ]+:" (nth 3 res)))
@@ -432,7 +428,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
                      (should (string-match-p "file[12].txt" (nth 4 res)))
                      (should (string-match-p "file[12].txt" (nth 5 res)))
                      (should (string-match-p "^```$" (nth 7 res)))
-                     (should (string-match-p "^` bbb$" (nth 8 res))))))
+                     (should (string-match-p "^ bbb$" (nth 8 res))))))
 
 
 ;; -=-= Test: oai-block-tags--get-org-block-region
@@ -540,13 +536,13 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
     ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
     ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)) "\n" ) "\\n"))
     ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
-    (setq res (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
-    (should (string-equal res "ssvv `\nHere file1.txt:\n```text\nContents for file1\n```\n` bbb"))
+    (setq res (oai-block-tags-replace (format "ssvv @%s bbb" file1)))
+    (should (string-equal res "ssvv\nHere file1.txt:\n```text\nContents for file1\n```\n bbb"))
     ;; ;; (print (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
     ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)) "\n" ) "\\n"))
     ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)))
-    (setq res (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)))
-    (should (string-equal res "ssvv `\nHere file2.el:\n```elisp\n(defun aa() )\n```\n` bbb"))
+    (setq res (oai-block-tags-replace (format "ssvv @%s bbb" file2)))
+    (should (string-equal res "ssvv\nHere file2.el:\n```elisp\n(defun aa() )\n```\n bbb"))
     ;; (string-join (string-split (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)) "\n" ) "\\n"))
     ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
     ;; "ssvv \\nssssss\\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
@@ -579,56 +575,56 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
 
   ;; search without replace
   (should (string-equal (oai-block-tags--replace-last-regex-smart
-                         "foo `@Backtrace` bar `@Backtrace `@BacktraceX"
+                         "foo @Backtrace` bar `@Backtrace `@BacktraceX"
                          oai-block-tags--regexes-backtrace)
                         "@Backtrace"))
 
-  (should (string-equal (oai-block-tags--replace-last-regex-smart
+  (should-not (string-equal (oai-block-tags--replace-last-regex-smart
                          "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
                          oai-block-tags--regexes-backtrace)
                         "@Backtrace"))
 
   (should (string-equal (oai-block-tags--replace-last-regex-smart
-                         "foo `@Backtrace` bar `@Backtrace `@B`X"
+                         "foo `@Backtrace` bar `@Backtrace @B X"
                          oai-block-tags--regexes-backtrace)
                         "@B"))
 
   (should
    (string-equal (oai-block-tags--replace-last-regex-smart
-                  "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
+                  "foo `@Backtrace` bar `@Backtrace  @B X"
                   oai-block-tags--regexes-backtrace
                   "REPLACED")
-                 "foo `@Backtrace` bar `@Backtrace `REPLACEDX"))
+                 "foo `@Backtrace` bar `@Backtrace  REPLACEDX"))
   ;; with space
   (should
    (equal (oai-block-tags--replace-last-regex-smart
-           "foo `@Backtrace` bar `@Backtrace `@BacktraceX"
+           "foo `@Backtrace` bar @Backtrace `@BacktraceX"
            oai-block-tags--regexes-backtrace
            "REPLACED")
-          "foo `@Backtrace` bar `REPLACED`@BacktraceX"))
+          "foo `@Backtrace` bar REPLACED `@BacktraceX"))
 
   (should
    (equal (oai-block-tags--replace-last-regex-smart
-           "foo `@Backtrace` bar `@B `@BacktraceX"
+           "foo `@Backtrace` bar @B `@BacktraceX"
            oai-block-tags--regexes-backtrace
            "REPLACED")
-          "foo `@Backtrace` bar `REPLACED`@BacktraceX"))
+          "foo `@Backtrace` bar REPLACED`@BacktraceX"))
 
   (should
    (equal (oai-block-tags--replace-last-regex-smart
-           "foo `@/asd.txt` X"
+           "foo @/asd.txt` X"
            oai-block-tags--regexes-path
            "REPLACED")
-          "foo `REPLACED` X"))
+          "fooREPLACED` X"))
 
   (should
-   (equal (oai-block-tags--replace-last-regex-smart "foo `@.` bar " oai-block-tags--regexes-path "REPLACED")
-          "foo `REPLACED` bar "))
+   (equal (oai-block-tags--replace-last-regex-smart "foo @. bar " oai-block-tags--regexes-path "REPLACED")
+          "fooREPLACED bar "))
 
   (should
    (string-equal
-    (oai-block-tags--replace-last-regex-smart "asd `@/tmp/t.txt` assd" oai-block-tags--regexes-path "path")
-    "asd `path` assd")))
+    (oai-block-tags--replace-last-regex-smart "asd @/tmp/t.txt assd" oai-block-tags--regexes-path "path")
+    "asdpath assd")))
 
 ;; -=-= Test: oai-block-tags--get-content-at-point-not-org
 (ert-deftest oai-tests-block-tags--get-content-at-point-not-org1 ()
@@ -748,8 +744,33 @@ Here a.el:
 ss
 ```")))
 
+;; -=-= Test: oai-block-tags--position-in-markdown-block-str-p
+(ert-deftest oai-tests-block-tags--position-in-markdown-block-str-p ()
+  (let* ((line "aaa```bbb```ccc")
+         (range (oai-block-tags--position-in-markdown-block-str-p line 5)))
+    (should (string-equal (substring line (car range) (cadr range)) "```bbb")))
+
+  (should (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 5))
+  (should-not (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 10)))
 
 
+;; -=-= Test: oai-block-tags--check-if-char-at-in-direction
+(ert-deftest oai-tests-block-tags--check-if-char-at-in-direction ()
+  (should (oai-block-tags--check-if-char-at-in-direction "ab c    " 3 ?c 'right))  ;; t
+  (should-not (oai-block-tags--check-if-char-at-in-direction "ab d    " 3 ?c 'right))  ;; nil
+  (should-not (oai-block-tags--check-if-char-at-in-direction "ab c\ndef" 5 ?b 'left))  ;; nil
+  (should-not (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 5 ?b 'left))   ;; nil
+  (should (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 5 ?e 'left))   ;; t
+  ;; at \n
+  (should-not (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 4 ?d 'left))   ;; nil
+  (should-not (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 4 ?e 'right))  ;; nil
+  (should (oai-block-tags--check-if-char-at-in-direction "ab   c " 4 ?c 'right))   ;; t
+  (should (oai-block-tags--check-if-char-at-in-direction "ab   c " 4 ?b 'left))    ;; t
+
+  (should (oai-block-tags--check-if-char-at-in-direction "ab d     c" 5 ?c 'right))  ;; t
+  (should-not (oai-block-tags--check-if-char-at-in-direction "ab d    \n c" 5 ?c 'right))  ;; nil
+  (should (oai-block-tags--check-if-char-at-in-direction "like: ` file:/home/////////" 6 ?` 'left))
+  )
 ;; -=-= provide
 (provide 'oai-tests-block-tags)
 

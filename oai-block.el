@@ -1159,6 +1159,7 @@ On current line or at quote itself."
 
 (defun oai-block--in-markdown-any-quotes-p (pos)
   "Return t if POS is inside any markdown backquote block.
+on the current line.
 \(`...` or ```...```\) on current line or at quote itself."
   (or (oai-block--in-markdown-quotes-p pos "`")
       (oai-block--in-markdown-quotes-p pos "```")))
@@ -1288,12 +1289,9 @@ We search for \\[...\\] multiline \\(...\\) from LIM-BEG to LIM-END."
       ;; Mybe we should use two separate regexs?: "^[ \t]*\\\\\\[[ \t]*$" and "^[ \t]*\\\\\\][ \t]*$"
       (setq sbeg (match-beginning 0))
       (setq send (match-end 0))
-      ;; (print (list "sss" sbeg lim-end (oai-block-tags--in-markdown-any-quotes-p sbeg)))
-      ;; (print (list "sss1" sbeg lim-end (oai-block--in-markdown sbeg lim-end))) ; (oai-block--in-markdown 228 4842)
-      ;; (print (list "sss3" sbeg lim-end (oai-block-tags--in-markdown-any-quotes-p sbeg) (oai-block--in-markdown sbeg lim-end)))
 
       (unless (or (oai-block--in-markdown send lim-beg)
-                  (oai-block-tags--in-markdown-any-quotes-p send))
+                  (oai-block--in-markdown-any-quotes-p send))
         ;; (print "sss2")
         (org-src-font-lock-fontify-block "latex" sbeg send))
       (goto-char send))
@@ -1303,7 +1301,7 @@ We search for \\[...\\] multiline \\(...\\) from LIM-BEG to LIM-END."
       (setq sbeg (match-beginning 0))
       (setq send (match-end 0))
       (unless (or (oai-block--in-markdown send lim-beg)
-                  (oai-block-tags--in-markdown-any-quotes-p send))
+                  (oai-block--in-markdown-any-quotes-p send))
         (org-src-font-lock-fontify-block "latex" sbeg send))
       (goto-char send))
     (goto-char lim-end)))

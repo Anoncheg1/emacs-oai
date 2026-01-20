@@ -98,9 +98,9 @@ Used to set `org-link-search-must-match-exact-headline' before
   :type 'boolean
   :group 'oai)
 
-(defvar oai-block-tags--regexes-backtrace "\\(@\\(Backtrace\\|B\\)\\)\\([^a-zA-Z\"']\\|$\\)")
+(defvar oai-block-tags--regexes-backtrace "@\\(Backtrace\\|B\\([\s-]\\|$\\)\\)")
 ;; (defvar oai-block-tags--regexes-path "@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*"
-(defvar oai-block-tags--regexes-path "@\\(\\.\\.?\\|\\.\\.?/\\|\\.\\.?\\\\\\|/\\|\\\\\\|[A-Za-z]:\\\\\\|~[a-zA-Z0-9_.-]*/*\\)[a-zA-Z0-9_./\\\\-]*"
+(defvar oai-block-tags--regexes-path "\\(^\\|[\s-]\\)@\\(\\.\\.?\\|\\.\\.?/\\|\\.\\.?\\\\\\|/\\|\\\\\\|[A-Za-z]:\\\\\\|~[a-zA-Z0-9_.-]*/*\\)[a-zA-Z0-9_./\\\\-]*"
   "Unix Posix and Windows, currently we support Linux only.
 See: .
 [[file:./doc.org::*Regex: file path][Regex: file path]]
@@ -469,21 +469,6 @@ Substring '```content' without last '```'."
               (when (and end (>= pos start) (< pos end))
                 (throw 'inside block-boundaries)))))
         nil))))
-
-;; Tests:
-;; (progn (string-match "```" "aaa```bbb```ccc")
-(if-let* ((line "aaa```bbb```ccc")
-          (range (oai-block-tags--position-in-markdown-block-str-p line 5))
-          (mar (substring line (car range) (cadr range))))
-    (unless (string-equal mar "```bbb")
-      (error "Error: oai-block-tags--position-in-markdown-block-str-p1"))
-  ;; else
-  (error "Error: oai-block-tags--position-in-markdown-block-str-p2"))
-
-(if (not (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 5))   ;; => t   (inside first block)
-    (error "Error: oai-block-tags--position-in-markdown-block-str-p3"))
-(if (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 10)  ;; => nil (outside any block)
-    (error "Error: oai-block-tags--position-in-markdown-block-str-p4"))
 
 
 (defun oai-block-tags--get-m-block ()
@@ -898,28 +883,26 @@ Used in `oai-block-tags-mark-md-block-body'."
     (activate-mark)
     t))
 
-;; (defun oai-block-mark-src-block-body ()
-;;   "Mark Org blocks content around cursor.
-;; Excluding header and footer."
-;;   (interactive)
-;;   (let ((elem (org-element-at-point)))
-;;     (goto-char (org-element-property :begin elem))
-;;     (forward-line 1)
-;;     (set-mark (point))
-;;     (let ((case-fold-search t))
-;;           (re-search-forward "#\\+end_" nil t))
-;;     (beginning-of-line)
-;;     ;; (goto-char (org-element-property :end elem))
-;;     ;; (forward-line -2)
-;;     ;; (end-of-line)
-;;     (activate-mark)
-;;     t))
 
-;; (defun oai-block-tags--in-markdown-fences-p ()
-;;   (let* ((element (oai-block-p))
-;;          (limit-begin (org-element-property :contents-begin element))
-;;          (limit-end (org-element-property :contents-end element)))
-;;     (oai-block-tags--markdown-mark-fenced-code-body-get-range limit-begin limit-end)))
+(defun oai-block-tags--check-if-char-at-in-direction (string position char direction)
+  "Return t if CHAR appears in DIRECTION ('left or 'right) from POSITION.
+POSITION from 0 (inclusive) before newline or any non-space character.
+Stops at newline or any character that is not CHAR and not a space."
+  (let* ((len (length string))
+         (incr (if (eq direction 'right) 1 -1))
+         (i (max 0 (min position (1- len)))))
+    (catch 'found
+      (while (and (<= 0 i) (< i len)
+                  (not (char-equal (aref string i) ?\n)))
+        (pcase (aref string i)
+          ((pred (lambda (c) (char-equal c char)))
+           (throw 'found t))
+          ((pred (lambda (c) (not (char-equal c ?\s))))
+           (throw 'found nil))
+          (_ nil))
+        (setq i (+ i incr)))
+      nil)))
+
 
 ;; -=-= Replace links in text
 ;; Supported:
@@ -934,20 +917,23 @@ reserve any extra captured groups.
 Check that found regexp not in markdown block.
 If REPLACEMENT not provided return found str-orig for regexp or nil if not
 found."
-  ;; (oai--debug "oai-block-tags--replace-last-regex-smart")
+  (oai--debug "oai-block-tags--replace-last-regex-smart" str-orig)
   (let ((pos 0)
         (last-pos nil)
         (last-end nil))
+    ;;
     (while (and pos
-                (string-match regexp str-orig pos)
-                (not (oai-block-tags--position-in-markdown-block-str-p str-orig (setq pos (match-beginning 0))))) ; not in markdonw block
+                (string-match regexp str-orig pos))
+
       (setq pos (match-beginning 0))
       ;; (print (list "sdasd" pos))
-      (setq last-pos pos) ; beg
-      (setq last-end (match-end 0)) ; end
+      (unless (or (oai-block-tags--position-in-markdown-block-str-p str-orig pos) ; not in markdonw block
+                  (oai-block-tags--check-if-char-at-in-direction str-orig (1- pos) ?\` 'left)) ; fast check that not quoted
+        (setq last-pos pos)
+        (setq last-end (match-end 0))) ; end
+
       ;; (print (list "sdasd2" last-end))
-      (setq pos last-end) ; move forward
-      )
+      (setq pos (match-end 0))) ; move forward
 
     (if replacement
         (if last-pos
@@ -1164,7 +1150,10 @@ TODO: maybe we should use something like
                 (setq lend (match-end 0))
                 ;; (print (list lbeg beg end (oai-block-tags--is-special lbeg beg)))
                 (unless (or (oai-block-tags--is-special lbeg beg)
-                            (oai-block--in-markdown-any-quotes-p lbeg))
+                            (oai-block--in-markdown-any-quotes-p lbeg)
+                            ;; for  compatibility with `oai-block-tags--replace-last-regex-smart'
+                            ;; that use `oai-block-tags--check-if-char-at-in-direction'
+                            (progn (goto-char lbeg)(looking-back "`[ \t]*")))
                   (setq ret (org-activate-links lend)))
                 (goto-char lend)))
             ;; - @Backtrace
@@ -1174,7 +1163,9 @@ TODO: maybe we should use something like
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
                 (unless (or (oai-block-tags--is-special lbeg beg)
-                            (oai-block--in-markdown-any-quotes-p lbeg))
+                            (oai-block--in-markdown-any-quotes-p lbeg)
+                            (progn (goto-char lbeg)(looking-back "`[ \t]*"))
+                            )
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))
@@ -1185,7 +1176,8 @@ TODO: maybe we should use something like
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
                 (unless (or (oai-block-tags--is-special lbeg beg)
-                            (oai-block--in-markdown-any-quotes-p lbeg))
+                            (oai-block--in-markdown-any-quotes-p lbeg)
+                            (progn (goto-char lbeg)(looking-back "`[ \t]*")))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))))))
