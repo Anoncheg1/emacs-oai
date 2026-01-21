@@ -1129,14 +1129,17 @@ Same as `oai-block-tags--is-special'."
 ;;            found)
 ;;     (goto-char pos)))
 
-(defun oai-block--in-markdown-quotes-p (pos &optional delimiter)
-  "Return t if POS is inside a markdown quote block on the current line.
+(defun oai-block--in-markdown-quotes-p (pos &optional delimiter beg end)
+  "Return t if POS is inside any markdown quotes.
+if BEG END not provided, look for DELIMITER at the current line only.
 DELIMITER should be a string (\"`\" or \"```\"), defaults to \"`\"."
-  (let ((delimiter (or delimiter "`"))
-        (bol (save-excursion (goto-char pos) (line-beginning-position)))
-        (eol (save-excursion (goto-char pos) (line-end-position)))
-        (found nil))
-    (save-excursion
+  (save-excursion
+    (let ((delimiter (or delimiter "`"))
+          (bol (or beg
+                   (progn (goto-char pos) (line-beginning-position))))
+          (eol (or end
+                   (progn (goto-char pos) (line-end-position))))
+          (found nil))
       (goto-char bol)
       (while (and (search-forward delimiter eol t) (not found))
         (let ((start (match-beginning 0)))
@@ -1144,8 +1147,8 @@ DELIMITER should be a string (\"`\" or \"```\"), defaults to \"`\"."
             (let ((end (match-end 0)))
               (when (and (>= pos start)
                          (< pos end))
-                (setq found t)))))))
-    found))
+                (setq found t))))))
+      found)))
 
 (defun oai-block--in-markdown-single-quotes-p (pos)
   "Return t if POS is inside a markdown single backquote (`...`).
@@ -1290,8 +1293,8 @@ We search for \\[...\\] multiline \\(...\\) from LIM-BEG to LIM-END."
       (setq sbeg (match-beginning 0))
       (setq send (match-end 0))
 
-      (unless (or (oai-block--in-markdown send lim-beg)
-                  (oai-block--in-markdown-any-quotes-p send))
+      (unless (or (oai-block--in-markdown send lim-beg) ; multiline block with language
+                  (oai-block--in-markdown-any-quotes-p send)) ; line
         ;; (print "sss2")
         (org-src-font-lock-fontify-block "latex" sbeg send))
       (goto-char send))
@@ -1301,7 +1304,7 @@ We search for \\[...\\] multiline \\(...\\) from LIM-BEG to LIM-END."
       (setq sbeg (match-beginning 0))
       (setq send (match-end 0))
       (unless (or (oai-block--in-markdown send lim-beg)
-                  (oai-block--in-markdown-any-quotes-p send))
+                  (oai-block--in-markdown-any-quotes-p send)) ; line
         (org-src-font-lock-fontify-block "latex" sbeg send))
       (goto-char send))
     (goto-char lim-end)))

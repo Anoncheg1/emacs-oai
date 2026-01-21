@@ -579,7 +579,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
                          oai-block-tags--regexes-backtrace)
                         "@Backtrace"))
 
-  (should-not (string-equal (oai-block-tags--replace-last-regex-smart
+  (should (string-equal (oai-block-tags--replace-last-regex-smart
                          "foo `@Backtrace` bar `@Backtrace `@Backtrace`X"
                          oai-block-tags--regexes-backtrace)
                         "@Backtrace"))
@@ -598,17 +598,17 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
   ;; with space
   (should
    (equal (oai-block-tags--replace-last-regex-smart
-           "foo `@Backtrace` bar @Backtrace `@BacktraceX"
+           "foo `@Backtrace` bar @Backtrace `@Backtrace "
            oai-block-tags--regexes-backtrace
            "REPLACED")
-          "foo `@Backtrace` bar REPLACED `@BacktraceX"))
+          "foo `@Backtrace` bar @Backtrace `REPLACED "))
 
   (should
    (equal (oai-block-tags--replace-last-regex-smart
            "foo `@Backtrace` bar @B `@BacktraceX"
            oai-block-tags--regexes-backtrace
            "REPLACED")
-          "foo `@Backtrace` bar REPLACED`@BacktraceX"))
+          "foo `@Backtrace` bar @B `REPLACEDX"))
 
   (should
    (equal (oai-block-tags--replace-last-regex-smart
@@ -754,23 +754,57 @@ ss
   (should-not (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 10)))
 
 
-;; -=-= Test: oai-block-tags--check-if-char-at-in-direction
-(ert-deftest oai-tests-block-tags--check-if-char-at-in-direction ()
-  (should (oai-block-tags--check-if-char-at-in-direction "ab c    " 3 ?c 'right))  ;; t
-  (should-not (oai-block-tags--check-if-char-at-in-direction "ab d    " 3 ?c 'right))  ;; nil
-  (should-not (oai-block-tags--check-if-char-at-in-direction "ab c\ndef" 5 ?b 'left))  ;; nil
-  (should-not (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 5 ?b 'left))   ;; nil
-  (should (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 5 ?e 'left))   ;; t
-  ;; at \n
-  (should-not (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 4 ?d 'left))   ;; nil
-  (should-not (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 4 ?e 'right))  ;; nil
-  (should (oai-block-tags--check-if-char-at-in-direction "ab   c " 4 ?c 'right))   ;; t
-  (should (oai-block-tags--check-if-char-at-in-direction "ab   c " 4 ?b 'left))    ;; t
+;; -=-= Test: oai-block-tags--check-if-char-at-in-direction !!
+;; (ert-deftest oai-tests-block-tags--check-if-char-at-in-direction ()
+;;   (should (oai-block-tags--check-if-char-at-in-direction "ab c    " 3 ?c 'right))  ;; t
+;;   (should-not (oai-block-tags--check-if-char-at-in-direction "ab d    " 3 ?c 'right))  ;; nil
+;;   (should-not (oai-block-tags--check-if-char-at-in-direction "ab c\ndef" 5 ?b 'left))  ;; nil
+;;   (should-not (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 5 ?b 'left))   ;; nil
+;;   (should (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 5 ?e 'left))   ;; t
+;;   ;; at \n
+;;   (should-not (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 4 ?d 'left))   ;; nil
+;;   (should-not (oai-block-tags--check-if-char-at-in-direction "ab d\nef" 4 ?e 'right))  ;; nil
+;;   (should (oai-block-tags--check-if-char-at-in-direction "ab   c " 4 ?c 'right))   ;; t
+;;   (should (oai-block-tags--check-if-char-at-in-direction "ab   c " 4 ?b 'left))    ;; t
 
-  (should (oai-block-tags--check-if-char-at-in-direction "ab d     c" 5 ?c 'right))  ;; t
-  (should-not (oai-block-tags--check-if-char-at-in-direction "ab d    \n c" 5 ?c 'right))  ;; nil
-  (should (oai-block-tags--check-if-char-at-in-direction "like: ` file:/home/////////" 6 ?` 'left))
+;;   (should (oai-block-tags--check-if-char-at-in-direction "ab d     c" 5 ?c 'right))  ;; t
+;;   (should-not (oai-block-tags--check-if-char-at-in-direction "ab d    \n c" 5 ?c 'right))  ;; nil
+;;   (should (oai-block-tags--check-if-char-at-in-direction "like: ` file:/home/////////" 6 ?` 'left))
+;;   )
+
+;; -=-= Test: oai-block-tags--string-is-quoted-p
+(ert-deftest oai-tests-block-tags--string-count-char-in-direction ()
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "`as`\n`as`" 0  ?` 'left))) ; 0
+  (should (eql 1 (oai-block-tags--string-count-char-in-direction "`as`\n`as`" 3  ?` 'left))) ; 1
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "`as`\n`as`" 4  ?` 'left))) ; 0
+  (should (eql 1 (oai-block-tags--string-count-char-in-direction "`as`\n`as`" 0  ?` 'right))) ; 1
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "`as`\n`as`" 5  ?` 'left))) ; 0
+  (should (eql 1 (oai-block-tags--string-count-char-in-direction "`as`\n`as`" 5  ?` 'right))) ; 1
+  (should (eql 1 (oai-block-tags--string-count-char-in-direction "`as`\n`as`" 7  ?` 'right))) ; 1
+  (should (eql 1 (oai-block-tags--string-count-char-in-direction "`as`\n`as`" 0  ?` 'right))) ; 1
+
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "ab c    " 3 ?c 'right)))  ;; 0
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "ab d    " 3 ?c 'right)))  ;; 0
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "ab c\ndef" 5 ?b 'left)))  ;; 0
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "ab d\nef" 5 ?b 'left)))   ;; 0
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "ab d\nef" 5 ?e 'left)))   ;; 0
+  ;; at \n
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "ab d\nef" 4 ?d 'left)))   ;; 0
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "ab d\nef" 4 ?e 'right)))  ;; 0
+  (should (eql 1 (oai-block-tags--string-count-char-in-direction "ab   c " 4 ?c 'right)))   ;; 1
+  (should (eql 1 (oai-block-tags--string-count-char-in-direction "ab   c " 4 ?b 'left)))    ;; 1
+
+  (should (eql 1 (oai-block-tags--string-count-char-in-direction "ab d     c" 5 ?c 'right)))  ;; t
+  (should (eql 0 (oai-block-tags--string-count-char-in-direction "ab d    \n c" 5 ?c 'right)))  ;; 0
+  (should (oai-block-tags--string-count-char-in-direction "like: ` file:/home/////////" 6 ?` 'left)) ;; 0
   )
+
+;; -=-= Test: oai-block-tags--string-is-quoted-p
+(ert-deftest oai-tests-block-tags--string-is-quoted-p ()
+  (should (oai-block-tags--string-is-quoted-p "`as`\n`as`" 1)) ; t
+  (should-not (oai-block-tags--string-is-quoted-p "`as`\n`as`" 0))) ; nil
+
+
 ;; -=-= provide
 (provide 'oai-tests-block-tags)
 

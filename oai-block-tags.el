@@ -883,26 +883,49 @@ Used in `oai-block-tags-mark-md-block-body'."
     (activate-mark)
     t))
 
+;; (defun oai-block-tags--string-count-char-in-direction (string position char direction)
+;;   "Count CHAR in DIRECTION from POSITION on the same line in STRING."
+;;   ;; Special case: Cursor is at or after newline, nothing to count.
+;;   (if (or (and (eq direction 'left)
+;;                (> position 0)
+;;                (char-equal (aref string (1- position)) ?\n))
+;;           (and (eq direction 'right)
+;;                (char-equal (aref string position) ?\n)))
+;;       0
+;;     ;; Normal case
+;;     (let* ((count 0)
+;;            (step (if (eq direction 'right) 1 -1))
+;;            (pos (+ position step))
+;;            (len (length string)))
+;;       (while (and (>= pos 0) (< pos len))
+;;         (let ((c (aref string pos)))
+;;           (cond
+;;            ((char-equal c char) (setq count (1+ count)))
+;;            ((char-equal c ?\n) (setq pos len)))  ; break
+;;           (setq pos (+ pos step))))
+;;       count)))
 
-(defun oai-block-tags--check-if-char-at-in-direction (string position char direction)
-  "Return t if CHAR appears in DIRECTION (\'left or \'right) from POSITION.
-POSITION In STRING from 0 (inclusive) before newline or any non-space
-character.  Stops at newline or any character that is not CHAR and not a
-space."
-  (let* ((len (length string))
-         (incr (if (eq direction 'right) 1 -1))
-         (i (max 0 (min position (1- len)))))
-    (catch 'found
-      (while (and (<= 0 i) (< i len)
-                  (not (char-equal (aref string i) ?\n)))
-        (pcase (aref string i)
-          ((pred (lambda (c) (char-equal c char)))
-           (throw 'found t))
-          ((pred (lambda (c) (not (char-equal c ?\s))))
-           (throw 'found nil))
-          (_ nil))
-        (setq i (+ i incr)))
-      nil)))
+(defun oai-block-tags--string-count-char-in-direction (string position char direction)
+  "Count CHAR in DIRECTION from POSITION on the same line in STRING."
+  (if (char-equal (aref string position) ?\n)
+      0
+    ;; else
+    (let ((step (if (eq direction 'right) 1 -1))
+          (count 0)
+          (len (length string))
+          (pos (+ position (if (eq direction 'right) 1 -1))))
+      (while (and (>= pos 0)
+                  (< pos len)
+                  (not (char-equal (aref string pos) ?\n)))
+        (when (char-equal (aref string pos) char)
+          (setq count (1+ count)))
+        (setq pos (+ pos step)))
+      count)))
+
+(defun oai-block-tags--string-is-quoted-p (string position)
+  "Check if POSITION is quoted at current line in STRING."
+  (and (eql 1 (% (oai-block-tags--string-count-char-in-direction string position ?` 'left) 2))
+       (eql 1 (% (oai-block-tags--string-count-char-in-direction string position ?` 'right) 2))))
 
 
 ;; -=-= Replace links in text
@@ -928,8 +951,8 @@ found."
 
       (setq pos (match-beginning 0))
       ;; (print (list "sdasd" pos))
-      (unless (or (oai-block-tags--position-in-markdown-block-str-p str-orig pos) ; not in markdonw block
-                  (oai-block-tags--check-if-char-at-in-direction str-orig (1- pos) ?\` 'left)) ; fast check that not quoted
+      (unless (or (oai-block-tags--position-in-markdown-block-str-p str-orig pos) ; not in ``` multiline markdown block
+                  (oai-block-tags--string-is-quoted-p str-orig pos))
         (setq last-pos pos)
         (setq last-end (match-end 0))) ; end
 
@@ -1151,10 +1174,7 @@ TODO: maybe we should use something like
                 (setq lend (match-end 0))
                 ;; (print (list lbeg beg end (oai-block-tags--is-special lbeg beg)))
                 (unless (or (oai-block-tags--is-special lbeg beg)
-                            (oai-block--in-markdown-any-quotes-p lbeg)
-                            ;; for  compatibility with `oai-block-tags--replace-last-regex-smart'
-                            ;; that use `oai-block-tags--check-if-char-at-in-direction'
-                            (progn (goto-char lbeg) (looking-back "`[ \t]*" (line-beginning-position)))
+                            (oai-block--in-markdown-any-quotes-p lbeg))
                   (setq ret (org-activate-links lend)))
                 (goto-char lend)))
             ;; - @Backtrace
@@ -1164,8 +1184,7 @@ TODO: maybe we should use something like
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
                 (unless (or (oai-block-tags--is-special lbeg beg)
-                            (oai-block--in-markdown-any-quotes-p lbeg)
-                            (progn (goto-char lbeg)(looking-back "`[ \t]*" (line-beginning-position))))
+                            (oai-block--in-markdown-any-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))
@@ -1176,8 +1195,7 @@ TODO: maybe we should use something like
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
                 (unless (or (oai-block-tags--is-special lbeg beg)
-                            (oai-block--in-markdown-any-quotes-p lbeg)
-                            (progn (goto-char lbeg)(looking-back "`[ \t]*" (line-beginning-position))))
+                            (oai-block--in-markdown-any-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))))))
