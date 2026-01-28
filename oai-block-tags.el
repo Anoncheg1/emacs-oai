@@ -302,8 +302,8 @@ beg end is content begin and #+end.
 Works for ai block also."
   (when-let* ((element (or (and element
                                 (when (member (org-element-type element)
-                                              oai-block-tags-org-blocks-types))
-                                element)
+                                              oai-block-tags-org-blocks-types)
+                                  element))
                            (oai-block-p)
                            (and (when (member (org-element-type (org-element-at-point)) oai-block-tags-org-blocks-types)
                                 (org-element-at-point))))))
@@ -1171,8 +1171,7 @@ TODO: maybe we should use something like
                             (oai-block--in-markdown-any-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
-                (goto-char lend)))
-            )))
+                (goto-char lend))))))
     ;; required by font lock mode:
     (goto-char limit)
     ret))

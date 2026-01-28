@@ -1521,15 +1521,10 @@ Argument START END are block begin and end, used as limits here."
 
       (let ((b1 (match-beginning 1))
             (e1 (match-end 1))
-            (b2 (match-beginning 2))
+            ;; (b2 (match-beginning 2))
             (e2 (match-end 2))
             (hash-chars-length (1- (length (match-string 1))))
             (colors '(oai-block-m-header1 oai-block-m-header2 oai-block-m-header3 oai-block-m-header4)))
-        ;; (goto-char b1)
-        ;; (while (re-search-forward "#" e1 t)
-        ;; (print (list "#" i (nth i colors)))
-
-        ;; (unless (oai-block--at-special-p b1)
         ;; Group 1: the '#' chars
         (put-text-property b1 e1
                            'face
@@ -1548,7 +1543,7 @@ Argument START END are block begin and end, used as limits here."
                                   (if (<= hash-chars-length 3)
                                       (nth hash-chars-length colors)
                                     ;; else
-                                    oai-block-m-header4))))
+                                    'oai-block-m-header4))))
         ;;   (put-text-property (match-beginning 1) (match-end 1)
         ;;                      'face (nth (1- i) colors))
         ;;   ;; (print (list "cyes" (match-string 1)))
@@ -1573,7 +1568,7 @@ Org vs Markdown -
 - Org - may be split with new line.
 We dont support Org-like split.  LLMs commonly think that Org dont
 support splitting."
-  (let (b1 e1 b2 e2)
+  (let (e1 b2 e2)
     (goto-char start)
     ;; 1. *Bold*
     ;; (while (re-search-forward "\\(^\\|[^*]\\)\\(\\*\\*\\*\\|\\*\\*\\)" end t) ; lines not started with *
