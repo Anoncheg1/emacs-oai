@@ -36,10 +36,10 @@ jobs:
       - name: Tests block tags
         run: |
          git clone --depth=1 https://github.com/Anoncheg1/emacs-org-links.git
-         emacs -Q --batch -l ert.el -l oai-debug.el -l ./emacs-org-links/org-links.el -l oai-block-tags.el -l ./tests/oai-tests-block-tags.el -f ert-run-tests-batch-and-exit
+         emacs -Q --batch -l ert.el -l oai-debug.el -l ./emacs-org-links/org-links.el -l oai-block.el -l oai-block-tags.el -l ./tests/oai-tests-block-tags.el -f ert-run-tests-batch-and-exit
       - name: Tests restapi
         run: |
-         emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block-tags.el -l oai-block.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el -l ./tests/oai-tests-restapi.el -f ert-run-tests-batch-and-exit
+         emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l oai-block-tags.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el -l ./tests/oai-tests-restapi.el -f ert-run-tests-batch-and-exit
       - name: Tests optional
         run: |
          emacs -Q --batch -l ert.el -l oai-debug.el -l oai-optional.el -l ./tests/oai-tests-optional.el -f ert-run-tests-batch-and-exit
