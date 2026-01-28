@@ -76,6 +76,8 @@
 ;; - in buffer with oai-mode enabled:
 ;;     - C-g - to stop all requsts.
 
+;; Terms:
+;; - chat roles or prefixes - [AI]: [ME:]
 
 ;; Other packages:
 ;; - Modern navigation in major modes https://github.com/Anoncheg1/firstly-search
@@ -110,16 +112,25 @@
 ;; - add support for one line code blocks: ```toon users[3]{id,name,role}: 1,Alice,admin 2,Bob,user 3,Charlie,user
 ;; - small markdown mode on highlighting
 ;; - simple Elisp function to ask LLM
-;; - add guide to use `oai-restapi-request' and with retries for simple ELisp LLM call and get result
+;; - add guide to use `oai-restapi-request' and with retries for simple ELisp LLM call and get result for TAB key and some place in buffer.
 ;; - add option for tag to expand only the last user prompt or in all.
 ;; - C-c C-k should jump to current begining of message, not next
+;; - add buttons: 1) generate button based on LLM answer 2) handle clicking.
+;; - default requst as one plist configuration
+;; - support for https://github.com/LionyxML/markdown-ts-mode
+;; - stop previous request if new one called
+;; - fill-paragraph should not break markdown quotes and bolds
+;; - add new line before ai answer
+;; - make font-lock better like in [[file:/usr/share/emacs/30.2/lisp/gnus/message.el
+;; ::1701::(defun message-font-lock-make-cited-text-matcher (level maxlevel)]]
+;; - make `oai-expand-block' executed with `org-babel-expand-src-block'.
 ;;; Code:
 ;; Touch: Pain, water and warm.
 
 ;; -=-= includes
 (require 'oai-debug)
-(require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'
 (require 'oai-block)
+(require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'
 (require 'oai-restapi)
 (require 'oai-prompt) ; for `oai-prompt-request-chain'
 
@@ -330,16 +341,23 @@ messages."
 (defun oai-block--set-ai-keywords ()
   "Hook, that Insert our fontify functions in Org font lock keywords."
   ;; add fontify-ai-subblocks - markdown blocks and tables.
+  ;; Put in order to `org-font-lock-keywords': (oai-block--font-lock-fontify-markdown-and-org) (oai-block-tags--font-lock-fontify-links) (oai-block--font-lock-fontify-markdown-blocks)
   (when oai-fontification-flag
+    ;; 3) fontify markdown blocks (and clear small)
     (setq org-font-lock-extra-keywords (oai-block--insert-after
                                         org-font-lock-extra-keywords
                                         (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
-                                        '(oai-block--font-lock-fontify-markdown-and-org)))
-    ;; add fontify-links
+                                        '(oai-block--font-lock-fontify-markdown-blocks)))
+    ;; 2) fontify-links (and clear small)
     (setq org-font-lock-extra-keywords (oai-block--insert-after
                                         org-font-lock-extra-keywords
                                         (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
-                                        '(oai-block-tags--font-lock-fontify-links)))))
+                                        '(oai-block-tags--font-lock-fontify-links)))
+    ;; 1) fontify small elements
+    (setq org-font-lock-extra-keywords (oai-block--insert-after
+                                        org-font-lock-extra-keywords
+                                        (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
+                                        '(oai-block--font-lock-fontify-markdown-and-org)))))
 
 
 ;; -=-= interactive fn: Summarize *TODO:*

@@ -74,29 +74,53 @@
   :type 'boolean
   :group 'oai)
 
-(defvar oai-block-roles '(("SYS" . system)
-                          ("ME" . user)
-                          ("AI" . assistant)
-                          ("AI_REASON" . assistant_reason)
-                          ("unknown_role" . assistant)
-                          ("missing_role" . user))
-  "May be used to relace [AI]: prefix with other string.
-Symbols \='assistant and \='user symbols used in oai-restapi to insert
-prefix, and here in stringify function.
-Closely bound with `oai-block--chat-prefixes-re' variable.
-Modify with caution.")
+(defvar oai-block-roles-restapi
+  '(("system" . system)
+    ("user" . user)
+    ("assistant" . assistant)
+    ("assistant_reason" . assistant_reason))
+  "Used by `oai-block--insert-stream-response'.
+Map RestAPI to oai roles")
 
-;; (car (rassoc 'user oai-block-roles)) ; => "ME"
-;; (cdr (assoc-string "ME" oai-block-roles)) ; => assistent ; Get value by key:
+;; (cdr (assoc-string "assistant" oai-block-roles-restapi)) ; => assistant
+;; (car (rassoc ' oai-block-roles-restapi)) ; => "+me"
+
+(defvar oai-block-roles-restapi-unknown 'assistant)
+
+(defvar oai-block-roles-prefixes '(("SYS" . system)
+                                   ("+me" . user)
+                                   ("ME" . user)
+                                   ("ai+" . assistant)
+                                   ("AI" . assistant)
+                                   ("AI_REASON" . assistant_reason)) ; "AI_REASON" used in `oai-block--parse-part'
+  "Map oai roles to chat prefixes to output to user.
+When restapi -> prefix, we use first matched.
+Closely bound with `oai-block--chat-prefixes-re' variable.")
+
+(defvar oai-block-roles-prefixes-unknown 'assistant
+  "Used in `oai-block--parse-part' for prefix not found.
+In `oai-block-roles-prefixes'.")
+
+
+;; ;; RestAPI -> Prefix
+;; (let ((role 'user1))
+;;   (or (car (rassoc role oai-block-roles-prefixes))
+;;       (car (rassoc oai-block-roles-restapi-unknown oai-block-roles-prefixes)))) ; => "ai+"
+
+;; ;; Prefix -> system
+;; (let ((role "+me1"))
+;;   (or (cdr (assoc-string role oai-block-roles-prefixes)) ; Get value by key
+;;       oai-block-roles-prefixes-unknown)) ; => assistant
 
 
 (defcustom oai-block-parse-part-hook nil
   "Call hook function with raw string of current block after role prefix.
 Implemented as a list of functions that called with two argument content
 string after prefix and role prefix as a symbol from from
-`oai-block-roles'.  Executed from left to right and pass result content
-string to each other.  Executed at step of reading ai block from raw
-content of buffer before any processing but after splitting to parts."
+`oai-block-roles-prefixes'.  Executed from left to right and pass result
+content string to each other.  Executed at step of reading ai block from
+raw content of buffer before any processing but after splitting to
+parts."
   :type 'hook
   :group 'oai)
 
@@ -122,9 +146,10 @@ TODO: for streaming: save and pass begining of paragraph or line."
 (defconst oai-block--ai-block-begin-re "^#\\+begin_ai.*$")
 (defconst oai-block--ai-block-end-re "^#\\+end_ai.*$")
 
-(defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
-(defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")
-(defvar oai-block--chat-prefixes-re "^[ \t]*\\[\\([A-Z_]+\\)\\(:\\]\\|\\]:\\)\\s-*"
+(defvar oai-block--markdown-begin-re "^\\s-*```\\([^\s\t\n[{]+\\)[\s\t]?$")
+(defvar oai-block--markdown-end-re "^\\s-*```\\s-*$")
+(defvar oai-block--markdown-beg-end-re "^[\s\t]*```\\(.*\\)$")
+(defvar oai-block--chat-prefixes-re "^\\s-*\\[\\([^\]]+\\)\\(:\\]\\|\\]:\\)\\s-*"
   "Prefix should be at the begining of the line with spaces or without.
 Or roles regex.")
 
@@ -283,6 +308,31 @@ Parameters are sourced from:
 ;;       v2))
 
 ;; -=-= parts fn: get-content
+;; (defun oai-block--contents-area (datum)
+;;   "As `org-src--contents-area'."
+;;   (let ((type (org-element-type datum)))
+;;     (if (eq type 'special-block)
+;;        (let
+;;          (beg (org-element-property :contents-begin element))
+;;          (end (org-element-property :contents-end element))
+;;          (list beg end (buffer-substring-no-properties beg end))
+;;         special-block
+;;   (org-with-wide-buffer
+;;    ((eq type 'latex-fragment)
+
+(defun oai-block-contents-begin-end (&optional element)
+  "Return typle :contents-begin and :contents-end for ai block only.
+Optional argument ELEMENT should be ai block if specified."
+  (when-let ((element (or element (oai-block-p))))
+     (let* ((beg (org-element-property :contents-begin element))
+            (end (org-element-property :contents-end element)))
+       (if (and beg end)
+           (list beg end)
+         ;; else - empty block
+         (org-with-wide-buffer
+          (save-excursion
+            (goto-char (org-element-property :begin element))
+            (list (line-beginning-position 2) (line-beginning-position 2))))))))
 
 (defun oai-block-get-content (&optional element)
   "Extracts the text content of the #+begin_ai...#+end_ai block.
@@ -292,21 +342,21 @@ Will expand noweb templates if an `oai-noweb' property or
 `noweb' header arg is \"yes\".
 Use ELEMENT only in current moment, if buffer modified you will need new
 ELEMENT."
-  (let* ((element (or element (oai-block-p)))
-         (content-start (org-element-property :contents-begin element))
-         (content-end (org-element-property :contents-end element))
-         (unexpanded-content (if (or (not content-start) (not content-end))
-                                 (error "Empty block")
-                               ;; else
-                               (string-trim (buffer-substring-no-properties content-start content-end))))
-         (info (oai-block-get-info element))
-         (noweb-control (or (alist-get :noweb info nil)
-                            (org-entry-get (point) "oai-noweb" 1)
-                            "no"))
-         (content (if (string-equal-ignore-case "yes" noweb-control)
-                      (org-babel-expand-noweb-references (list "markdown" unexpanded-content))
-                    unexpanded-content)))
-    (string-trim content)))
+  (when-let ((reg (oai-block-contents-begin-end element)))
+    (seq-let (con-beg con-end) reg
+      (org-with-wide-buffer
+       (let* ((unexpanded-content (if (or (not con-beg) (not con-end))
+                                      (error "Empty block")
+                                    ;; else
+                                    (string-trim (buffer-substring-no-properties con-beg con-end))))
+              (info (oai-block-get-info element))
+              (noweb-control (or (alist-get :noweb info nil)
+                                 (org-entry-get (point) "oai-noweb" 1)
+                                 "no"))
+              (content (if (string-equal-ignore-case "yes" noweb-control)
+                           (org-babel-expand-noweb-references (list "markdown" unexpanded-content))
+                         unexpanded-content)))
+         (string-trim content))))))
 ;; -=-= help function to call hooks as pipeline with one argument
 (defun oai-block--pipeline (funcs init-val &rest args)
   "Process INIT-VAL through a pipeline of functions FUNCS.
@@ -354,13 +404,15 @@ Here used for completion mode in `oai-restapi-request'.
   `oai-restapi--get-single-response-text'.
 - END-MARKER
 - if FINAL is non-nill we add `undo-boundary'.
-Variable `oai-block-roles' is used to format role to text."
+Variable `oai-block-roles-prefixes' is used to format role to text."
   (oai--debug "oai-block--insert-single-response end-marker, text:" end-marker text)
-    (let ((buffer (marker-buffer end-marker))
-          (pos (marker-position end-marker)))
-      (oai--debug "oai-block--insert-single-response buffer,pos:" buffer pos "")
-      ;; - write in target buffer
-      (when (and text (not (string-empty-p (string-trim text))))
+  (let ((buffer (marker-buffer end-marker))
+        (pos (marker-position end-marker))
+        (text (when text (string-trim text))))
+    (oai--debug "oai-block--insert-single-response buffer,pos:" buffer pos "")
+    ;; - write in target buffer
+    (if (and text (not (string-empty-p text)))
+
           (with-current-buffer buffer ; Where target ai block located.
             ;; set mark (point) to allow user "C-u C-SPC" command to easily select the generated text
             (push-mark end-marker t)
@@ -371,9 +423,11 @@ Variable `oai-block-roles' is used to format role to text."
               (goto-char (1- pos)) ; to use insert before end-marker to preserve it at the end of block
               (while (bolp)
                 (delete-char -1))
+              (print (point))
               (newline)
               (newline)
-              (insert "[" (car (rassoc 'assistant oai-block-roles)) "]: "
+              ;; (print (point))
+              (insert "[" (car (rassoc 'assistant oai-block-roles-prefixes)) "]: "
                       (if (string-match "\n" text) ; multiline answer we start with a new line.
                           "\n"
                         ;; else
@@ -394,25 +448,24 @@ Variable `oai-block-roles' is used to format role to text."
                 (undo-boundary))
               ;; (setq pos (point))
               ;; (set-marker end-marker (point))
-              )))
+              ))
 
-        ;; - else - DONE
-        ;; - special cases for DONE
-        (when (not text)
-          (with-current-buffer buffer
-            (when insert-me
-              (save-excursion
-                ;; - go  to the end of previous line and open new one
-                (goto-char pos)
-                (insert "\n[" (car (rassoc 'user oai-block-roles)) "]: \n")
-                (forward-char -1)
-                (setq pos (point)))
-              (set-marker end-marker (point)))
-            (when oai-block-jump-to-end-of-block
-              (goto-char pos))
-            ;; final
-            (org-element-cache-reset)
-            (undo-boundary)))))
+      ;; - else - DONE - text is nil
+      ;; - special cases for DONE
+      (with-current-buffer buffer
+        (when insert-me
+          (save-excursion
+            ;; - go  to the end of previous line and open new one
+            (goto-char pos)
+            (insert "[" (car (rassoc 'user oai-block-roles-prefixes)) "]: \n")
+            (forward-char -1)
+            (setq pos (point)))
+          (set-marker end-marker (point)))
+        (when oai-block-jump-to-end-of-block
+          (goto-char pos))
+        ;; final
+        (org-element-cache-reset)
+        (undo-boundary)))))
 
 ;; Used in `oai-restapi--normalize-response' and in `oai-block--insert-stream-response'
 (cl-deftype oai-block--response-type ()
@@ -432,11 +485,11 @@ Variable `oai-block-roles' is used to format role to text."
 
 (defvar-local oai-block--current-insert-position-marker nil
   "Where to insert the result.
-Used for `oai-restapi--insert-stream-response'.")
+Used for `oai-block--insert-stream-response'.")
 
 (defvar-local oai-block--current-chat-role nil
   "During chat response streaming, this holds the role of the \"current speaker\".
-Used for `oai-restapi--insert-stream-response'.")
+Used for `oai-block--insert-stream-response'.")
 
 (defun oai-block--insert-stream-response (end-marker &optional responses insert-me)
   "Insert result to ai block for chat mode.
@@ -454,8 +507,7 @@ Use buffer-local variables:
 
 If response is multiline `oai-block-fill-function' may not
 work properly.(may be old)
-Argument INSERT-ME insert [ME]: at stop type of message.
-Variable `oai-block-roles' is used to format role."
+Argument INSERT-ME insert [ME]: at stop type of message."
   ;; (oai--debug "oai-block--insert-stream-response1 %s" (oai-restapi--normalize-response response)) ; response
   (oai--debug "oai-block--insert-stream-response1" responses)
   (when responses
@@ -492,10 +544,11 @@ Variable `oai-block-roles' is used to format role."
                              (goto-char pos)
 
                              (setq c-chat-role payload)
-                             (let* ((rl (intern payload)) ; string to symbol
-                                    (role-prefix (car (rassoc rl oai-block-roles))))
+                             (let* ((role-oai (or (cdr (assoc-string payload oai-block-roles-restapi))
+                                                oai-block-roles-restapi-unknown)) ; string to symbol
+                                    (role-prefix (car (rassoc role-oai oai-block-roles-prefixes))))
 
-                               (insert "\n[" role-prefix "]: " (when (eql rl 'assistant) "\n")) ; "\n[ME:] " or "\n[AI:] \n"
+                               (insert "\n[" role-prefix "]: " (when (eql role-oai 'assistant) "\n")) ; "\n[ME:] " or "\n[AI:] \n"
 
                                (condition-case hook-error
                                    (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'role payload pos t)
@@ -521,7 +574,7 @@ Variable `oai-block-roles' is used to format role."
                     ('stop (progn ; payload = stop_reason
                              (oai--debug "oai-block--insert-stream-response3 stop_reason: %s" payload)
                              (goto-char pos)
-                             (let ((text (concat "\n\n[" (car (rassoc 'user oai-block-roles)) "]: "))) ; "ME"
+                             (let ((text (concat "\n\n[" (car (rassoc 'user oai-block-roles-prefixes)) "]: "))) ; "ME"
                                (if insert-me
                                    (insert text)
                                  ;; else
@@ -633,12 +686,13 @@ Joining non-empty content by SEP (defaults to newline)."
 Positions POS-BEG POS-END used as limits.
 Skip AI_REASON role string.
 If prefix found two times error is thrown.
-Uses `oai-block-roles' variable and `oai-block--chat-prefixes-re'.
+Uses `oai-block-roles-prefixes' variable and `oai-block--chat-prefixes-re'.
 If content is empty string return nil otherwise plist."
   (save-excursion
     (goto-char pos-beg)
     ;; - find prefix
-    (let (content ; after prefix or from pos
+    (let ((first_chat_role 'user)
+          content ; after prefix or from pos
           role-str
           role
           pre-end-pos) ; begining of content
@@ -651,14 +705,12 @@ If content is empty string return nil otherwise plist."
               (error "Another role prefix found before POS-END"))))
 
       (unless (string= role-str "AI_REASON") ; works for nil
-        ;; get role symbol
-        (when role-str
-          (setq role (cdr (assoc-string role-str oai-block-roles))))
-        (setq role (if role-str
-                       (or role (cdr (assoc-string "unknown_role" oai-block-roles)))
-                     ;; else - no role-str
-                     (cdr (assoc-string "missing_role" oai-block-roles)) ; user for the first message
-                     ))
+        ;; first - get role symbol
+        (if role-str
+          (setq role (or (cdr (assoc-string role-str oai-block-roles-prefixes))
+                         oai-block-roles-prefixes-unknown))
+          ;; else
+          (setq role first_chat_role))
         ;; get content
         (setq content (string-trim (buffer-substring-no-properties (or pre-end-pos pos-beg)
                                                                    pos-end)))
@@ -785,10 +837,11 @@ MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
 
 ;; [[file:~/sources/emacs-oai/oai-restapi.el::1986::(cl-defun oai-restapi--stringify-chat-messages (messages &optional &key]]
 (defun oai-block--format-message (msg)
-  "Return converted to a string plist MSG."
+  "Return converted to a string plist MSG.
+Used in `oai-expand-block'."
   (let* ((role (plist-get msg :role))
          (content (plist-get msg :content))
-         (role-str (car (rassoc role oai-block-roles))))
+         (role-str (car (rassoc role oai-block-roles-prefixes))))
     (concat "[" role-str "]: " content)))
 
 (defun oai-block--stringify-chat-messages (messages &optional default-system-prompt)
@@ -798,7 +851,8 @@ MESSAGES is a vector of plist with :role :content keys.  :role can be
 If DEFAULT-SYSTEM-PROMPT non-nil, a [SYS] prompt is prepended if the
 first message is not a system message, otherwise DEFAULT-SYSTEM-PROMPT
 argument is ignored.
-Uses `oai-block-roles' variable for mapping roles to prefixes."
+Used in `oai-expand-block'.
+Uses `oai-block-roles-prefixes' variable for mapping roles to prefixes."
   ;; 1) add default-system-prompt as first [SYS]: if not exist
   (let ((messages (if (and default-system-prompt
                            (not (eql (plist-get (aref messages 0) :role) 'system))) ; enforce that vector should consist of plists
@@ -810,8 +864,184 @@ Uses `oai-block-roles' variable for mapping roles to prefixes."
      (mapcar #'oai-block--format-message messages)
      "\n\n")))
 
-;; (car (rassoc 'sysa oai-block-roles))
 ;; (oai-block--stringify-chat-messages '[(:role assistant :content "Be helpful; then answer.") (:role user :content "Be hnswer.")] "as")
+
+;; -=-= Markdown block check pos
+
+;; (defun oai-block--in-markdown (pos &optional lim-beg)
+;;   "Check if POS in markdown block, quoted or is a table.
+;; Optional argument LIM-BEG is ai block begining position.
+;; Return t if pos in markdown block, table or quote.
+;; Side-effect: set pointer position to POS.
+;; Same as `oai-block-tags--is-special'."
+;;   (goto-char pos)
+;;   (prog1 (or ; ruturn
+;;           ;; search backward
+;;           (when (re-search-backward oai-block--markdown-begin-re lim-beg t)
+;;             (goto-char pos)
+;;             ;; backward for markdown block "end" after "begin"
+;;             (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))
+;;           (progn (goto-char pos)
+;;                  (beginning-of-line)
+;;                  (looking-at "^> ")))
+;;     (goto-char pos)))
+
+(defun oai-block--markdown-begin-end (pos limit-begin limit-end)
+  "Return (begin end) of markdown shallow block.
+If POS position is inside markdown block without specified language or
+specified.  Used in `oai-block-mark-at-point'.
+If there is two markdown begining with language we treat second as
+inside of first.
+Argument LIMIT-BEGIN LIMIT-END are positions ai block header and footer."
+  ;; (interactive (when-let ((reg (oai-block-contents-begin-end)))
+  ;;                (list (point) (car reg) (cadr reg))))
+  (oai--debug "oai-block--markdown-begin-end %s %s %s" pos limit-begin limit-end)
+  ;; fix limits
+  (when (and limit-begin (< pos limit-begin))
+    (setq limit-begin pos))
+  (when (and limit-end (> pos limit-end))
+    (setq limit-end pos))
+  ;; (oai--debug "oai-block--markdown-begin-end0 %s %s %s" pos limit-begin limit-end)
+  (let (beg
+        beg-cont
+        end found)
+    (goto-char limit-begin)
+    ;; 1) find begining with or without language
+    (oai--debug "oai-block--markdown-begin-end11 %s %s %s %s" (point) limit-begin limit-end found)
+    (while (and (< (point) limit-end)
+                (re-search-forward oai-block--markdown-beg-end-re limit-end t)
+                (not found))
+      (oai--debug "oai-block--markdown-begin-endss yes")
+      (unless (string-match-p "```" (match-string 1)) ; should not be flat quoted list
+        (oai--debug "oai-block--markdown-begin-end yes")
+        (setq beg-cont (point)) ; end of head line
+        (setq beg (match-beginning 0)) ; end of head line
+        (forward-line)
+        ;; 2) find end
+        (when (and (re-search-forward oai-block--markdown-end-re limit-end t)
+                   (not found))
+          ;; save
+          (setq end (1+ (match-beginning 0)))
+          (oai--debug "oai-block--markdown-begin-end1 %s %s %s" pos beg end)
+          (when (and (>= pos beg) (<= pos end))
+            (setq found (list (1+ beg-cont) end))))))
+    found))
+
+
+;; (defun oai-block--markdown-lang-begin-end (pos limit-beg limit-end)
+;;   "Return (begin end) of markdown language block.
+;; If POS in it.
+;; Optional argument LIM-BEG is ai block begining position.
+;; Return t if pos in markdown block, table or quote.
+;; Side-effect: set pointer position to POS."
+;;   (goto-char pos)
+;;   ;; fix limits
+;;   (when (and limit-begin (< point-pos limit-begin))
+;;     (setq limit-begin point-pos))
+;;   (when (and limit-end (> point-pos limit-end))
+;;     (setq limit-end point-pos))
+;;   (prog1 (let ((beg end))
+;;            ;; not markdown blocks
+;;            ;; backward for markdown block "begin"
+;;            (when (re-search-backward oai-block--markdown-begin-re limit-beg t)
+;;              ;; save
+;;              (forward-line)
+;;              (setq beg (line-end-position))
+;;              ;; restore
+;;              (goto-char pos)
+;;              ;; backward for markdown block "end" after "begin"
+;;              (unless (re-search-backward oai-block--markdown-end-re (match-end 0) t)
+;;                (when (re-search-forward oai-block--markdown-end-re limit-end t)
+;;                  (unless (re-search-backward oai-block--markdown-begin-re pos t)
+;;                    (list beg (match-beginning 0)))))))
+;;     (goto-char pos)))
+
+
+
+
+(defun oai-block--at-special-p (pos &optional dont-check-tables)
+  "Check if POS in markdown block, quoted or is a table.
+Optional argument LIM-BEG is ai block begining position.
+Return t if pos in markdown block, table or quote.
+Side-effect: set pointer position to POS.
+If Optional argument DONT-CHECK-TABLES is not-nil disable checking if
+pos at Org table."
+  (goto-char pos)
+  (prog1  ;; ;; not markdown blocks
+          ;; ;; backward for markdown block "begin"
+          ;; (when (re-search-backward oai-block--markdown-begin-re lim-beg t)
+          ;;   (goto-char pos)
+          ;;   ;; backward for markdown block "end" after "begin"
+          ;;   (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))
+          ;; (oai-block--markdown-begin-end pos lim-beg lim-end)
+          ;; (get-text-property pos 'oai-markdown-block)
+          ;; not quotes
+          (progn (goto-char pos)
+                 (beginning-of-line)
+                 (or (looking-at "^\\s-*> ") ; from `oai-block-fill-region-as-paragraph'
+                     (and (not dont-check-tables) (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
+    (goto-char pos)))
+
+;; (defun oai-block-tags--in-markdown-quotes-at-line-p (pos)
+;;   "Return t if POS is inside a markdown single backquote.
+;; Region (`...`) on the current line.
+;; Return t at first and last quote too."
+;;   (goto-char pos)
+;;   (prog1 (let ((bol (line-beginning-position))
+;;                (eol (line-end-position))
+;;                (pos (point))
+;;                found)
+;;            (goto-char bol)
+;;            ;; Search for paired backquotes (`...`)
+;;            (while (and (re-search-forward "`" eol t) (not found))
+;;              (let ((start (match-beginning 0)))
+;;                (when (re-search-forward "`" eol t)
+;;                  (let ((end (match-end 0)))
+;;                    (when (and (>= pos start)
+;;                               (< pos end)) ; strictly between the two backquotes
+;;                      (setq found t))))))
+;;            found)
+;;     (goto-char pos)))
+
+(defun oai-block--in-markdown-quotes-p (pos &optional delimiter beg end)
+  "Return t if POS is inside any markdown quotes at current line.
+if BEG END not provided, look for DELIMITER at the current line only.
+DELIMITER should be a string (\"`\" or \"```\"), defaults to \"`\"."
+  (save-excursion
+    (let ((delimiter (or delimiter "`"))
+          (bol (or beg
+                   (progn (goto-char pos) (line-beginning-position))))
+          (eol (or end
+                   (progn (goto-char pos) (line-end-position))))
+          (found nil))
+      (goto-char bol)
+      (while (and (search-forward delimiter eol t) (not found))
+        (let ((start (match-beginning 0)))
+          (when (search-forward delimiter eol t)
+            (let ((end (match-end 0)))
+              (when (and (>= pos start)
+                         (< pos end))
+                (setq found t))))))
+      found)))
+
+(defun oai-block--in-markdown-single-quotes-p (pos)
+  "Return t if POS is inside a markdown single backquote (`...`).
+On current line or at quote itself."
+  (oai-block--in-markdown-quotes-p pos "`"))
+
+(defun oai-block--in-markdown-triple-quotes-p (pos)
+  "Return t if POS is inside a markdown triple backquote (```...```).
+On current line or at quote itself."
+  (oai-block--in-markdown-quotes-p pos "```"))
+
+(defun oai-block--in-markdown-any-quotes-p (pos)
+  "Return t if POS is inside any markdown backquote block at line.
+on the current line.
+\(`...` or ```...```\) on current line or at quote itself."
+  (or (oai-block--in-markdown-quotes-p pos "`")
+      (oai-block--in-markdown-quotes-p pos "```")))
+
+
 ;; -=-= Interactive
 
 (defun oai-block-mark-last-region ()
@@ -897,33 +1127,79 @@ The numeric ARG can be used for killing the last n."
 Mark Mardkown block or whole ai block.  If universal argument ARG is
 non-nil, then mark one chat message."
   (interactive "P")
+  (oai--debug "oai-block-mark-at-point0 %s %s" (point) arg)
   (if arg
       (oai-block-mark-region-at-point)
-    ;; else
-    (oai-block-tags-mark-md-block-body)))
+    ;; else - find block
+    (oai--debug "oai-block-mark-at-point01 %s" (point))
+    (when-let ((pos
+                ;; (progn (when (looking-at oai-block--markdown-beg-end-re)
+                ;;              (forward-line)) ; fix for oai-block--markdown-begin-end that dont work if pointer at markdown begining
+                           (point))
+               (reg (oai-block-contents-begin-end))) ; get beg end
+
+        (seq-let (beg end) reg
+          (push-mark nil t)
+          ;; - find markdown block
+          (oai--debug "oai-block-mark-at-point1 %s %s %s" pos beg end)
+          (if-let ((m-reg (oai-block--markdown-begin-end pos beg end)))
+              (when m-reg
+                (seq-let (m-beg m-end) m-reg
+                  (push-mark m-beg t)
+                  (goto-char (1- m-end))
+                  (activate-mark))
+                t)
+            ;; else - no markdown block
+            (goto-char pos)
+            ;; (let ((el (elemet-at-point)))
+            ;; (call-interactively 'org-mark-element)
+            ;; (exchange-point-and-mark)
+            )))))
+
+
+;; (defun oai-block-tags--markdown-mark-fenced-code-body (&optional limit-begin limit-end)
+;;   "Mark content inside Markdown fenced code block (```), excluding header/footer.
+;; LIMIT-BEGIN and LIMIT-END restrict the search region around point.
+;; Returns t if was marked, nil otherwise.
+;; Used in `oai-block-tags-mark-md-block-body'."
+;;   ;; fill limit-begin and limit-end - if they was not profiled
+;;   (when (not (and limit-begin limit-end))
+;;     (when-let* ((region (oai-block-tags--get-org-block-region))) ; maybe use `org-src--contents-area' ?
+;;       (setq limit-begin (car region))
+;;       (setq limit-end (cadr region))))
+
+;;   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range limit-begin limit-end))
+;;               (beg (car r))
+;;               (end (cadr r)))
+;;     (push-mark beg t)
+;;     (goto-char end)
+;;     (forward-line -1)
+;;     (end-of-line)
+;;     (activate-mark)
+;;     t))
+
 
 (defun oai-block-set-max-tokens ()
   "Jump to header of ai block and set max-tokens."
   (interactive)
-  (if-let ((el (oai-block-p)))
-
-      (let ((beg (progn (push-mark)
-                        (goto-char (org-element-property :contents-begin el))
-                        (forward-line -1)
-                        (point)))
-            pos)
+  (if-let ((element (oai-block-p)))
+      (progn
+        (push-mark)
+        (goto-char (car (oai-block-contents-begin-end element)))
+        (forward-line -1)
         (if (search-forward ":max-tokens" (line-end-position) t)
+            ;; if - 1) ;modify :max-tokens
             (if (eq (line-end-position) (point))
                 (insert " ")
-                ;; else
+              ;; else
               (forward-char))
-          ;; else
-          (goto-char beg)
+          ;; else - 2) add :max-tokens
+          ;; (goto-char beg)
           (forward-char 10)
           (insert " :max-tokens ")
-          (setq pos (point))
-          (insert (format "%s " oai-restapi-default-max-tokens))
-          (goto-char pos)))
+          (let ((pos (point)))
+            (insert (format "%s " oai-restapi-default-max-tokens))
+            (goto-char pos))))
     ;; else
     (message "Not oai block here.")))
 
@@ -1003,8 +1279,7 @@ Optional argument HASH not used."
       (setq end (copy-marker (point) t))
       (org-babel-examplify-region beg end "")
       ;; finally
-      (when outside-scope (narrow-to-region visible-beg visible-end)) ;; ---- NARROW
-      ))
+      (when outside-scope (narrow-to-region visible-beg visible-end)))) ;; ---- NARROW
   t)
 
 (defun oai-block-where-is-result (&optional insert _info hash)
@@ -1087,118 +1362,58 @@ the rest of the result."
 	   (progn (forward-line) (org-babel-result-end))))))))
 
 
-;; -=-= Markdown block check pos
 
-(defun oai-block--in-markdown (pos &optional lim-beg)
-  "Check if POS in markdown block, quoted or is a table.
-Optional argument LIM-BEG is ai block begining position.
-Return t if pos in markdown block, table or quote.
-Side-effect: set pointer position to POS.
-Same as `oai-block-tags--is-special'."
-  (goto-char pos)
-  (prog1 (or
-          ;; not markdown blocks
-          ;; backward for markdown block "begin"
-          (when (re-search-backward oai-block--markdown-begin-re lim-beg t)
-            (goto-char pos)
-            ;; backward for markdown block "end" after "begin"
-            (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))
-          (progn (goto-char pos)
-                 (beginning-of-line)
-                 (looking-at "^> ")))
-    (goto-char pos)))
-
-;; (defun oai-block-tags--in-markdown-quotes-at-line-p (pos)
-;;   "Return t if POS is inside a markdown single backquote.
-;; Region (`...`) on the current line.
-;; Return t at first and last quote too."
-;;   (goto-char pos)
-;;   (prog1 (let ((bol (line-beginning-position))
-;;                (eol (line-end-position))
-;;                (pos (point))
-;;                found)
-;;            (goto-char bol)
-;;            ;; Search for paired backquotes (`...`)
-;;            (while (and (re-search-forward "`" eol t) (not found))
-;;              (let ((start (match-beginning 0)))
-;;                (when (re-search-forward "`" eol t)
-;;                  (let ((end (match-end 0)))
-;;                    (when (and (>= pos start)
-;;                               (< pos end)) ; strictly between the two backquotes
-;;                      (setq found t))))))
-;;            found)
-;;     (goto-char pos)))
-
-(defun oai-block--in-markdown-quotes-p (pos &optional delimiter beg end)
-  "Return t if POS is inside any markdown quotes.
-if BEG END not provided, look for DELIMITER at the current line only.
-DELIMITER should be a string (\"`\" or \"```\"), defaults to \"`\"."
-  (save-excursion
-    (let ((delimiter (or delimiter "`"))
-          (bol (or beg
-                   (progn (goto-char pos) (line-beginning-position))))
-          (eol (or end
-                   (progn (goto-char pos) (line-end-position))))
-          (found nil))
-      (goto-char bol)
-      (while (and (search-forward delimiter eol t) (not found))
-        (let ((start (match-beginning 0)))
-          (when (search-forward delimiter eol t)
-            (let ((end (match-end 0)))
-              (when (and (>= pos start)
-                         (< pos end))
-                (setq found t))))))
-      found)))
-
-(defun oai-block--in-markdown-single-quotes-p (pos)
-  "Return t if POS is inside a markdown single backquote (`...`).
-On current line or at quote itself."
-  (oai-block--in-markdown-quotes-p pos "`"))
-
-(defun oai-block--in-markdown-triple-quotes-p (pos)
-  "Return t if POS is inside a markdown triple backquote (```...```).
-On current line or at quote itself."
-  (oai-block--in-markdown-quotes-p pos "```"))
-
-(defun oai-block--in-markdown-any-quotes-p (pos)
-  "Return t if POS is inside any markdown backquote block.
-on the current line.
-\(`...` or ```...```\) on current line or at quote itself."
-  (or (oai-block--in-markdown-quotes-p pos "`")
-      (oai-block--in-markdown-quotes-p pos "```")))
-
-
-;; -=-= Fontify
+;; -=-= Fontify: help functions
 (defun oai-block--fontify-markdown-subblocks (start end)
   "Fontify ```language ... ``` fenced mardown code blocks.
 We search for begining of block, then for end of block, then fontify
  with `org-src-font-lock-fontify-block'.
 Argument START and END are limits for searching."
+  ;; (print (list "oai-block--fontify-markdown-subblocks" start end))
   (goto-char start)
   (let ((case-fold-search t))
     (while (and (< (point) end)
-                (re-search-forward oai-block--markdown-begin-re end t))
-      (let* ((lang (match-string 1))
-             (block-begin (match-end 0))
-             (block-begin-begin (match-beginning 0)))
-        ;; (print (list "re-search-forward4" (point) end))
-        (when (re-search-forward oai-block--markdown-end-re end t)
+                (re-search-forward oai-block--markdown-beg-end-re end t))
+
+
+      (let ((lang (match-string 1))
+            (block-begin (match-end 0))
+            (block-begin-begin (match-beginning 0)))
+        ;; no ``` at the same line
+        (when (and (or (not  lang)
+                       (and lang (not (string-match-p "```" lang))))
+                   (re-search-forward oai-block--markdown-end-re end t))
           (let ((block-end (match-beginning 0))
                 (block-end-end (match-end 0)))
-            (when (fboundp (org-src-get-lang-mode lang)) ; for org-src-font-lock-fontify-block
-              ;; - fontify begin and end of markdown block
-              (remove-text-properties block-begin-begin block-begin
-                                      (list 'face '(org-block)))
-              (remove-text-properties block-end block-end-end
-                                      (list 'face '(org-block)))
-              (add-text-properties
-               block-begin-begin block-begin
-               '(face org-block-begin-line))
-              (add-text-properties
-               block-end block-end-end
-               '(face org-block-end-line))
+            ;; - fontify begin and end of markdown block
+            (remove-text-properties block-begin-begin block-begin
+                                    (list 'face '(org-block)))
+            (remove-text-properties block-end block-end-end
+                                    (list 'face '(org-block)))
+            (add-text-properties
+             block-begin-begin block-begin
+             '(face org-block-begin-line))
+            (add-text-properties
+             block-end block-end-end
+             '(face org-block-end-line))
+
+            (remove-text-properties block-begin block-end '(face nil))
+            ;; Add Org faces.
+            (let ((src-face (nth 1 (assoc-string lang org-src-block-faces t))))
+              (when (or (facep src-face) (listp src-face))
+                (font-lock-append-text-property start end 'face src-face))
+              (font-lock-append-text-property start end 'face 'org-block))
+
+            ;; (put-text-property block-end block-end-end 'face 'org-block-end-line)
+            ;; (unless (and lang (string-match-p "```" lang))
+            (when (and lang
+                       (not (string-match-p "```" lang))
+                       (fboundp (org-src-get-lang-mode lang))) ; for org-src-font-lock-fontify-block
               ;; - fontify code inside markdown block
               (org-src-font-lock-fontify-block lang block-begin block-end)
+              ;; - text property
+              (put-text-property block-begin block-end
+                                 'oai-markdown-block t)
               t)))))))
 
 (defun oai-block--fontify-markdown-subblocks-shallow (lim-beg lim-end)
@@ -1210,7 +1425,7 @@ Argument LIM-END ai block ending."
     (prog1 (while (re-search-forward oai-block--markdown-end-re lim-end t)
              (setq sbeg (match-beginning 0))
              (setq send (match-end 0))
-             (unless (oai-block--in-markdown send lim-beg)
+             (unless (oai-block--at-special-p send)
                (put-text-property sbeg send 'face '(org-meta-line))))
       (goto-char lim-end))))
 
@@ -1222,7 +1437,7 @@ Executed in `font-lock-defaults' chain."
     (goto-char start) ; in case
     (while (re-search-forward "^[\s-]*|" end t)
       (setq mbeg (match-beginning 0)) ; (prop-match-beginning match))
-      (unless (oai-block--in-markdown mbeg start)
+      (unless (oai-block--at-special-p mbeg)
         (end-of-line)
         ;; (remove-text-properties mbeg (point)
         ;;                         (list 'face '(org-block)))
@@ -1230,41 +1445,188 @@ Executed in `font-lock-defaults' chain."
                            'face 'org-table)
         t))))
 
-(defun oai-block--fontify-markdown-headers-and-formatting (start end)
+(defface oai-block-quote
+  '(
+    (((class color) (min-colors 88) (background light)) (:background "#eeeeee" :foreground "gray"))
+    (((class color) (min-colors 88) (background dark))  (:background "#282828" :foreground "shadow"))
+    (((class color) (min-colors 16) (background light)) (:background "#eeeeee" :foreground "gray"))
+    (((class color) (min-colors 16) (background dark))  (:background "#282828" :foreground "shadow"))
+    (((class color) (min-colors 8)) (:background "cyan" :foreground "black"))
+    (t (:inverse-video t)))
+  "Face for single markdown quoted text."
+  :group 'oai-faces)
+
+(defface oai-block-m-header1
+  '((((class grayscale) (background light))
+     :foreground "Gray90" :weight bold :slant italic)
+    (((class grayscale) (background dark))
+     :foreground "DimGray" :weight bold :slant italic)
+    (((class color) (min-colors 88) (background light)) :foreground "green3")
+    (((class color) (min-colors 88) (background dark))  :foreground "chartreuse1")
+    (((class color) (min-colors 16) (background light)) :foreground "gold1")
+    (((class color) (min-colors 16) (background dark))  :foreground "chartreuse1")
+    (((class color) (min-colors 8)) :foreground "yellow" :weight light)
+    (t :weight bold :slant italic))
+  "Face for single markdown header single # character."
+  :group 'oai-faces)
+
+(defface oai-block-m-header2
+  '((((class grayscale) (background light))
+     :foreground "Gray90" :weight bold :slant italic)
+    (((class grayscale) (background dark))
+     :foreground "DimGray" :weight bold :slant italic)
+    (((class color) (min-colors 88) (background light)) :foreground "gold3")
+    (((class color) (min-colors 88) (background dark))  :foreground "gold1")
+    (((class color) (min-colors 16) (background light)) :foreground "gold1")
+    (((class color) (min-colors 16) (background dark))  :foreground "gold1")
+    (((class color) (min-colors 8)) :foreground "gold" :weight light)
+    (t :weight bold :slant italic))
+  "Face for single markdown header two # characters."
+  :group 'oai-faces)
+
+(defface oai-block-m-header3
+  '((((class grayscale) (background light))
+     :foreground "Gray90" :weight bold :slant italic)
+    (((class grayscale) (background dark))
+     :foreground "DimGray" :weight bold :slant italic)
+    (((class color) (min-colors 88) (background light)) :foreground "gold4")
+    (((class color) (min-colors 88) (background dark))  :foreground "gold3")
+    (((class color) (min-colors 16) (background light)) :foreground "gold3")
+    (((class color) (min-colors 16) (background dark))  :foreground "gold3")
+    (((class color) (min-colors 8)) :foreground "orange" :weight light)
+    (t :weight bold :slant italic))
+  "Face for single markdown header three and more # characters."
+  :group 'oai-faces)
+
+(defface oai-block-m-header4
+  '((((class grayscale) (background light))
+     :foreground "Gray90" :weight bold :slant italic)
+    (((class grayscale) (background dark))
+     :foreground "DimGray" :weight bold :slant italic)
+    (((class color) (min-colors 88) (background light)) :foreground "orange3")
+    (((class color) (min-colors 88) (background dark))  :foreground "orange1")
+    (((class color) (min-colors 16) (background light)) :foreground "orange1")
+    (((class color) (min-colors 16) (background dark))  :foreground "orange1")
+    (((class color) (min-colors 8)) :foreground "orange" :weight light)
+    (t :weight bold :slant italic))
+  "Face for single markdown header three and more # characters."
+  :group 'oai-faces)
+
+(defun oai-block--fontify-markdown-headers (start end)
+  "Fontify started with # character headers.
+Argument START END are block begin and end, used as limits here."
+    (goto-char start)
+    (while (re-search-forward "^\\(#+\\)\\s-+\\(.*\\)$" end t)
+      ;; (print (point))
+
+      (let ((b1 (match-beginning 1))
+            (e1 (match-end 1))
+            (b2 (match-beginning 2))
+            (e2 (match-end 2))
+            (hash-chars-length (1- (length (match-string 1))))
+            (colors '(oai-block-m-header1 oai-block-m-header2 oai-block-m-header3 oai-block-m-header4)))
+        ;; (goto-char b1)
+        ;; (while (re-search-forward "#" e1 t)
+        ;; (print (list "#" i (nth i colors)))
+
+        ;; (unless (oai-block--at-special-p b1)
+        ;; Group 1: the '#' chars
+        (put-text-property b1 e1
+                           'face
+                           (if (<= hash-chars-length 3)
+                               (nth hash-chars-length colors)
+                             ;; else
+                             'oai-block-m-header4))
+        ;;   (setq i (1+ i)))
+        ;; (when (looking-at "\\s-[1-9][).]\\s-")
+           (goto-char e1)
+           (when (re-search-forward "\\s-\\([1-9a-lA-L][).]\\)\\s-" (line-end-position) t)
+             ;; (print (list (match-beginning 1)  e1))
+             (when (eql (match-beginning 1)  (1+ e1))
+               (put-text-property (match-beginning 1) (match-end 1)
+                                  'face
+                                  (if (<= hash-chars-length 3)
+                                      (nth hash-chars-length colors)
+                                    ;; else
+                                    oai-block-m-header4))))
+        ;;   (put-text-property (match-beginning 1) (match-end 1)
+        ;;                      'face (nth (1- i) colors))
+        ;;   ;; (print (list "cyes" (match-string 1)))
+        ;;   )
+        ;; )
+        ;; (put-text-property b1 e1
+        ;;                    'face 'outline-2)
+        ;; ;; Group 2: the header text
+        ;; (put-text-property b2 e2
+        ;;                    'face 'outline-1)
+        ;; )
+        (goto-char e2)))
+    (goto-char end))
+
+(defun oai-block--fontify-markdown-single-quotes-and-formatting (start end)
   "Fontify markdown features between START and END.
-- Bold markers (** and ***).
-- Headers: '#' vs header text."
+- Bold markers (*, ** and ***).
+- Headers: '#' and header text.
+Org vs Markdown -
+- Markdown - formatting only applies to contiguous spans of text
+ with the markers on the same line.
+- Org - may be split with new line.
+We dont support Org-like split.  LLMs commonly think that Org dont
+support splitting."
   (let (b1 e1 b2 e2)
     (goto-char start)
     ;; 1. *Bold*
-    (while (re-search-forward "\\(^\\|[^*]\\)\\(\\*\\*\\*\\|\\*\\*\\)" end t)
-      (setq b2 (match-beginning 2))
-      (setq e2 (match-end 2))
-      (unless (oai-block--in-markdown b2 start)
+    ;; (while (re-search-forward "\\(^\\|[^*]\\)\\(\\*\\*\\*\\|\\*\\*\\)" end t) ; lines not started with *
+    (while (re-search-forward "\\*\\{1,3\\}\\w" end t) ; lines not started with *
+      (goto-char (match-beginning 0))
+      (if (re-search-forward "\\*\\{1,3\\}\\(\\w[^*]+\\)\\*\\{1,3\\}" (line-end-position) t)
+      ;; (if (re-search-forward "\\*\\{2,3\\}\\(\\w[^*]+\\)\\*\\{2,3\\}" (line-end-position) t)
+          (progn
+            (setq e1 (match-end 0))
+            (setq b2 (match-beginning 1)) ; **asd**
+            (setq e2 (match-end 1))
+            (unless (oai-block--at-special-p b2)
 
-        ;; Only fontify the marker, not surrounding text
-        (put-text-property b2 e2
-                           'face '(bold)))
-      (goto-char e2))
 
-    ;; 2. "## Headers": separate font for '#' chars and header text
+              ;; Only fontify the marker, not surrounding text
+              (put-text-property b2 e2
+                                 ;; 'face '(bold)))
+                                 'face 'default))
+            (goto-char e1))
+        ;; else
+        (forward-line)))
+    ;; 2. `quote` RosyBrown1
     (goto-char start)
-    (while (re-search-forward "^\\(#+\\)\\s-+\\(.*\\)$" end t)
+    (while (re-search-forward "`[^`]" end t) ; lines not started with *
+      (goto-char (match-beginning 0))
+      (if (re-search-forward "`\\([^`]+\\)`" (line-end-position) t)
+          ;; (if (re-search-forward "`\\(\\([^`]+\\|\\)\\)`" (line-end-position) t)
+          (progn
+            (setq e1 (match-end 0))
+            (setq b2 (match-beginning 1))
+            (setq e2 (match-end 1))
+            (unless (oai-block--at-special-p b2)
 
-      (setq b1 (match-beginning 1))
-      (setq e1 (match-end 1))
-      (setq b2 (match-beginning 2))
-      (setq e2 (match-end 2))
-      ;; (print "wtf1")
-      (unless (oai-block--in-markdown b1 start)
-        ;; Group 1: the '#' chars
-        (put-text-property b1 e1
-                           'face 'outline-2)
-        ;; Group 2: the header text
-        (put-text-property b2 e2
-                           'face 'outline-1))
-      (goto-char e2))
+
+              ;; Only fontify the marker, not surrounding text
+              (put-text-property b2 e2
+                                 'face 'oai-block-quote)) ; org-clock-overlay org-agenda-restriction-lock
+            ;; org-document-info
+                                 ;; org-formula
+                                        ; org-headline-done
+                                 ;; 'face '(default)))
+            (goto-char e1))
+        ;; else
+        (forward-line)))
     (goto-char end))) ;; Return t if performed work.
+
+
+(defface oai-chat-role	   ;Copied from `font-lock-variable-name-face'
+  '((((class color) (min-colors 16) (background light)) (:foreground "gray" :slant italic))
+    (((class color) (min-colors 16) (background dark)) (:foreground "DarkGoldenrod" :slant italic))
+    (((class color) (min-colors 8)) (:foreground "yellow" :weight light :slant italic)))
+  "Face used for [AI]: [ME]:."
+  :group 'oai-faces)
 
 
 (defun oai-block--fontify-me-ai-chat-prefixes (lim-beg lim-end)
@@ -1276,10 +1638,11 @@ Argument LIM-END ai block ending."
     (prog1 (while (re-search-forward oai-block--chat-prefixes-re lim-end t)
              (setq sbeg (match-beginning 0))
              (setq send (match-end 0))
-             (unless (oai-block--in-markdown send lim-beg)
+             (unless (oai-block--at-special-p send)
                ;; (goto-char send)
                ;; (remove-text-properties sbeg (point) (list 'face '(org-block)))
-               (put-text-property sbeg send 'face '(bold)))) ; 'oai-block--me-ai-chat-prefixes-font-face
+               (put-text-property sbeg send 'face 'oai-chat-role))) ; 'oai-block--me-ai-chat-prefixes-font-face
+               ;; (put-text-property sbeg send 'face '(default)))) ; 'oai-block--me-ai-chat-prefixes-font-face
       (goto-char lim-end))))
 
 (defun oai-block--fontify-latex-blocks (lim-beg lim-end)
@@ -1293,55 +1656,88 @@ We search for \\[...\\] multiline \\(...\\) from LIM-BEG to LIM-END."
       (setq sbeg (match-beginning 0))
       (setq send (match-end 0))
 
-      (unless (or (oai-block--in-markdown send lim-beg) ; multiline block with language
+      (unless (or (oai-block--at-special-p send t) ; multiline block with language
                   (oai-block--in-markdown-any-quotes-p send)) ; line
-        ;; (print "sss2")
         (org-src-font-lock-fontify-block "latex" sbeg send))
       (goto-char send))
     ;; Inline \\( ... \\) - at one line
     (goto-char lim-beg)
-    (while (re-search-forward "\\\\\(.*\\\\\)" lim-end t)
+    (while (re-search-forward "[^\\(]\\\\\(.*\\\\\)[^\\)]" lim-end t)
       (setq sbeg (match-beginning 0))
       (setq send (match-end 0))
-      (unless (or (oai-block--in-markdown send lim-beg)
+      (unless (or (oai-block--at-special-p send t)
                   (oai-block--in-markdown-any-quotes-p send)) ; line
         (org-src-font-lock-fontify-block "latex" sbeg send))
       (goto-char send))
     (goto-char lim-end)))
 
+;; -=-= Fontify: main
 (defun oai-block--font-lock-fontify-markdown-and-org (limit)
-  "Fontify markdown subblocks in ai blocks, up to LIMIT.
+  "Fontify markdown elements in ai blocks, up to LIMIT.
 This is special fontify function, that return t when match found.
 We insert advice right after `org-fontify-meta-lines-and-blocks-1' witch
 called as a part of Org Font Lock mode configuration of keywords (in
 `org-set-font-lock-defaults' and corresponding font-lock highlighting
 rules in `font-lock-defaults' variable.
 TODO: fontify if there is only end of ai block on page."
+  ;; (print (list "oai-block--font-lock-fontify-markdown-and-org" (point) limit))
   (let ((case-fold-search t)
         beg end)
     (while (and (< (point) limit)
                 (re-search-forward oai-block--ai-block-begin-re limit t))
       (setq beg (match-end 0))
-      (if (re-search-forward oai-block--ai-block-end-re nil t)
+      (if (re-search-forward oai-block--ai-block-end-re limit t)
           (setq end (match-beginning 0))
         ;; else - end of block not found, apply block to the limit
         (setq end limit))
       ;; - apply fontification
+      ;; As a general rule, we apply the element (container) faces
+      ;; first and then prepend the object faces on top.
       (save-match-data
+
+        ;; [AI]: [ME]:
         (oai-block--fontify-me-ai-chat-prefixes beg end)
-        ;; ```block
-        (when oai-block-fontify-markdown-flag
-          (oai-block--fontify-markdown-subblocks-shallow beg end)
-          (oai-block--fontify-markdown-subblocks beg end))
         ;; table
         (when oai-block-fontify-org-tables-flag
           (oai-block--fontify-org-tables beg end))
         ;; headers and *bold*
         (when oai-block-fontify-markdown-headers-and-formatting
-          (oai-block--fontify-markdown-headers-and-formatting beg end))
+          (oai-block--fontify-markdown-headers beg end)
+          (oai-block--fontify-markdown-single-quotes-and-formatting beg end))
         ;; LaTeX startin with [ or (
         (when oai-block-fontify-latex
-          (oai-block--fontify-latex-blocks beg end)))
+          (oai-block--fontify-latex-blocks beg end))
+        ;; ```block
+        (when oai-block-fontify-markdown-flag
+          ;; (oai-block--fontify-markdown-subblocks-shallow beg end)
+          (oai-block--fontify-markdown-subblocks beg end)))
+      (goto-char end))
+    ;; required by font lock mode:
+    (goto-char limit))) ; return t
+
+(defun oai-block--font-lock-fontify-markdown-blocks (limit)
+  "Fontify markdown subblocks in ai blocks, up to LIMIT.
+Used as separate function with `oai-block--font-lock-fontify-markdown-and-org'
+for applying after others to replace smaller elements.
+TODO: fontify if there is only end of ai block on page."
+  ;; (print (list "oai-block--font-lock-fontify-markdown-and-org" (point) limit))
+  (let ((case-fold-search t)
+        beg end)
+    (while (and (< (point) limit)
+                (re-search-forward oai-block--ai-block-begin-re limit t))
+      (setq beg (match-end 0))
+      (if (re-search-forward oai-block--ai-block-end-re limit t)
+          (setq end (match-beginning 0))
+        ;; else - end of block not found, apply block to the limit
+        (setq end limit))
+      ;; - apply fontification
+      ;; As a general rule, we apply the element (container) faces
+      ;; first and then prepend the object faces on top.
+      (save-match-data
+        ;; ```block
+        (when oai-block-fontify-markdown-flag
+          ;; (oai-block--fontify-markdown-subblocks-shallow beg end)
+          (oai-block--fontify-markdown-subblocks beg end)))
       (goto-char end))
     ;; required by font lock mode:
     (goto-char limit))) ; return t

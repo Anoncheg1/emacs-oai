@@ -32,16 +32,16 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 * Files
 | File              | Purpose                                                            |
 |-------------------+--------------------------------------------------------------------|
-| oai.el            | minor Org oai-mode and ~C-c C-c~ request activation command        |
+| oai.el            | minor Org oai-mode and ~C-c C-c~ activation of #+begin_ai          |
 | oai-restapi.el    | Connection to REST API (OpenAI-compatible)                         |
 | oai-block.el      | handling ai block                                                  |
-| oai-block-tags.el | Expand tags and links                                              |
+| oai-block-tags.el | Expand tags and links in block                                     |
 | oai-timers.el     | Managing requests, buffers and notifications                       |
 | oai-prompt.el     | (optional) Working with prompt-engineering, :chain parameter       |
 | oai-async1.el     | (optional) Solve “callback hell” for url.el, used by oai-prompt.el |
 | oai-optional.el   | (optional) Hooks functions for postprocessing                      |
 
-* Supported services
+* Supported services *
 - OpenAI
 - Azure-OpenAI
 - Perplexity.ai
@@ -50,8 +50,11 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 - Google
 - Github
 - Together
+- llama.cpp
 
 oai-restapi-con-service [[./oai-restapi.el]]
+
+[*] According to the Free Software philosophy, in practice all remote LLMs are considered SaaSS (Service as a Software Substitute). Rather than communicating directly with users, these systems perform remote computation for every visitor. They not provide access to *data, model weights, code*, or licensing rights needed to reproduce the model.
 * Installation
 ** Installation - from MELPA
 1) add to ~.emacs~
@@ -187,9 +190,10 @@ There are two hooks for that:
 
 More info: [[doc.org]] in /Main path of JSON decoding/ section.
 ** Custom roles
-There are `oai-block-roles' variable that allow to customize roles at step of parsing messages from ai block.
+There are ~oai-block-roles-prefixes~ variable that allow to customize roles at step of parsing ai block before sending.
 
-For [[oai-restapi.el]] uses symbols as in `oai-block-roles'.
+For incoming RestAPI conversion to prefixes ~oai-block-roles-restapi~ variable used.
+
 * Org functions for block
 - org-in-src-block-p = oai-block-p
 - oai-block-insert-result = oai-block-insert-result

@@ -407,7 +407,11 @@ as
 
 ;; -=-= Test: `oai-block--stringify-chat-messages'
 (ert-deftest oai-tests-block--stringify-chat-messages1()
-  (let ((parts
+  (let ((oai-block-roles-prefixes '(("SYS" . system)
+                                   ("ME" . user)
+                                   ("AI" . assistant)
+                                   ("AI_REASON" . assistant_reason)))
+        (parts
          (list
           (list :role 'user :content "Hi." )
           (list :role 'user :content "How are you?" )
@@ -426,21 +430,20 @@ as
 
 
 (ert-deftest oai-tests-block--stringify-chat-messages2 ()
-  (should
-   (string-equal
-    (oai-block--stringify-chat-messages '[(:role system :content "system")
-                                            (:role user :content "user")
-                                            (:role assistant :content "assistant")])
-    "[SYS]: system\n\n[ME]: user\n\n[AI]: assistant"))
-  (let ((oai-block-roles '(("SYS1" . system)
+  (let ((oai-block-roles-prefixes '(("SYS1" . system)
                            ("ME2" . user)
-                           ("AI3" . assistant))))
-    (should
-     (string-equal
-      (oai-block--stringify-chat-messages '[(:role user :content "user")
-                                            (:role assistant :content "assistant")]
-                                          "system1")
-      "[SYS1]: system1\n\n[ME2]: user\n\n[AI3]: assistant"))))
+                           ("AI3" . assistant)))
+        res)
+    (setq res (oai-block--stringify-chat-messages '[(:role system :content "system")
+                                            (:role user :content "user")
+                                            (:role assistant :content "assistant")]))
+  (should
+   (string-equal res "[SYS1]: system\n\n[ME2]: user\n\n[AI3]: assistant"))
+  (setq res (oai-block--stringify-chat-messages '[(:role user :content "user")
+                                                  (:role assistant :content "assistant")]
+                                                "system1"))
+  (should
+   (string-equal res "[SYS1]: system1\n\n[ME2]: user\n\n[AI3]: assistant"))))
 
 ;; -=-= Test: `oai-block--collect-chat-messages
 (ert-deftest oai-tests-block--collect-chat-messages()
@@ -541,7 +544,7 @@ as
 
     (let* ((role-payload "assistant")
            (rl (intern role-payload))
-           (role-prefix (car (rassoc rl oai-block-roles)))
+           (role-prefix (car (rassoc rl oai-block-roles-prefixes)))
            res)
 
     (oai-block--insert-stream-response (copy-marker (point))
@@ -672,7 +675,70 @@ as
 (ert-deftest oai-block--in-markdown-any-quotes-p-mixed-outside2 ()
   (should-not (oai-tests-block--test--with-temp-buffer-at-pos "ss`foo` and ```bar```" 0 #'oai-block--in-markdown-any-quotes-p)))
 
+;; -=-= Test: oai-block--markdown-begin-end
+(ert-deftest oai-tests-block-tags--markdown-begin-end ()
+  (let (kill-buffer-query-functions
+        org-execute-file-search-functions
+        points
+        res)
+    (with-temp-buffer
+      (org-mode)
+      (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
+      (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n#+end_ai")
+      (setq res (oai-block--markdown-begin-end (point-min) (point-min) (point-max)))
+      ;; (oai-block-tags--markdown-mark-fenced-code-body))))
+      (should-not res))
+    (with-temp-buffer
+      (goto-char (point-min))
+      (let(points)
+        (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"")
+        (push (point) points)
+        (insert "\n")
+        (push (point) points)
+        (insert "```elisp")
+        (push (point) points)
+        (insert "\n\n\n")
+        ;; (print (point))
+        (push (point) points)
+        (insert "```")
+        (push (point) points)
+        (insert "\n")
+        (push (point) points)
+        (insert "#+end_ai")
+        (insert "\n")
+      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
+      (should-not res)
+      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
+      (should-not res)
+      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
+      (should-not res)
+      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
+      (should (equal res '(100 101)))
+      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
+      (should (equal res '(100 101)))
+      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
+      (should-not res)))))
 
+
+;; -=-= Test: `oai-block-mark-at-point'
+(ert-deftest oai-tests-oai--mark-at-point ()
+    (with-temp-buffer
+      (org-mode)
+      (let (p1 p2
+            (oai-restapi-con-token '(:openai "test-token-openai")))
+        (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n")
+        (setq p1 (point))
+        (insert "```elisp\n")
+        (insert "as\n")
+        (setq p2 (point))
+        (insert "```\n#+end_ai")
+        (goto-char p1)
+        (call-interactively #'oai-block-mark-at-point)
+        (should (equal (list (region-beginning) (region-end)) '(100 103)))
+        (goto-char p2)
+        (call-interactively #'oai-block-mark-at-point)
+        (should (equal (list (region-beginning) (region-end)) '(100 103)))
+        )))
 ;; -=-= provide
 (provide 'oai-tests-block)
 

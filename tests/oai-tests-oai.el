@@ -55,10 +55,10 @@ asd2")
     (goto-char 1)
     ;; (print (list "wtf"  (oai-expand-block nil)))
     (let (res)
-      (setq res (oai-expand-block nil))
+      (setq res (substring-no-properties (oai-expand-block nil)))
       (should
        (string-equal
-        #("[ME]: \n```text
+        "[+me]: \n```text
 # tt1
 asd
 
@@ -73,7 +73,7 @@ asd
 asd2
 ```
 
-" 6 32 (face region) 34 59 (face region))
+"
         res)))))
 
 

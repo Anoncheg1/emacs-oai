@@ -73,8 +73,8 @@
 (require 'gv) ; for setf
 (require 'json) ; json-read, json-read-from-string, json-encode
 (require 'oai-debug)
-(require 'oai-block-tags)
 (require 'oai-block)
+(require 'oai-block-tags)
 (require 'oai-timers)
 (require 'oai-async1) ; for `oai-async1-plist-get'
 

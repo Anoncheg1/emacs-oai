@@ -62,16 +62,12 @@
 (require 'org)
 (require 'ol)
 (require 'oai-debug)
+(require 'oai-block)
 (require 'org-links nil 'noerror)
 
 ;;; Code:
 ;; -=-= variables
-;; (defvar oai-block-tags--regexes '(
-;;                                ;; :backtrace "@Backtrace`?\\([^a-zA-Z]\\|$\\)"
-;;                                ;; :backtrace "\\(`?@Backtrace`?\\)\\([^a-zA-Z\"']\\|$\\)"
-;;                                :backtrace "\\(`?@\\(Backtrace\\|Bt\\)`?\\)\\([^a-zA-Z\"']\\|$\\)"
-;;                                :path "`?@\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|/\\|\\\\\\|[A-Za-z]:\\\\\\)[a-zA-Z0-9_./\\\\-]*`?"
-;;                                           ))
+
 
 (defcustom oai-block-tags-backtrace-max-lines 12
   "Max lines to get from Backtrace buffer from begining.
@@ -121,16 +117,18 @@ and
 
 (defvar oai-block-tags-org-blocks-types '(comment-block center-block dynamic-block example-block
                                                         export-block quote-block special-block
-                                                        src-block verse-block)
+                                                        src-block verse-block inline-src-block) ; check: center-block dynamic-block quote-block verse-block
+                                                          ; add: ? latex-fragment? footnote-definition? inline-src-block?
   "Org block types that we wrap to markdown and may get by the first line.")
 
 
-(defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
-(defvar oai-block--markdown-end-re "^[\s-]*```[\s-]?$")
-(defvar oai-block--ai-block-begin-re "^#\\+begin_ai[^\n]*\n")
-(defvar oai-block--ai-block-end-re "^#\\+end_ai.*$")
+;; (defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
+;; (defvar oai-block--markdown-begin-re "^\\s-*```\\([\w\s_\-]*\\)\\s-*$")
+;; (defvar oai-block--markdown-end-re "^\\s-*```\\s-*$")
+;; (defvar oai-block--ai-block-begin-re "^#\\+begin_ai.*$")
+;; (defvar oai-block--ai-block-end-re "^#\\+end_ai.*$")
 
-(defvar oai-block--org-link-any-re (cl-letf (((symbol-function 'org-link-types)
+(defvar oai-block-tags--org-link-any-re (cl-letf (((symbol-function 'org-link-types)
                                               (lambda () (list "file"))))
                                      (let (
                                            org-link-types-re ; ret
@@ -274,55 +272,78 @@ PATH-STRING may be path to file or a directory."
 
 ;; (oai-block-tags--compose-block-for-path-full "/home/g/sources/nongnu/Makefile")
 ;; -=-= help functions: blocks
-(defun oai-block-tags--get-org-block-element ()
-  "Return Org block element at current position in current buffer.
-Same logic as in `oai-block-tags--get-org-block-region'."
-  (cl-letf (((symbol-function #'org-element--cache-active-p) (lambda (&rest _) nil)))
-    (with-syntax-table org-mode-transpose-word-syntax-table
-      (when-let* ((element
-                   (cl-loop with context = (org-element-context)
-                            while (and context
-                                       (not (member (org-element-type context) oai-block-tags-org-blocks-types)))
-                            do (setq context (org-element-property :parent context))
-                            finally return context)))
-        element))))
+;; (defun oai-block-tags--get-org-block-element ()
+;;   "Return Org block element at current position in current buffer.
+;; Same logic as in `oai-block-tags--get-org-block-region'."
+;;   (cl-letf (((symbol-function #'org-element--cache-active-p) (lambda (&rest _) nil)))
+;;     (with-syntax-table org-mode-transpose-word-syntax-table
+;;       (when-let* ((element
+;;                    (cl-loop with context = (org-element-context)
+;;                             while (and context
+;;                                        (not (member (org-element-type context) oai-block-tags-org-blocks-types)))
+;;                             do (setq context (org-element-property :parent context))
+;;                             finally return context)))
+;;         element))))
+
+;; (defun oai-block-tags--get-org-block-element ()
+;;   "Return Org block element at current position in current buffer.
+;; If position at begining of of ai block or in any place of supported
+;; blocks in `oai-block-tags-org-blocks-types'.
+;; Return nil otherwise."
+;;   (or (and (org-looking-at-p oai-block--ai-block-begin-re)
+;;            (oai-block-p))
+;;       (and (when (member (org-element-type (org-element-at-point)) oai-block-tags-org-blocks-types)
+;;              (org-element-at-point)))))
 
 (defun oai-block-tags--get-org-block-region (&optional element)
   "Return (beg end) pair for any Org block ELEMENT or nil.
+beg end is content begin and #+end.
+`org-src--contents-area'
 Works for ai block also."
-    (when-let* ((element
-                 (or element
-                     (oai-block-tags--get-org-block-element))))
-      (let ((beg (or (org-element-property :contents-begin element)
-                     (org-element-property :begin element)))
-            (end (or (org-element-property :contents-end element)
-                     (org-element-property :end element))))
-        ;; Bug end is wrong if "#\\+end_" at next line.
-        (when (and beg end)
-          ;; - skip headers if begin at header and fix end bug.
-          (save-excursion
-            (goto-char beg)
-            (when (or (looking-at "#\\+begin_")
-                      (search-forward "#+begin_" end t))
-              (forward-line) ; at begin of line after
-              (setq beg (point)))
-            (when
-                (search-forward "#+end_" end t)
-              (setq end (line-beginning-position)))
-            ;; ;; (goto-char end)
-            ;; (when (or (looking-at "#\\+end_")
-            ;;           (search-backward "#+end_" beg t))
-            ;; (forward-line -1)
-            ;; (setq end (line-beginning-position))
-            ))
-        (list beg end))))
+  (when-let* ((element (or (and element
+                                (when (member (org-element-type element)
+                                              oai-block-tags-org-blocks-types))
+                                element)
+                           (oai-block-p)
+                           (and (when (member (org-element-type (org-element-at-point)) oai-block-tags-org-blocks-types)
+                                (org-element-at-point))))))
+    (if (string-equal "ai" (org-element-property :type element))
+        (oai-block-contents-begin-end element)
+      ;; else
+      (nbutlast (org-src--contents-area element) 1)))) ; not support
+
+      ;; (let ((beg (or (org-element-property :contents-begin element)
+      ;;                (org-element-property :begin element)))
+      ;;       (end (or (org-element-property :contents-end element)
+      ;;                (org-element-property :end element))))
+      ;;   ;; Bug end is wrong if "#\\+end_" at next line.
+      ;;   (when (and beg end)
+      ;;     ;; - skip headers if begin at header and fix end bug.
+      ;;     (save-excursion
+      ;;       (goto-char beg)
+      ;;       (when (or (looking-at "#\\+begin_")
+      ;;                 (search-forward "#+begin_" end t))
+      ;;         (forward-line) ; at begin of line after
+      ;;         (setq beg (point)))
+      ;;       (when
+      ;;           (search-forward "#+end_" end t)
+      ;;         (setq end (line-beginning-position)))
+      ;;       ;; ;; (goto-char end)
+      ;;       ;; (when (or (looking-at "#\\+end_")
+      ;;       ;;           (search-backward "#+end_" beg t))
+      ;;       ;; (forward-line -1)
+      ;;       ;; (setq end (line-beginning-position))
+      ;;       ))
+      ;;   (list beg end))))
 
 (defun oai-block-tags--markdown-fenced-code-body-get-range (&optional limit-begin limit-end)
-  "Return (begin end) if point is inside a Markdown fenced block.
+  "Return (begin end) if point is inside a Markdown fenced language block.
+Blocks without language not supported
+Markdown block with language specified.
 Search for begining and end of block limited by LIMIT-BEGIN and
 LIMIT-END optional parameters.
 Begin in return at first line after header, end is last line.
-Return nil if begin or end of markdown block was not found."
+Return nil if begin or end of markdown block was not found or block is empty."
   (save-excursion
     (beginning-of-line)
     (let ((point-pos (point))
@@ -350,91 +371,34 @@ Return nil if begin or end of markdown block was not found."
             (when (re-search-forward oai-block--markdown-end-re (or limit-end nil) t)
               (setq end (match-beginning 0))
               (when (and (>= point-pos begin) (< point-pos end))
-                (list begin end)))))))))
+                (list (1+ begin) (1- end))))))))))
 
 
 (defun oai-block-tags--markdown-block-range ()
   "Return range if current position in current buffer in markdown block.
-Works for markdown block only inside some org block"
+Works for language markdown block only inside some org block."
   ;; check that we are in Org block
-  (when-let* ((region (oai-block-tags--get-org-block-region)) ; not working properly!!!
+  (when-let* ((region (oai-block-tags--get-org-block-region))
               (beg (car region))
               (end (cadr region)))
-  ;; (when-let* ((element ;; (oai-block-p))
-  ;;              (cl-loop with context = (org-element-context)
-  ;;                       while (and context
-  ;;                                  (not (member (org-element-type context) oai-block-tags-org-blocks-types))
-  ;;                                  ;; (not (equal 'special-block (org-element-type context)))
-  ;;                                  ;; (not (string-equal "ai" (org-element-property :type context)))
-  ;;                                  )
-  ;;                       do (setq context (org-element-property :parent context))
-  ;;                       finally return context))
   ;;             (beg (or (org-element-property :contents-begin element)
   ;;                      (org-element-property :begin element))
   ;;             (end (or (org-element-property :contents-end element)
   ;;                      (org-element-property :begin element)))
-      ;; (let ((search-pos 0)
-      ;;       (block-boundaries '()))
-      ;; (print (list beg end))
       (oai-block-tags--markdown-fenced-code-body-get-range beg end)))
-      ;; ;; Find all the '```' positions
-      ;; (while (string-match "```" str search-pos)
-      ;;   (push (match-beginning 0) block-boundaries)
-      ;;   (setq search-pos (match-end 0)))
-      ;; ;; Sort and pair boundaries
-      ;; (setq block-boundaries (sort block-boundaries #'<))
-      ;; (catch 'inside
-      ;;   (let ((bounds block-boundaries))
-      ;;     (while bounds
-      ;;       (let ((start (pop bounds))
-      ;;             (end (and bounds (pop bounds))))
-      ;;         (when (and end (>= pos start) (< pos end))
-      ;;           (throw 'inside t)))))
-      ;;   nil))))
-
-;; (re-search-backward oai-block--markdown-begin-re (or limit-begin nil) t)
 
 ;; -=-= help functions: get content for blocks
-
-;; (defun oai-block-tags--get-org-content-m-block (&optional element)
-;;   "Return markdown block for LLM for current ELEMENT at current position.
-;; Move pointer to the end of block.
-;; Steps: find max, min region of special-block/src-block/buffer
-;; `org-babel-read-element' from ob-core.el"
-;;   ;; (org-element-property :name (oai-block-p))
-;;   ;; 1) enshure that we are inside some Org block
-;;   (when-let* ((element (or element (oai-block-tags--get-org-block-element)))
-;;               (region (oai-block-tags--get-org-block-region element))
-;;               (beg (car region))
-;;               (end (cadr region)))
-
-;;     ;; Compose result block
-;;     ;; (goto-char end) ; for return
-;;     ;; (print "oai-block-tags--get-org-content-m-block")
-;;     (concat
-;;      ;; - 0 - Name
-;;      (when-let ((name (org-element-property :name element))) ; nil or string
-;;        (concat "\nBlock name: " name))
-;;      ;; - 1 - Header ```
-;;      (if (eq (org-element-type element) 'src-block)
-;;          (concat "\n```"  (org-element-property :language element) "\n")
-;;        ;; else
-;;        "\n```text\n")
-;;      ;; - 2 - Body
-;;      (string-trim (buffer-substring-no-properties beg end))
-;;      ;; - 3 - Footer ```
-;;      "\n```")))
 
 (defun oai-block-tags--get-org-content-m-block (&optional element)
   "Return markdown block for blocks in Org mode at current position.
 May ELEMENT instead.
-Support `oai-block-tags-org-blocks-types'.
+Works only supported blocks in `oai-block-tags-org-blocks-types'.
 Move pointer to the end of block.
 Steps: find max, min region of special-block/src-block/buffer
 `org-babel-read-element' from ob-core.el"
   ;; (org-element-property :name (oai-block-p))
   ;; 1) enshure that we are inside some Org block
-  (when-let* ((element (or element (oai-block-tags--get-org-block-element)))
+  (when-let* ((element (or element (oai-block-p) (org-element-at-point)))
               (region (oai-block-tags--get-org-block-region element))
               (beg (car region))
               (end (cadr region)))
@@ -447,11 +411,11 @@ Steps: find max, min region of special-block/src-block/buffer
                (concat "Block name: " name)))))
 
 
-
 (defun oai-block-tags--position-in-markdown-block-str-p (str pos) ; TODO: rewrite as `oai-block-tags--markdown-fenced-code-body-get-range' to return range or implement new.
   "Return list range if POS (an index) is inside a '```' code block in STR.
 Otherwise return nil.
-Substring '```content' without last '```'."
+Substring '```content' without last '```'.
+Used in `oai-block-tags--replace-last-regex-smart'."
   (save-match-data
     (let ((search-pos 0)
           (block-boundaries '()))
@@ -467,29 +431,32 @@ Substring '```content' without last '```'."
             (let ((start (pop bounds))
                   (end (and bounds (pop bounds))))
               (when (and end (>= pos start) (< pos end))
-                (throw 'inside block-boundaries)))))
+                (throw 'inside (list start end))))))
         nil))))
 
 
 (defun oai-block-tags--get-m-block ()
-  "Called for current point.
+  "Get language markdown block or markdown block at current line.
+Called for current point in current buffer.
+
+Return markdown language block with language.
 Return non-nil string of markdown block if exist at current position."
   (oai--debug "oai-block-tags--get-m-block1")
   (if-let ((range (oai-block-tags--markdown-block-range)))
       (save-excursion
         (buffer-substring-no-properties
          (progn (goto-char (car range))
-                ;; (forward-line -1)
+                ;; (forward-line -1) ; get markdown header too
                 (line-beginning-position 0))
          (progn (goto-char (cadr range))
-                ;; (forward-line)
+                (forward-line) ; get markdown footer too
                 (line-end-position))))
-    ;; else check if mardown block in one line
+    ;; else - flat mardown block in one line
     (when-let* ((line (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
                 (range (oai-block-tags--position-in-markdown-block-str-p line
                                                                          (- (point) (line-beginning-position)))))
       (oai--debug "oai-block-tags--get-m-block2" range)
-      (substring line (car range) (cadr range)))))
+      (concat (substring line (car range) (cadr range)) "```"))))
 
 
 ;; -=-= help function: line number for position
@@ -580,6 +547,67 @@ Works in any mode buffers.
    (t
     (user-error "No outline, function or paragraph was found to get a block"))))
 
+(defun oai-block-tags--get-content-at-point-org ()
+  "For position at begining of the line we prepare block for LLM."
+  (let* ((element (org-element-context))
+         (type (org-element-type element)))
+    (oai--debug "oai-block-tags--get-content-at-point type %s" type)
+    ;; - (1) case - headline
+    (cond
+     ((eq type 'headline)
+      (let ((replacement-list)
+            ;; (list "**" (org-element-property :title element) "**" "\n")) ; prepare header title
+            el ; current element in loop
+            type ; type of current element in loop
+            )
+        (push "\n```text" replacement-list)
+        ;; Loop over headlines, to process every blocks and org elements to markdown for LLM
+        (while (< (point) (org-element-property :end element))
+          ;; supported sub-elements: headline, blocks
+          (setq el (org-element-context))
+          (setq type (org-element-type el))
+
+          (push (cond
+                 ;; 1. Sub: Headline
+                 ((eq type 'headline)
+                  ;; make string: #*level + title
+                  (prog1 (concat "\n" (make-string (org-element-property :level el) ?#) " " (org-element-property :raw-value el))
+                    (forward-line))) ; MOVE!
+                 ;; 1. Sub: Block
+                 ((member type  oai-block-tags-org-blocks-types)
+                  (prog1 (oai-block-tags--get-org-content-m-block el)
+                    ;; (condition-case nil
+                    (org-forward-element) ; MOVE!
+                    ;; (org-next-item)
+                    ;; (error nil))
+                    ))
+                 (t ; others
+                  ;; (oai--debug "AAA1 %s" (buffer-substring-no-properties (line-beginning-position) (point-max)))
+                  (prog1
+                      (concat "\n" (buffer-substring-no-properties (line-beginning-position) (org-element-property :end el)))
+                    ;; (condition-case nil
+                    (org-forward-element)
+                    ;; (org-next-item)
+                    ;; (error nil))
+                    )))
+                replacement-list)
+          ;; (oai--debug "AAA" replacement-list)
+          ) ; push to
+        (push "\n```\n" replacement-list)
+        ;; (print (list "!!!!!!!!!" (reverse replacement-list)))
+        (apply #'concat (reverse replacement-list))))
+     ;; - (2) case - Markdown block - in ai block
+     ((oai-block-tags--get-m-block))
+     ;; - case - Org Block
+     ((member type  oai-block-tags-org-blocks-types)
+      (oai-block-tags--get-org-content-m-block element))
+     ;; - case - Org element with :end
+     ((if-let ((end (org-element-property :end element)))
+          (oai-block-tags--compose-m-block (buffer-substring-no-properties (line-beginning-position) end))))
+     ;; (oai-block-tags--markdown-block-range
+     ;; - (3) case -  Org block (or ai block)
+     (t
+      (user-error "Cant get content at point for link")))))
 
 (defun oai-block-tags--get-content-at-point ()
   "Return prepared block at current position.
@@ -597,65 +625,7 @@ Move pointer to the end of block."
   (if (not (derived-mode-p 'org-mode))
       (oai-block-tags--get-content-at-point-not-org)
     ;; else - Org mode
-    (let* ((element (org-element-context)) ; should not be changed
-           (type (org-element-type element)))
-      (oai--debug "oai-block-tags--get-content-at-point type %s" type)
-      ;; - (1) case - headline
-      (cond
-       ((eq type 'headline)
-        (let ((replacement-list)
-              ;; (list "**" (org-element-property :title element) "**" "\n")) ; prepare header title
-              el ; current element in loop
-              type ; type of current element in loop
-              )
-          (push "\n```text" replacement-list)
-          ;; Loop over headlines, to process every blocks and org elements to markdown for LLM
-          (while (< (point) (org-element-property :end element))
-            ;; supported sub-elements: headline, blocks
-            (setq el (org-element-context))
-            (setq type (org-element-type el))
-
-            (push (cond
-                   ;; 1. Sub: Headline
-                   ((eq type 'headline)
-                    ;; make string: #*level + title
-                    (prog1 (concat "\n" (make-string (org-element-property :level el) ?#) " " (org-element-property :raw-value el))
-                      (forward-line))) ; MOVE!
-                   ;; 1. Sub: Block
-                   ((member type  oai-block-tags-org-blocks-types)
-                    (prog1 (oai-block-tags--get-org-content-m-block el)
-                      ;; (condition-case nil
-                      (org-forward-element) ; MOVE!
-                      ;; (org-next-item)
-                      ;; (error nil))
-                      ))
-                   (t ; others
-                    ;; (oai--debug "AAA1 %s" (buffer-substring-no-properties (line-beginning-position) (point-max)))
-                    (prog1
-                        (concat "\n" (buffer-substring-no-properties (line-beginning-position) (org-element-property :end el)))
-                      ;; (condition-case nil
-                      (org-forward-element)
-                      ;; (org-next-item)
-                      ;; (error nil))
-                      )))
-                  replacement-list)
-            ;; (oai--debug "AAA" replacement-list)
-            ) ; push to
-          (push "\n```\n" replacement-list)
-          ;; (print (list "!!!!!!!!!" (reverse replacement-list)))
-          (apply #'concat (reverse replacement-list))))
-       ;; - (2) case - Markdown block
-       ((oai-block-tags--get-m-block))
-       ;; - case - Org Block
-       ((member type  oai-block-tags-org-blocks-types)
-        (oai-block-tags--get-org-content-m-block element))
-       ;; - case - Org element with :end
-       ((if-let ((end (org-element-property :end element)))
-            (oai-block-tags--compose-m-block (buffer-substring-no-properties (line-beginning-position) end))))
-       ;; (oai-block-tags--markdown-block-range
-       ;; - (3) case -  Org block (or ai block)
-       (t
-        (user-error "Cant get content at point for link")))))) ; should not happen in Org mode.
+    (oai-block-tags--get-content-at-point-org)))
 
 
 
@@ -862,26 +832,26 @@ Return replacement string."
 
 ;; -=-= help functions: markdown blocks
 
-(defun oai-block-tags--markdown-mark-fenced-code-body (&optional limit-begin limit-end)
-  "Mark content inside Markdown fenced code block (```), excluding header/footer.
-LIMIT-BEGIN and LIMIT-END restrict the search region around point.
-Returns t if was marked, nil otherwise.
-Used in `oai-block-tags-mark-md-block-body'."
-  ;; fill limit-begin and limit-end - if they was not profiled
-  (when (not (and limit-begin limit-end))
-    (when-let* ((region (oai-block-tags--get-org-block-region)))
-      (setq limit-begin (car region))
-      (setq limit-end (cadr region))))
+;; (defun oai-block-tags--markdown-mark-fenced-code-body (&optional limit-begin limit-end)
+;;   "Mark content inside Markdown fenced code block (```), excluding header/footer.
+;; LIMIT-BEGIN and LIMIT-END restrict the search region around point.
+;; Returns t if was marked, nil otherwise.
+;; Used in `oai-block-tags-mark-md-block-body'."
+;;   ;; fill limit-begin and limit-end - if they was not profiled
+;;   (when (not (and limit-begin limit-end))
+;;     (when-let* ((region (oai-block-tags--get-org-block-region))) ; maybe use `org-src--contents-area' ?
+;;       (setq limit-begin (car region))
+;;       (setq limit-end (cadr region))))
 
-  (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range limit-begin limit-end))
-              (beg (car r))
-              (end (cadr r)))
-    (push-mark beg t)
-    (goto-char end)
-    (forward-line -1)
-    (end-of-line)
-    (activate-mark)
-    t))
+;;   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range limit-begin limit-end))
+;;               (beg (car r))
+;;               (end (cadr r)))
+;;     (push-mark beg t)
+;;     (goto-char end)
+;;     (forward-line -1)
+;;     (end-of-line)
+;;     (activate-mark)
+;;     t))
 
 ;; (defun oai-block-tags--string-count-char-in-direction (string position char direction)
 ;;   "Count CHAR in DIRECTION from POSITION on the same line in STRING."
@@ -1035,21 +1005,21 @@ Called from:
   ;; exist we replace it.
   ;; *Dont Wrap in markdown*
   (let ((i 9))
-    (while (and (string-match oai-block--org-link-any-re string) ; exist in text?
+    (while (and (string-match oai-block-tags--org-link-any-re string) ; exist in text?
                 (not (zerop i)))
       (setq i (1- i))
       (oai--debug "oai-block-tags-replace: link-any-r")
-      (if-let* ((link (oai-block-tags--replace-last-regex-smart string oai-block--org-link-any-re)) ; find the last
+      (if-let* ((link (oai-block-tags--replace-last-regex-smart string oai-block-tags--org-link-any-re)) ; find the last
 
                 (replacement (concat (oai-block-tags--get-replacement-for-org-link link) "\n")) ; add empty line after it.
                 (new-string (oai-block-tags--replace-last-regex-smart string
-                                                                      oai-block--org-link-any-re
+                                                                      oai-block-tags--org-link-any-re
                                                                       replacement)))
           (setq string new-string))))
   ;; old
-  ;; (when (not (string-match oai-block--org-link-any-re string)) ; exist in text?
+  ;; (when (not (string-match oai-block-tags--org-link-any-re string)) ; exist in text?
   ;;   (let ((new-string string) ; ai block content
-  ;;         (path-string (oai-block-tags--replace-last-regex-smart string oai-block--org-link-any-re))
+  ;;         (path-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--org-link-any-re))
   ;;         (replaced nil)
   ;;         (pos-end 0)
   ;;         (pos-beg 0)
@@ -1058,7 +1028,7 @@ Called from:
   ;;     (print (list "oai-block-tags-replace 0" path-string))
   ;;     ;; 1) find link
   ;;     (while (or (= pos-end 0) ; skip first
-  ;;                (string-match oai-block--org-link-any-re new-string pos-end)) ; loop over links in text
+  ;;                (string-match oai-block-tags--org-link-any-re new-string pos-end)) ; loop over links in text
   ;;       (print "found link")
   ;;       (setq pos-beg (match-beginning 0))
   ;;       (setq pos-end (match-end 0))
@@ -1090,7 +1060,7 @@ Called from:
   ;;       (setq string new-string))))
 
 
-  ;; (if-let* ((path-string (oai-block-tags--replace-last-regex-smart string oai-block--org-link-any-re)))
+  ;; (if-let* ((path-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--org-link-any-re)))
   ;;     (progn
   ;;       (print (list "link" path-string))
   ;;       string))
@@ -1126,25 +1096,25 @@ Return modified STRING."
 
 ;; -=-= Fontify @Backtrace & @path & [[links]]
 
-(defun oai-block-tags--is-special (pos &optional lim-beg)
-  "Check if POS in markdown block, quoted or is a table.
-Optional argument LIM-BEG is ai block begining position.
-Return t if pos in markdown block, table or quote.
-Side-effect: set pointer position to POS."
-  (goto-char pos)
-  (prog1 (or
-          ;; not markdown blocks
-          ;; backward for markdown block "begin"
-          (when (re-search-backward oai-block--markdown-begin-re lim-beg t)
-            (goto-char pos)
-            ;; backward for markdown block "end" after "begin"
-            (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))
-          ;; not quotes
-          (progn (goto-char pos)
-                 (beginning-of-line)
-                 (or (looking-at "^> ") ; from `oai-block-fill-region-as-paragraph'
-                     (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
-    (goto-char pos)))
+;; (defun oai-block-tags--is-special (pos &optional lim-beg)
+;;   "Check if POS in markdown block, quoted or is a table.
+;; Optional argument LIM-BEG is ai block begining position.
+;; Return t if pos in markdown block, table or quote.
+;; Side-effect: set pointer position to POS."
+;;   (goto-char pos)
+;;   (prog1 (or
+;;           ;; not markdown blocks
+;;           ;; backward for markdown block "begin"
+;;           (when (re-search-backward oai-block--markdown-begin-re lim-beg t)
+;;             (goto-char pos)
+;;             ;; backward for markdown block "end" after "begin"
+;;             (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))
+;;           ;; not quotes
+;;           (progn (goto-char pos)
+;;                  (beginning-of-line)
+;;                  (or (looking-at "^> ") ; from `oai-block-fill-region-as-paragraph'
+;;                      (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
+;;     (goto-char pos)))
 
 (defun oai-block-tags--font-lock-fontify-links (limit)
   "Fontify Org links in #+begin_ai ... #+end_ai blocks, up to LIMIT.
@@ -1161,20 +1131,23 @@ TODO: maybe we should use something like
                 (< (point) limit))
       (let ((beg (match-end 0))
             end lbeg lend)
-        (when (re-search-forward oai-block--ai-block-end-re nil t)
-          (setq end (match-beginning 0))
+        (if (re-search-forward oai-block--ai-block-end-re limit t)
+            (setq end (match-beginning 0))
+          ;; else
+          (setq end limit))
           (save-match-data
             ;; fontify Org links [[..]]
             ;; (message beg)
             ;; - [[link][]]
             (progn
               (goto-char beg)
-              (while (re-search-forward oai-block--org-link-any-re end t)
+              (while (re-search-forward oai-block-tags--org-link-any-re end t)
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
-                ;; (print (list lbeg beg end (oai-block-tags--is-special lbeg beg)))
-                (unless (or (oai-block-tags--is-special lbeg beg)
+                ;; (print (list lbeg beg end (oai-block--in-special lbeg beg)))
+                (unless (or (oai-block--at-special-p lbeg)
                             (oai-block--in-markdown-any-quotes-p lbeg))
+                  (remove-text-properties lbeg lend '(face nil))
                   (setq ret (org-activate-links lend)))
                 (goto-char lend)))
             ;; - @Backtrace
@@ -1183,46 +1156,46 @@ TODO: maybe we should use something like
               (while (re-search-forward oai-block-tags--regexes-backtrace end t)
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
-                (unless (or (oai-block-tags--is-special lbeg beg)
+                (unless (or (oai-block--at-special-p lbeg)
                             (oai-block--in-markdown-any-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))
-            ;; ;; - @/tmp/
+            ;; - @/tmp/
             (progn
               (goto-char beg)
               (while (re-search-forward oai-block-tags--regexes-path end t)
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
-                (unless (or (oai-block-tags--is-special lbeg beg)
+                (unless (or (oai-block--at-special-p lbeg)
                             (oai-block--in-markdown-any-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
-                (goto-char lend)))))))
+                (goto-char lend)))
+            )))
     ;; required by font lock mode:
     (goto-char limit)
     ret))
 
 ;; -=-= key to select block "C-c h" (similar to "M-h")
 
-(defun oai-block-tags-mark-md-block-body ()
-  "Mark content of Markdown code block, or fallback to `org-mark-element'.
-Mark or select block content around cursor.
-`oai-block-tags--get-org-block-region'  do  same thing,  but  we
-make this function to no relay on oai-block."
-  (interactive)
-  (or (when-let* ((region (oai-block-tags--get-org-block-region))
-                  (beg (car region))
-                  (end (cadr region)))
-        ;; if pointer in Mardown block, we mark Markdown block only
-        (or (oai-block-tags--markdown-mark-fenced-code-body beg end)
-            ;; else - no markdown - mark ai block only
-            (unless (= beg end)
-              (push-mark beg t)
-              (goto-char (1- end))
-              (activate-mark)))
-        t)
-      (org-mark-element)))
+;; (defun oai-block-tags-mark-md-block-body ()
+;;   "Mark content of Markdown code block, or fallback to `org-mark-element'.
+;; Mark or select block content around cursor.
+;; Forst we get Org block boudaries."
+;;   (interactive)
+;;   (or (when-let* ((region (oai-block-tags--get-org-block-region))
+;;                   (beg (car region))
+;;                   (end (cadr region)))
+;;         ;; if pointer in Mardown block, we mark Markdown block only
+;;         (or (oai-block-tags--markdown-mark-fenced-code-body beg end)
+;;             ;; else - no markdown - mark ai block only
+;;             (unless (= beg end)
+;;               (push-mark beg t)
+;;               (goto-char (1- end))
+;;               (activate-mark)))
+;;         t)
+;;       (org-mark-element)))
 
 (provide 'oai-block-tags)
 ;;; oai-block-tags.el ends here

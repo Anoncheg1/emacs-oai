@@ -178,6 +178,57 @@ some **bold**
 | `\\(^\\|[^*]\\)`    | Start of line OR not an asterisk      |
 | `\\*\\*\\*\\|\\*\\*`| "***" OR "**" (the marker itself)     |
 
+* Indent line for markdown subblock
+~org-indent-line~ do (org-babel-do-in-edit-buffer (indent-according-to-mode))
+~(org-babel-do-in-edit-buffer (funcall func))~ - check that at src-block and do
+~(org-babel-do-in-edit-buffer (&rest body)~ - save point as marker and do
+1) (org-edit-src-code)
+
+(org-src--edit-element
+- datum - element parsed with org-element-type - *Org syntax node* as a list
+  - uses :language, :type (by org-element-type), :label-fmt, :type :begin (org-src--contents-area)
+- name - language string
+- initlalize - (lambda ()
+  - activate mode
+  - (org-escape-code-in-region (point-min) (point-max)))
+2) (progn ,@body)
+3) (org-edit-src-exit)
+
+*Org syntax node* - [[org-element-ast.el::40]]
+
+(list :type (org-element--get-cached-string type)
+             :type-explicit-p explicit-type-p
+	     :path path
+	     :format format
+	     :raw-link (or raw-link path)
+	     :application application
+	     :search-option search-option
+	     :begin begin
+	     :end end
+	     :contents-begin contents-begin
+	     :contents-end contents-end
+	     :post-blank post-blank)
+* Working with prefixes
+We use
+- RestAPI -> system -> Prefix
+- Prefix -> system -> RestAPI
+
+#+begin_src elisp :lexical t :results none :exports code :eval no
+;; RestAPI -> Prefix
+(let* ((role "user1")
+       (role-oai (or (cdr (assoc-string role oai-block-roles-restapi))
+                     oai-block-roles-restapi-unknown)))
+  (car (rassoc role-oai oai-block-roles-prefixes))) ; => "ai+"
+
+;; Prefix -> system
+(let ((role "+me1"))
+  (or (cdr (assoc-string role oai-block-roles-prefixes)) ; Get value by key
+      oai-block-roles-prefixes-unknown)) ; => assistant
+#+end_src
+
+* Function for ``` markdown blocks
+- oai-block--markdown-begin-end - any ``` block at separate lines.
+- oai-block--markdown-lang-begin-end - ``` with language
 * Tests: Not covered staff
 - font-locks
 - fill paragraph

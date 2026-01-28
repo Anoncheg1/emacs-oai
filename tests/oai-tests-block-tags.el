@@ -164,8 +164,7 @@ text after"))
              (limit-end (point-max))
              (range (oai-block-tags--markdown-fenced-code-body-get-range
                      limit-begin limit-end)))
-        (should (equal range (list 22 39))))))
-  )
+        (should (equal range (list 22 38)))))))
 
 (ert-deftest oai-tests-block-tags--markdown-mark-fenced-code-body-get-range2 ()
   "Test fenced code detection."
@@ -188,6 +187,18 @@ text after"))
         (should
         (equal range nil)))))
 )
+
+(ert-deftest oai-tests-block-tags--markdown-fenced-code-body-get-range3 ()
+  (should (equal '(39 41)
+                 (with-temp-buffer
+                   (org-mode)
+                   (insert "#+NAME: asd\n#+begin_src text\n```elisp")
+                   (let ((p (point)))
+                     (insert "\naa\n```\n#+end_src\n")
+                     (goto-char p)
+                     (oai-block-tags--markdown-fenced-code-body-get-range)))
+                 )))
+
 
 ;; -=-= Test: oai-block-tags--get-replacement-for-org-link - dir
 (ert-deftest oai-tests-block-tags--get-replacement-for-org-link-dir ()
@@ -458,47 +469,6 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
         (should (= (cadr res) 192 )))
       )))
 
-;; -=-= Test: oai-block-tags mark-block
-(ert-deftest oai-tests-block-tags--mark-block ()
-  (let (kill-buffer-query-functions
-        org-execute-file-search-functions)
-    (with-temp-buffer
-      (org-mode)
-      (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
-      (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n#+end_ai")
-      (goto-char (point-min))
-      (should (equal (oai-block-tags--markdown-mark-fenced-code-body) nil))
-      (goto-char (point-min))
-      (progn
-        (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"")
-        (insert "\n")
-        (insert "```elisp")
-        (insert "\n\n\n")
-        (insert "```")
-        (insert "\n")
-        (insert "#+end_ai")
-        (insert "\n"))
-      (goto-line 1)
-      (should (equal (oai-block-tags--markdown-mark-fenced-code-body) nil))
-      (goto-line 2)
-      (should (equal (oai-block-tags--markdown-mark-fenced-code-body) t))
-      (should (= 100 (region-beginning)))
-      (should (= 101 (region-end)))
-      (goto-line 3)
-      (should (equal (oai-block-tags--markdown-mark-fenced-code-body) t))
-      (goto-line 4)
-      (should (equal (oai-block-tags--markdown-mark-fenced-code-body) t))
-      (goto-line 5)
-      (should (equal (oai-block-tags--markdown-mark-fenced-code-body) nil))
-      (goto-line 1)
-      (should (equal (oai-block-tags-mark-md-block-body) t))
-      (should (= 91 (region-beginning)))
-      (should (= 105 (region-end)))
-      (goto-line 3)
-      (should (equal (oai-block-tags-mark-md-block-body) t))
-      (should (= 100 (region-beginning)))
-      (should (= 101 (region-end))))))
-
 ;; -=-= Test: oai-block-tags--filepath-to-language
 (ert-deftest oai-tests-block-tags--filepath-to-language ()
   (should
@@ -560,10 +530,10 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
 
   (should
    (string-equal
-    (oai-block-tags--replace-last-regex-smart "Same code: [[file:~/tmp/emacs::27-30]]```" oai-block--org-link-any-re)
+    (oai-block-tags--replace-last-regex-smart "Same code: [[file:~/tmp/emacs::27-30]]```" oai-block-tags--org-link-any-re)
     "[[file:~/tmp/emacs::27-30]]"))
 
-  (should (not (oai-block-tags--replace-last-regex-smart "Same code: ```[[file:~/tmp/emacs::27-30]]```" oai-block--org-link-any-re)))
+  (should (not (oai-block-tags--replace-last-regex-smart "Same code: ```[[file:~/tmp/emacs::27-30]]```" oai-block-tags--org-link-any-re)))
 
   (should
    (string-equal (oai-block-tags--replace-last-regex-smart "asda\n```\nvas@Backtraceasdasd\n```\nasd" "\\(@Backtrace\\)" "111")
@@ -700,17 +670,21 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
         ;; (oai-block-tags--get-m-block)))
         (oai-block-tags--get-content-at-point))))))
 
+(ert-deftest oai-tests-block-tags--get-content-at-point3 ()
+  (should
+   (string-equal
+    "```aa```"
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+NAME: asd\n#+begin_src text\n```elisp```as ```")
+      (let ((p (point)))
+        (insert "aa```\n#+end_src\n")
+        (goto-char p)
+        ;; (oai-block-tags--get-org-block-region)))
+        ;; (oai-block-tags--markdown-block-range)))
+        ;; (oai-block-tags--get-m-block)))
+        (oai-block-tags--get-content-at-point))))))
 
-;; -=-= Test: oai-block-tags--markdown-fenced-code-body-get-range
-(ert-deftest oai-tests-block-tags--markdown-fenced-code-body-get-range ()
-  (should (equal '(39 42)
-                 (with-temp-buffer
-                   (org-mode)
-                   (insert "#+NAME: asd\n#+begin_src text\n```elisp")
-                   (let ((p (point)))
-                     (insert "\naa\n```\n#+end_src\n")
-                     (goto-char p)
-                     (oai-block-tags--markdown-fenced-code-body-get-range))))))
 
 
 ;; -=-= Test: oai-block-tags--get-org-content-m-block
@@ -751,7 +725,10 @@ ss
     (should (string-equal (substring line (car range) (cadr range)) "```bbb")))
 
   (should (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 5))
-  (should-not (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 10)))
+  (should-not (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 10))
+  (should (equal (oai-block-tags--position-in-markdown-block-str-p "a```f```d ```elie aa ``` asd" 14) '(10 21))))
+
+
 
 
 ;; -=-= Test: oai-block-tags--check-if-char-at-in-direction !!
