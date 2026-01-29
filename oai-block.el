@@ -145,8 +145,8 @@ TODO: for streaming: save and pass begining of paragraph or line."
   :group 'oai-faces)
 
 (defface oai-block-m-header1
-  '((((background dark)) :foreground "chartreuse" :weight bold)
-    (((background light)) :foreground "green" :weight light))
+  '((((background dark)) :foreground "chartreuse" :weight light)
+    (((background light)) :foreground "green" :weight bold))
   "Face for single markdown header single # character."
   :group 'oai-faces)
 
@@ -158,13 +158,13 @@ TODO: for streaming: save and pass begining of paragraph or line."
 
 (defface oai-block-m-header3
   '((((background dark)) :foreground "orange" :weight light)
-    (((background light)) :foreground "orange" :weight bold))
+    (((background light)) :foreground "orange" :weight light))
   "Face for single markdown header three and more # characters."
   :group 'oai-faces)
 
 (defface oai-block-m-header4
   '((((background dark)) :foreground "orange3" :weight light)
-    (((background light)) :foreground "orange3" :weight bold))
+    (((background light)) :foreground "orange3" :weight light))
   "Face for single markdown header three and more # characters."
   :group 'oai-faces)
 
