@@ -1446,69 +1446,33 @@ Executed in `font-lock-defaults' chain."
         t))))
 
 (defface oai-block-quote
-  '(
-    (((class color) (min-colors 88) (background light)) (:background "#eeeeee" :foreground "gray"))
-    (((class color) (min-colors 88) (background dark))  (:background "#282828" :foreground "shadow"))
-    (((class color) (min-colors 16) (background light)) (:background "#eeeeee" :foreground "gray"))
-    (((class color) (min-colors 16) (background dark))  (:background "#282828" :foreground "shadow"))
-    (((class color) (min-colors 8)) (:background "cyan" :foreground "black"))
-    (t (:inverse-video t)))
+    '((((class color) (min-colors 88) (background dark)) :background "#282828" :foreground "shadow")
+      (((class color) (min-colors 88) (background light)) :background "#eeeeee" :foreground "gray")
+      (((class color) (min-colors 8)) (:background "cyan" :foreground "black")))
   "Face for single markdown quoted text."
   :group 'oai-faces)
 
 (defface oai-block-m-header1
-  '((((class grayscale) (background light))
-     :foreground "Gray90" :weight bold :slant italic)
-    (((class grayscale) (background dark))
-     :foreground "DimGray" :weight bold :slant italic)
-    (((class color) (min-colors 88) (background light)) :foreground "green3")
-    (((class color) (min-colors 88) (background dark))  :foreground "chartreuse1")
-    (((class color) (min-colors 16) (background light)) :foreground "gold1")
-    (((class color) (min-colors 16) (background dark))  :foreground "chartreuse1")
-    (((class color) (min-colors 8)) :foreground "yellow" :weight light)
-    (t :weight bold :slant italic))
+  '((((background dark)) :foreground "chartreuse" :weight bold)
+    (((background light)) :foreground "green" :weight light))
   "Face for single markdown header single # character."
   :group 'oai-faces)
 
 (defface oai-block-m-header2
-  '((((class grayscale) (background light))
-     :foreground "Gray90" :weight bold :slant italic)
-    (((class grayscale) (background dark))
-     :foreground "DimGray" :weight bold :slant italic)
-    (((class color) (min-colors 88) (background light)) :foreground "gold3")
-    (((class color) (min-colors 88) (background dark))  :foreground "gold1")
-    (((class color) (min-colors 16) (background light)) :foreground "gold1")
-    (((class color) (min-colors 16) (background dark))  :foreground "gold1")
-    (((class color) (min-colors 8)) :foreground "gold" :weight light)
-    (t :weight bold :slant italic))
+  '((((background dark)) :foreground "gold" :weight bold)
+    (((background light)) :foreground "gold" :weight light))
   "Face for single markdown header two # characters."
   :group 'oai-faces)
 
 (defface oai-block-m-header3
-  '((((class grayscale) (background light))
-     :foreground "Gray90" :weight bold :slant italic)
-    (((class grayscale) (background dark))
-     :foreground "DimGray" :weight bold :slant italic)
-    (((class color) (min-colors 88) (background light)) :foreground "gold4")
-    (((class color) (min-colors 88) (background dark))  :foreground "gold3")
-    (((class color) (min-colors 16) (background light)) :foreground "gold3")
-    (((class color) (min-colors 16) (background dark))  :foreground "gold3")
-    (((class color) (min-colors 8)) :foreground "orange" :weight light)
-    (t :weight bold :slant italic))
+  '((((background dark)) :foreground "orange" :weight bold)
+    (((background light)) :foreground "orange" :weight light))
   "Face for single markdown header three and more # characters."
   :group 'oai-faces)
 
 (defface oai-block-m-header4
-  '((((class grayscale) (background light))
-     :foreground "Gray90" :weight bold :slant italic)
-    (((class grayscale) (background dark))
-     :foreground "DimGray" :weight bold :slant italic)
-    (((class color) (min-colors 88) (background light)) :foreground "orange3")
-    (((class color) (min-colors 88) (background dark))  :foreground "orange1")
-    (((class color) (min-colors 16) (background light)) :foreground "orange1")
-    (((class color) (min-colors 16) (background dark))  :foreground "orange1")
-    (((class color) (min-colors 8)) :foreground "orange" :weight light)
-    (t :weight bold :slant italic))
+  '((((background dark)) :foreground "orange3" :weight bold)
+    (((background light)) :foreground "orange3" :weight light))
   "Face for single markdown header three and more # characters."
   :group 'oai-faces)
 
