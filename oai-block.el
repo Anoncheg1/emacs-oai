@@ -84,7 +84,8 @@
 When restapi -> prefix, first matched is used.
 Closely bound with `oai-block--chat-prefixes-re' variable."
   :type '(repeat (cons (string :tag "Role Name")
-                       (symbol :tag "Role Symbol"))))
+                       (symbol :tag "Role Symbol")))
+  :group 'oai)
 
 (defcustom oai-block-roles-restapi
   '(("system" . system)
@@ -254,7 +255,6 @@ Return an alist of key-value pairs."
     :parameters
     (or element (oai-block-p))) no-eval))
 
-
 (defun oai-block--get-request-type (info)
   "Look at the header of the #+begin_ai...#+end_ai block.
 returns the type of request.  INFO is the alist of key-value
@@ -277,9 +277,6 @@ DEFAULT is a string with default system prompt for LLM."
         default
       ;; else - nil or string
       sys-raw)))
-
-;; (cl-defun oai-block--check-info-key (&key info key)
-;;   (not (eql 'x (alist-get key info 'x))))
 
 ;; -=-= macro: let-params
 (defmacro oai-block--let-params (info definitions &rest body)
@@ -408,6 +405,7 @@ ELEMENT."
                            (org-babel-expand-noweb-references (list "markdown" unexpanded-content))
                          unexpanded-content)))
          (string-trim content))))))
+
 ;; -=-= help function to call hooks as pipeline with one argument
 (defun oai-block--pipeline (funcs init-val &rest args)
   "Process INIT-VAL through a pipeline of functions FUNCS.
@@ -728,9 +726,6 @@ Joining non-empty content by SEP (defaults to newline)."
     (nreverse result)))
 
 
-;; (progn (re-search-forward oai-block--chat-prefixes-re)
-;;        (print (match-string 1)))
-
 ;; Parse parts and build messages
 (defun oai-block--parse-part (pos-beg pos-end)
   "Get part of chat as a plist with :role and :content in current buffer.
@@ -944,8 +939,6 @@ specified.  Used in `oai-block-mark-at-point'.
 If there is two markdown begining with language we treat second as
 inside of first.
 Argument LIMIT-BEGIN LIMIT-END are positions ai block header and footer."
-  ;; (interactive (when-let ((reg (oai-block-contents-begin-end)))
-  ;;                (list (point) (car reg) (cadr reg))))
   (oai--debug "oai-block--markdown-begin-end %s %s %s" pos limit-begin limit-end)
   ;; fix limits
   (when (and limit-begin (< pos limit-begin))
@@ -1018,15 +1011,8 @@ Side-effect: set pointer position to POS.
 If Optional argument DONT-CHECK-TABLES is not-nil disable checking if
 pos at Org table."
   (goto-char pos)
-  (prog1  ;; ;; not markdown blocks
-          ;; ;; backward for markdown block "begin"
-          ;; (when (re-search-backward oai-block--markdown-begin-re lim-beg t)
-          ;;   (goto-char pos)
-          ;;   ;; backward for markdown block "end" after "begin"
-          ;;   (not (re-search-backward oai-block--markdown-end-re (match-end 0) t)))
-          ;; (oai-block--markdown-begin-end pos lim-beg lim-end)
-          ;; (get-text-property pos 'oai-markdown-block)
-          ;; not quotes
+  (prog1
+          ;; not quoted, in tables
           (progn (goto-char pos)
                  (beginning-of-line)
                  (or (looking-at "^\\s-*> ") ; from `oai-block-fill-region-as-paragraph'
@@ -1203,9 +1189,8 @@ non-nil, then mark one chat message."
             ;; else - no markdown block
             (goto-char pos)
             ;; (let ((el (elemet-at-point)))
-            (call-interactively 'org-mark-element)
-            (exchange-point-and-mark)
-            )))))
+            (call-interactively #'org-mark-element)
+            (exchange-point-and-mark))))))
 
 
 ;; (defun oai-block-tags--markdown-mark-fenced-code-body (&optional limit-begin limit-end)
