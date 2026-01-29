@@ -53,7 +53,7 @@
 (require 'cl-lib) ; for `cl-letf', cl-defun, cl-loop, cl-case
 (require 'oai-debug)
 
-;; -=-= variables
+;; -=-= customizable variables
 (defcustom oai-block-fontify-markdown-flag t
   "Non-nil means enable fontinfication for ```lang blocks."
   :type 'boolean
@@ -74,43 +74,31 @@
   :type 'boolean
   :group 'oai)
 
-(defvar oai-block-roles-restapi
+(defcustom oai-block-roles-prefixes '(("SYS" . system)
+                                   ("+me" . user)
+                                   ("ME" . user) ; for compatibility with org-ai
+                                   ("ai+" . assistant)
+                                   ("AI" . assistant) ; for compatibility with org-ai
+                                   ("AI_REASON" . assistant_reason)) ; "AI_REASON" used in `oai-block--parse-part'
+  "Map oai roles to chat prefixes to output to user.
+When restapi -> prefix, first matched is used.
+Closely bound with `oai-block--chat-prefixes-re' variable."
+  :type '(repeat (cons (string :tag "Role Name")
+                       (symbol :tag "Role Symbol"))))
+
+(defcustom oai-block-roles-restapi
   '(("system" . system)
     ("user" . user)
     ("assistant" . assistant)
     ("assistant_reason" . assistant_reason))
   "Used by `oai-block--insert-stream-response'.
-Map RestAPI to oai roles")
+Map RestAPI JSON reply roles to oai roles."
+  :type '(repeat (cons (string :tag "Role Name")
+                       (symbol :tag "Role Symbol")))
+  :group 'oai)
 
 ;; (cdr (assoc-string "assistant" oai-block-roles-restapi)) ; => assistant
 ;; (car (rassoc ' oai-block-roles-restapi)) ; => "+me"
-
-(defvar oai-block-roles-restapi-unknown 'assistant)
-
-(defvar oai-block-roles-prefixes '(("SYS" . system)
-                                   ("+me" . user)
-                                   ("ME" . user)
-                                   ("ai+" . assistant)
-                                   ("AI" . assistant)
-                                   ("AI_REASON" . assistant_reason)) ; "AI_REASON" used in `oai-block--parse-part'
-  "Map oai roles to chat prefixes to output to user.
-When restapi -> prefix, we use first matched.
-Closely bound with `oai-block--chat-prefixes-re' variable.")
-
-(defvar oai-block-roles-prefixes-unknown 'assistant
-  "Used in `oai-block--parse-part' for prefix not found.
-In `oai-block-roles-prefixes'.")
-
-
-;; ;; RestAPI -> Prefix
-;; (let ((role 'user1))
-;;   (or (car (rassoc role oai-block-roles-prefixes))
-;;       (car (rassoc oai-block-roles-restapi-unknown oai-block-roles-prefixes)))) ; => "ai+"
-
-;; ;; Prefix -> system
-;; (let ((role "+me1"))
-;;   (or (cdr (assoc-string role oai-block-roles-prefixes)) ; Get value by key
-;;       oai-block-roles-prefixes-unknown)) ; => assistant
 
 
 (defcustom oai-block-parse-part-hook nil
@@ -142,6 +130,69 @@ TODO: for streaming: save and pass begining of paragraph or line."
                  (function :tag "Function"))
   :group 'oai)
 
+;; -=-= faces
+(defface oai-block-quote
+    '((((class color) (min-colors 88) (background dark)) :background "#282828" :foreground "shadow")
+      (((class color) (min-colors 88) (background light)) :background "#eeeeee" :foreground "gray")
+      (((class color) (min-colors 8)) (:background "cyan" :foreground "black"))
+      (t :background "gray" :extend t))
+  "Face for single markdown quoted text."
+  :group 'oai-faces)
+
+(defface oai-block-m-header1
+  '((((background dark)) :foreground "chartreuse" :weight bold)
+    (((background light)) :foreground "green" :weight light))
+  "Face for single markdown header single # character."
+  :group 'oai-faces)
+
+(defface oai-block-m-header2
+  '((((background dark)) :foreground "gold" :weight bold)
+    (((background light)) :foreground "gold" :weight light))
+  "Face for single markdown header two # characters."
+  :group 'oai-faces)
+
+(defface oai-block-m-header3
+  '((((background dark)) :foreground "orange" :weight bold)
+    (((background light)) :foreground "orange" :weight light))
+  "Face for single markdown header three and more # characters."
+  :group 'oai-faces)
+
+(defface oai-block-m-header4
+  '((((background dark)) :foreground "orange3" :weight bold)
+    (((background light)) :foreground "orange3" :weight light))
+  "Face for single markdown header three and more # characters."
+  :group 'oai-faces)
+
+(defface oai-chat-role	   ;Copied from `font-lock-variable-name-face'
+  '((((class color) (min-colors 16) (background light)) (:foreground "gray" :slant italic))
+    (((class color) (min-colors 16) (background dark)) (:foreground "DarkGoldenrod" :slant italic))
+    (((class color) (min-colors 8)) (:foreground "yellow" :weight light :slant italic))
+    (t :inverse-video t))
+  "Face used for [AI]: [ME]:."
+  :group 'oai-faces)
+
+(defface oai-bold '((t :inherit default))
+  "Face used for *,** and *** Org and markdown text formatting."
+  :group 'oai-faces)
+
+;; -=-= faces
+
+(defvar oai-block-roles-restapi-unknown 'assistant)
+
+
+(defvar oai-block-roles-prefixes-unknown 'assistant
+  "Used in `oai-block--parse-part' for prefix not found.
+In `oai-block-roles-prefixes'.")
+
+;; ;; RestAPI -> Prefix
+;; (let ((role 'user1))
+;;   (or (car (rassoc role oai-block-roles-prefixes))
+;;       (car (rassoc oai-block-roles-restapi-unknown oai-block-roles-prefixes)))) ; => "ai+"
+
+;; ;; Prefix -> system
+;; (let ((role "+me1"))
+;;   (or (cdr (assoc-string role oai-block-roles-prefixes)) ; Get value by key
+;;       oai-block-roles-prefixes-unknown)) ; => assistant
 
 (defconst oai-block--ai-block-begin-re "^#\\+begin_ai.*$")
 (defconst oai-block--ai-block-end-re "^#\\+end_ai.*$")
@@ -1445,36 +1496,6 @@ Executed in `font-lock-defaults' chain."
                            'face 'org-table)
         t))))
 
-(defface oai-block-quote
-    '((((class color) (min-colors 88) (background dark)) :background "#282828" :foreground "shadow")
-      (((class color) (min-colors 88) (background light)) :background "#eeeeee" :foreground "gray")
-      (((class color) (min-colors 8)) (:background "cyan" :foreground "black")))
-  "Face for single markdown quoted text."
-  :group 'oai-faces)
-
-(defface oai-block-m-header1
-  '((((background dark)) :foreground "chartreuse" :weight bold)
-    (((background light)) :foreground "green" :weight light))
-  "Face for single markdown header single # character."
-  :group 'oai-faces)
-
-(defface oai-block-m-header2
-  '((((background dark)) :foreground "gold" :weight bold)
-    (((background light)) :foreground "gold" :weight light))
-  "Face for single markdown header two # characters."
-  :group 'oai-faces)
-
-(defface oai-block-m-header3
-  '((((background dark)) :foreground "orange" :weight bold)
-    (((background light)) :foreground "orange" :weight light))
-  "Face for single markdown header three and more # characters."
-  :group 'oai-faces)
-
-(defface oai-block-m-header4
-  '((((background dark)) :foreground "orange3" :weight bold)
-    (((background light)) :foreground "orange3" :weight light))
-  "Face for single markdown header three and more # characters."
-  :group 'oai-faces)
 
 (defun oai-block--fontify-markdown-headers (start end)
   "Fontify started with # character headers.
@@ -1550,7 +1571,7 @@ support splitting."
               ;; Only fontify the marker, not surrounding text
               (put-text-property b2 e2
                                  ;; 'face '(bold)))
-                                 'face 'default))
+                                 'face 'oai-bold))
             (goto-char e1))
         ;; else
         (forward-line)))
@@ -1578,14 +1599,6 @@ support splitting."
         ;; else
         (forward-line)))
     (goto-char end))) ;; Return t if performed work.
-
-
-(defface oai-chat-role	   ;Copied from `font-lock-variable-name-face'
-  '((((class color) (min-colors 16) (background light)) (:foreground "gray" :slant italic))
-    (((class color) (min-colors 16) (background dark)) (:foreground "DarkGoldenrod" :slant italic))
-    (((class color) (min-colors 8)) (:foreground "yellow" :weight light :slant italic)))
-  "Face used for [AI]: [ME]:."
-  :group 'oai-faces)
 
 
 (defun oai-block--fontify-me-ai-chat-prefixes (lim-beg lim-end)
