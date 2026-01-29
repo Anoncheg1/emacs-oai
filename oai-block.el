@@ -1152,8 +1152,8 @@ non-nil, then mark one chat message."
             ;; else - no markdown block
             (goto-char pos)
             ;; (let ((el (elemet-at-point)))
-            ;; (call-interactively 'org-mark-element)
-            ;; (exchange-point-and-mark)
+            (call-interactively 'org-mark-element)
+            (exchange-point-and-mark)
             )))))
 
 
