@@ -169,9 +169,9 @@ TODO: for streaming: save and pass begining of paragraph or line."
   :group 'oai-faces)
 
 (defface oai-chat-role	   ;Copied from `font-lock-variable-name-face'
-  '((((class color) (min-colors 16) (background light)) (:foreground "gray" :slant italic))
+  '((((class color) (min-colors 16) (background light)) (:foreground "sienna" :slant italic))
     (((class color) (min-colors 16) (background dark)) (:foreground "DarkGoldenrod" :slant italic))
-    (((class color) (min-colors 8)) (:foreground "yellow" :weight light :slant italic))
+    (((class color) (min-colors 8)) (:foreground "yellow" :weight light))
     (t :inverse-video t))
   "Face used for [AI]: [ME]:."
   :group 'oai-faces)
