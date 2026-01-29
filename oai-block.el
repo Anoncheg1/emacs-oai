@@ -75,25 +75,29 @@
   :group 'oai)
 
 (defcustom oai-block-roles-prefixes '(("SYS" . system)
-                                   ("+me" . user)
-                                   ("ME" . user) ; for compatibility with org-ai
-                                   ("ai+" . assistant)
-                                   ("AI" . assistant) ; for compatibility with org-ai
+                                   ("+me" . user) ; for output
+                                   ("ME" . user) ; to understand user input
+                                   ("ai+" . assistant) ; for output
+                                   ("AI" . assistant) ; to understand user input
                                    ("AI_REASON" . assistant_reason)) ; "AI_REASON" used in `oai-block--parse-part'
   "Map oai roles to chat prefixes to output to user.
 When restapi -> prefix, first matched is used.
+Used in `oai-block--parse-part' with ignoring case..
 Closely bound with `oai-block--chat-prefixes-re' variable."
   :type '(repeat (cons (string :tag "Role Name")
                        (symbol :tag "Role Symbol")))
   :group 'oai)
+
+;; (let ((role "Me"))
+;;   (cdr (assoc-string role oai-block-roles-prefixes t))) ;; => 'user
 
 (defcustom oai-block-roles-restapi
   '(("system" . system)
     ("user" . user)
     ("assistant" . assistant)
     ("assistant_reason" . assistant_reason))
-  "Used by `oai-block--insert-stream-response'.
-Map RestAPI JSON reply roles to oai roles."
+  "Map RestAPI JSON reply roles to oai roles.
+Used by `oai-block--insert-stream-response' in sensitive to case way."
   :type '(repeat (cons (string :tag "Role Name")
                        (symbol :tag "Role Symbol")))
   :group 'oai)
@@ -147,20 +151,20 @@ TODO: for streaming: save and pass begining of paragraph or line."
   :group 'oai-faces)
 
 (defface oai-block-m-header2
-  '((((background dark)) :foreground "gold" :weight bold)
-    (((background light)) :foreground "gold" :weight light))
+  '((((background dark)) :foreground "gold2" :weight light)
+    (((background light)) :foreground "gold2" :weight bold))
   "Face for single markdown header two # characters."
   :group 'oai-faces)
 
 (defface oai-block-m-header3
-  '((((background dark)) :foreground "orange" :weight bold)
-    (((background light)) :foreground "orange" :weight light))
+  '((((background dark)) :foreground "orange" :weight light)
+    (((background light)) :foreground "orange" :weight bold))
   "Face for single markdown header three and more # characters."
   :group 'oai-faces)
 
 (defface oai-block-m-header4
-  '((((background dark)) :foreground "orange3" :weight bold)
-    (((background light)) :foreground "orange3" :weight light))
+  '((((background dark)) :foreground "orange3" :weight light)
+    (((background light)) :foreground "orange3" :weight bold))
   "Face for single markdown header three and more # characters."
   :group 'oai-faces)
 
@@ -176,10 +180,10 @@ TODO: for streaming: save and pass begining of paragraph or line."
   "Face used for *,** and *** Org and markdown text formatting."
   :group 'oai-faces)
 
-;; -=-= faces
-
-(defvar oai-block-roles-restapi-unknown 'assistant)
-
+;; -=-= variables
+(defvar oai-block-roles-restapi-unknown 'assistant
+  "Used for restapi reply if role in JSON was not found.
+In `oai-block--insert-stream-response'.")
 
 (defvar oai-block-roles-prefixes-unknown 'assistant
   "Used in `oai-block--parse-part' for prefix not found.
@@ -594,7 +598,7 @@ Argument INSERT-ME insert [ME]: at stop type of message."
 
                              (setq c-chat-role payload)
                              (let* ((role-oai (or (cdr (assoc-string payload oai-block-roles-restapi))
-                                                oai-block-roles-restapi-unknown)) ; string to symbol
+                                                  oai-block-roles-restapi-unknown)) ; string to symbol
                                     (role-prefix (car (rassoc role-oai oai-block-roles-prefixes))))
 
                                (insert "\n[" role-prefix "]: " (when (eql role-oai 'assistant) "\n")) ; "\n[ME:] " or "\n[AI:] \n"
@@ -753,7 +757,7 @@ If content is empty string return nil otherwise plist."
       (unless (string= role-str "AI_REASON") ; works for nil
         ;; first - get role symbol
         (if role-str
-          (setq role (or (cdr (assoc-string role-str oai-block-roles-prefixes))
+          (setq role (or (cdr (assoc-string role-str oai-block-roles-prefixes t))
                          oai-block-roles-prefixes-unknown))
           ;; else
           (setq role first_chat_role))
