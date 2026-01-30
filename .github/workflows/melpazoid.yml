@@ -64,25 +64,14 @@ jobs:
           EXIST_OK: true
         run: |
           echo $GITHUB_REF
-          if make -C ~/melpazoid |& tee output.log ; then
-            [ $? -ne 0 ] && { echo "Error detected, failing workflow"; exit 1; }
-            if grep -v 'Warning: argument ' output.log | grep -q "Warning"; then
-              echo "Warnings detected, failing workflow"
-              exit 1
-            fi
-            if grep -q "Warning" output.log ; then
-              echo "Warnings detected, failing workflow"
-              exit 1
-            fi
-            if grep -q ': error: ' output.log ; then
-              echo "Error detected, failing workflow"
-              exit 1
-            fi
-            if grep -q ' with checkdoc ' output.log ; then
-              echo "Checkdoc warning detected, failing workflow"
-              exit 1
-            fi
-          else
-            echo "Make command failed, failing workflow"
-            exit 1
+          make -C ~/melpazoid |& tee output.log
+          [ $? -ne 0 ] && { echo "Make command failed, failing workflow"; exit 1; }
+          if grep -q "Warning" output.log ; then
+            echo "Warnings detected, failing workflow" ; exit 1
+          fi
+          if grep -q ': error: ' output.log ; then
+            echo "Error detected, failing workflow" ; exit 1
+          fi
+          if grep -q ' with checkdoc ' output.log ; then
+            echo "Checkdoc warning detected, failing workflow" ; exit 1
           fi
