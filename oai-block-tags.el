@@ -271,6 +271,11 @@ PATH-STRING may be path to file or a directory."
                                             ;; else
                                             (org-file-contents path-string)))) ; oai-block-tags--read-file-to-string-safe
 
+(cl-loop with context = (org-element-context)
+         while (and context
+                    (not (member (org-element-type context) oai-block-tags-org-blocks-types)))
+         do (setq context (org-element-property :parent context))
+         finally return context)
 ;; (oai-block-tags--compose-block-for-path-full "/home/g/sources/nongnu/Makefile")
 ;; -=-= help functions: blocks
 ;; (defun oai-block-tags--get-org-block-element ()
@@ -296,18 +301,21 @@ PATH-STRING may be path to file or a directory."
 ;;       (and (when (member (org-element-type (org-element-at-point)) oai-block-tags-org-blocks-types)
 ;;              (org-element-at-point)))))
 
+(defun oai-block-tags--get-block-at-point (&optional element)
+  "Get Org block if point at one of `oai-block-tags-org-blocks-types'.
+Optional argument ELEMENT is any Org element."
+  (let ((context (or element (org-element-context))))
+    (while (and context
+                (not (member (org-element-type context) oai-block-tags-org-blocks-types)))
+      (setq context (org-element-property :parent context)))
+    context))
+
 (defun oai-block-tags--get-org-block-region (&optional element)
   "Return (beg end) pair for any Org block ELEMENT or nil.
 beg end is content begin and #+end.
 `org-src--contents-area'
 Works for ai block also."
-  (when-let* ((element (or (and element
-                                (when (member (org-element-type element)
-                                              oai-block-tags-org-blocks-types)
-                                  element))
-                           (oai-block-p)
-                           (and (when (member (org-element-type (org-element-at-point)) oai-block-tags-org-blocks-types)
-                                (org-element-at-point))))))
+  (when-let* ((element (or element (oai-block-tags--get-block-at-point))))
     (if (string-equal "ai" (org-element-property :type element))
         (oai-block--contents-area element)
       ;; else
@@ -337,20 +345,30 @@ Works for ai block also."
       ;;       ))
       ;;   (list beg end))))
 
+
+
 (defun oai-block-tags-get-content (&optional element)
   "For supported blocks With properly expansion of tags and noweb references.
 For evaluation, tangling, or exporting.
+For ai block we replace links and tags in last user message only.
 Optional argument ELEMENT is Org block."
-  (if (eq (org-element-type element) 'src-block)
-                           (org-babel--expand-body (org-babel-get-src-block-info))
-                         ;; else
-                         (if (string-equal "ai" (org-element-property :type element))
-                             (oai-block-get-content element)
-                           ;; else
-                           (string-trim (buffer-substring-no-properties beg end))))
+  (when-let* ((element (or element (oai-block-tags--get-block-at-point))))
+    ;; (print (list (org-element-type element) (member (org-element-type element) oai-block-tags-org-blocks-types)))
+    (cond
+     ((string-equal "ai" (org-element-property :type element))
+      (let* ((expanded (string-trim (oai-block-get-content element)))
+             (expanded (oai-restapi--modify-last-user-content expanded 'user #'oai-block-tags-replace))
+             (expanded (oai-block--stringify-chat-messages expanded)))
+             expanded))
 
-  (when-let* ((element (or element (oai-block-p))))
-    (oai-block-get-content)))
+      ((eq (org-element-type element) 'src-block)
+       (org-babel--expand-body (org-babel-get-src-block-info))) ; org-babel-execute-src-block
+
+      ((member (org-element-type element) oai-block-tags-org-blocks-types)
+       (caddr (org-src--contents-area element))))))
+
+      ;; (t
+      ;;  (string-trim (buffer-substring-no-properties beg end)))
 
 (defun oai-block-tags--markdown-fenced-code-body-get-range (&optional limit-begin limit-end)
   "Return (begin end) if point is inside a Markdown fenced language block.
@@ -406,31 +424,20 @@ Works for language markdown block only inside some org block."
 ;; -=-= help functions: get content for blocks
 
 (defun oai-block-tags--get-org-content-m-block (&optional element)
-  "Return markdown block for blocks in Org mode at current position.
+  "Return markdown block for supported Org blocks at current position.
 May ELEMENT instead.
 Used for request, noweb activated with :eval context.
-Works only supported blocks in `oai-block-tags-org-blocks-types'.
+Works only supported blocks in `oai-block-tags-org-blocks-types' and ai block.
 Move pointer to the end of block.
 Steps: find max, min region of special-block/src-block/buffer
 `org-babel-read-element' from ob-core.el"
   ;; (org-element-property :name (oai-block-p))
   ;; 1) enshure that we are inside some Org block
   (oai--debug "oai-block-tags--get-org-content-m-block")
-  (when-let* ((element (or element (oai-block-p) (org-element-at-point)))
-
-              ;; (region (oai-block-tags--get-org-block-region element))
-              ;; (beg (car region))
-              ;; (end (cadr region))
-              (content (if (eq (org-element-type element) 'src-block)
-                           (org-babel--expand-body (org-babel-get-src-block-info))
-                         ;; else
-                         (if (string-equal "ai" (org-element-property :type element))
-                             (oai-block-get-content element)
-                           ;; else
-                           (string-trim (buffer-substring-no-properties beg end))))))
+  (when-let* ((element (or element (oai-block-tags--get-block-at-point))))
     (oai-block-tags--compose-m-block
      ;; content
-     content
+     (oai-block-tags-get-content element)
      :lang (if (eq (org-element-type element) 'src-block)
                (org-element-property :language element))
      :header (when-let ((name (org-element-property :name element))) ; nil or string

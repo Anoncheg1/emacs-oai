@@ -3,6 +3,10 @@
 - tags, links
 - noweb - expand references (If :noweb parameter or ~oai-noweb~ Org property is set.) but don't evaluated or referenced itself. see [[*Org noweb]]
 
+Replacing links trigger noweb links in target blocks and replacing links in them also.
+
+For sending request we replace links in all user messages, for expansion of links and tags we replace links in the last user message only. Also expand noweb in ~oai-block-get-content~ and in ~oai-block-tags-get-content~.
+
 Arguments not implemented: https://orgmode.org/manual/Environment-of-a-Code-Block.html
 * preparation steps of block content for LLM
 *oai-restapi-request-prepare chain* that call `oai-restapi-prepare-content'

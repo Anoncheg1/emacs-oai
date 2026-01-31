@@ -132,6 +132,7 @@
 ;; - make `oai-expand-block' executed with `org-babel-expand-src-block'.
 ;; - provide place or hook to add custom expansion of link to one line for user defined mode
 ;; - support vars as tags    https://orgmode.org/manual/Environment-of-a-Code-Block.html
+;; - write test for `oai-block-tags-get-content'.
 ;;; Code:
 ;; Touch: Pain, water and warm.
 

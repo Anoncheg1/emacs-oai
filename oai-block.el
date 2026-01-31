@@ -391,8 +391,8 @@ Optional argument ELEMENT should be ai block if specified."
 Same to `org-src--contents-area'.
 Optional argument ELEMENT is ai block."
   (when-let ((element (or element (oai-block-p))))
-    (cons (org-element-begin element)
-	  (progn (goto-char (org-element-end element))
+    (cons (org-element-property :begin element)
+	  (progn (goto-char (org-element-property :end element))
 		 (skip-chars-backward " \r\t\n")
                  (point)))))
 
