@@ -309,7 +309,7 @@ Works for ai block also."
                            (and (when (member (org-element-type (org-element-at-point)) oai-block-tags-org-blocks-types)
                                 (org-element-at-point))))))
     (if (string-equal "ai" (org-element-property :type element))
-        (oai-block-contents-begin-end element)
+        (oai-block--contents-area element)
       ;; else
       (nbutlast (org-src--contents-area element) 1)))) ; not support
 
@@ -339,7 +339,8 @@ Works for ai block also."
 
 (defun oai-block-tags-get-content (&optional element)
   "For supported blocks With properly expansion of tags and noweb references.
-For evaluation, tangling, or exporting."
+For evaluation, tangling, or exporting.
+Optional argument ELEMENT is Org block."
   (if (eq (org-element-type element) 'src-block)
                            (org-babel--expand-body (org-babel-get-src-block-info))
                          ;; else

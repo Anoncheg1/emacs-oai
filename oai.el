@@ -338,7 +338,7 @@ messages."
 
 ;; -=-= interactive aliases
 ;;;###autoload
-(defalias 'oai-kill-region-at-point #'oai-block-kill-region-at-point)
+(defalias 'oai-kill-message-at-point #'oai-block-kill-message-at-point)
 ;;;###autoload
 (defalias 'oai-mark-at-point #'oai-block-mark-at-point)
 ;;;###autoload
@@ -393,7 +393,7 @@ messages."
   "Keymap for `oai-mode'.")
 
 (let ((map oai-mode-map))
-  (define-key map (kbd (string-join (list "C-c" " <backspace>"))) #'oai-kill-region-at-point) ; oai-block.el
+  (define-key map (kbd (string-join (list "C-c" " <backspace>"))) #'oai-kill-message-at-point) ; oai-block.el
   (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
   (define-key map (kbd "C-c C-.") #'oai-open-request-buffer) ; oai-restapi.el
   (define-key map (kbd "C-c .") #'oai-expand-block) ; oai-block.el

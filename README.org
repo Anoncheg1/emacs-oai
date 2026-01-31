@@ -199,7 +199,9 @@ For incoming RestAPI conversion to prefixes ~oai-block-roles-restapi~ variable u
 - oai-block-insert-result = oai-block-insert-result
 - org-babel-where-is-src-block-result = oai-block-where-is-result
 - org-fill-paragraph = oai-block-fill-paragraph
-
+- org-babel-mark-block = oai-block-mark-at-point
+- org-babel-find-named-block = oai-find-named-block
+- org-src--contents-area = oai-block--area, oai-block--contents-area
 * How this works?
 We add “ai” as a type of special block to variables ~org-protecting-blocks~ and ~org-structure-template-alist~.
 
