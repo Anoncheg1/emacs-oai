@@ -337,13 +337,18 @@ messages."
     (setq oai-debug-buffer   "*debug-oai*")
     (message "Enable oai debugging")))
 
+;; -=-= interactive fn: M-x oai-set-max-tokens
+;;;###autoload
+(defun oai-set-max-tokens ()
+  "Jump to header of ai block and set max-tokens."
+  (interactive)
+  (oai-block-set-block-parameter ":max-tokens" oai-restapi-default-max-tokens))
+
 ;; -=-= interactive aliases
 ;;;###autoload
 (defalias 'oai-kill-message-at-point #'oai-block-kill-message-at-point)
 ;;;###autoload
 (defalias 'oai-mark-at-point #'oai-block-mark-at-point)
-;;;###autoload
-(defalias 'oai-set-max-tokens #'oai-block-set-max-tokens)
 ;;;###autoload
 (defalias 'oai-forward-section #'oai-block-forward-section)
 

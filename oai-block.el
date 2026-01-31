@@ -1315,30 +1315,51 @@ NAME, or nil if no such block exists.
 ;;     (activate-mark)
 ;;     t))
 
-
-(defun oai-block-set-max-tokens ()
-  "Jump to header of ai block and set max-tokens."
-  (interactive)
+(defun oai-block-set-block-parameter (parameter default-value)
+  "Jump to header of ai block and set PARAMETER.
+PARAMETER is string, "
   (if-let ((element (oai-block-p)))
       (progn
         (push-mark)
-        (goto-char (car (oai-block--contents-area element)))
-        (forward-line -1)
-        (if (search-forward ":max-tokens" (line-end-position) t)
+        (goto-char (car (oai-block--area)))
+        (if (search-forward parameter (line-end-position) t)
             ;; if - 1) ;modify :max-tokens
             (if (eq (line-end-position) (point))
                 (insert " ")
               ;; else
               (forward-char))
           ;; else - 2) add :max-tokens
-          ;; (goto-char beg)
           (forward-char 10)
-          (insert " :max-tokens ")
+          (insert " " parameter " ")
           (let ((pos (point)))
-            (insert (format "%s " oai-restapi-default-max-tokens))
+            (insert (format "%s " default-value))
             (goto-char pos))))
     ;; else
     (message "Not oai block here.")))
+
+
+;; (defun oai-block-set-max-tokens ()
+;;   "Jump to header of ai block and set max-tokens."
+;;   (interactive)
+;;   (if-let ((element (oai-block-p)))
+;;       (progn
+;;         (push-mark)
+;;         (goto-char (car (oai-block--area)))
+;;         (if (search-forward ":max-tokens" (line-end-position) t)
+;;             ;; if - 1) ;modify :max-tokens
+;;             (if (eq (line-end-position) (point))
+;;                 (insert " ")
+;;               ;; else
+;;               (forward-char))
+;;           ;; else - 2) add :max-tokens
+;;           ;; (goto-char beg)
+;;           (forward-char 10)
+;;           (insert " :max-tokens ")
+;;           (let ((pos (point)))
+;;             (insert (format "%s " oai-restapi-default-max-tokens))
+;;             (goto-char pos))))
+;;     ;; else
+;;     (message "Not oai block here.")))
 
 ;; -=-= Markers
 
