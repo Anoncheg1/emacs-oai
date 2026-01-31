@@ -1,4 +1,9 @@
 ;-*- mode: Org; fill-column: 110;-*-
+* Feature: tags, links, noweb, arguments
+- tags, links
+- noweb - expand references (If :noweb parameter or ~oai-noweb~ Org property is set.) but don't evaluated or referenced itself. see [[*Org noweb]]
+
+Arguments not implemented: https://orgmode.org/manual/Environment-of-a-Code-Block.html
 * preparation steps of block content for LLM
 *oai-restapi-request-prepare chain* that call `oai-restapi-prepare-content'
 1) oai-restapi--collect-chat-messages-at-point
@@ -229,6 +234,78 @@ We use
 * Function for ``` markdown blocks
 - oai-block--markdown-begin-end - any ``` block at separate lines.
 - oai-block--markdown-lang-begin-end - ``` with language
+* Org noweb
+** how:
+Expand links on  evaluating, tangling, or exporting.
+- Doc https://orgmode.org/manual/Noweb-Reference-Syntax.html
+
+
+#+begin_src org
+,#+NAME: initialization
+,#+BEGIN_SRC emacs-lisp
+  (setq sentence "Never a foot too far, even.")
+,#+END_SRC
+
+,#+BEGIN_SRC emacs-lisp :noweb yes
+  <<initialization>>
+  (reverse sentence)
+,#+END_SRC
+
+Expanded to:
+,#+BEGIN_SRC emacs-lisp :noweb yes
+  (setq sentence "Never a foot too far, even.")
+  (reverse sentence)
+,#+END_SRC
+
+#+end_src
+** test
+#+NAME: initialization
+#+BEGIN_SRC emacs-lisp
+  (setq sentence "Never a foot too far, even.")
+#+END_SRC
+
+#+RESULTS: initialization
+: Never a foot too far, even.
+
+
+(org-babel-get-src-block-info) - src
+: ("emacs-lisp" "  (setq sentence \"Never a foot too far, even.\")" ((:colname-names) (:rowname-names) (:result-params "replace") (:result-type . value) (:results . "replace") (:exports . "code") (:lexical . "no") (:tangle . "no") (:hlines . "no") (:noweb . "no") (:cache . "no") (:session . "none") ...) "" "initialization" 8809 "(ref:%s)")
+
+(org-babel-expand-noweb-references (oai-block-get-info))
+
+
+: (oai-block-get-info)
+((:stream . "nil") (:max-tokens . 1200) (:sys . "Be helpful.") (:service . "github") (:model . "openai/gpt-4.1"))
+
+(org-babel--expand-body (oai-block-get-info)
+#+begin_ai :noweb yes :stream nil :max-tokens 1200 :sys "Be helpful."  :service github :model "openai/gpt-4.1"
+<<initialization>>
+#+end_ai
+: -----------------------------------------------------------
+
+#+begin_src elisp :noweb yes :lexical t :results none :exports code :eval yes
+<<initialization>>
+(org-babel-expand-noweb-references (list "markdown" "```lisp\n<<initialization>>\n```"))
+#+end_src
+
+(org-babel--expand-body (org-babel-get-src-block-info))
+** main function
+#+begin_src elisp :lexical t :results none :exports code :eval no
+(defun my/org-babel-noweb-p (params context)
+  "Check if PARAMS require expansion in CONTEXT.
+CONTEXT may be one of :tangle, :export or :eval."
+  (let ((allowed-values (cl-case context
+			  (:tangle '("yes" "tangle" "no-export" "strip-export" "strip-tangle"))
+			  (:eval   '("yes" "no-export" "strip-export" "eval" "strip-tangle"))
+			  (:export '("yes" "strip-tangle")))))
+    (cl-some (lambda (v) (member v allowed-values))
+	     (split-string (or (cdr (assq :noweb params)) "")))))
+
+(let ((info '((:noweb . "no") (:stream . "nil") (:max-tokens . 1200) (:sys . "Be helpful.") (:service . "github") (:model . "openai/gpt-4.1"))))
+  (my/org-babel-noweb-p info :eval))
+#+end_src
+** implementation
+: (org-babel-expand-noweb-references (list "markdown" unexpanded-content))
 * Tests: Not covered staff
 - font-locks
 - fill paragraph

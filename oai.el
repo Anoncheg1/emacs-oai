@@ -4,7 +4,7 @@
 ;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
 ;; Keywords: org, comm, url, link
 ;; URL: https://github.com/Anoncheg1/emacs-oai
-;; Version: 0.1
+;; Version: 0.2
 ;; Created: 27 dec 2025
 ;; Package-Requires: ((emacs "29.1"))
 ;; Optional dependency: ((org-links "0.2"))
@@ -72,7 +72,7 @@
 ;;     - C-u M-h - mark chat message
 ;;     - C-c <backspace> - (kill-region-at-point) to remove the chat
 ;;       part under point.  (oai-block.el)
-;;     - C-c m - set :max-tokens
+;;     - C-c C-l - set :max-tokens
 ;; - in buffer with oai-mode enabled:
 ;;     - C-g - to stop all requsts.
 
@@ -130,6 +130,8 @@
 ;; - make font-lock better like in [[file:/usr/share/emacs/30.2/lisp/gnus/message.el
 ;; ::1701::(defun message-font-lock-make-cited-text-matcher (level maxlevel)]]
 ;; - make `oai-expand-block' executed with `org-babel-expand-src-block'.
+;; - provide place or hook to add custom expansion of link to one line for user defined mode
+;; - support vars as tags    https://orgmode.org/manual/Environment-of-a-Code-Block.html
 ;;; Code:
 ;; Touch: Pain, water and warm.
 
@@ -267,6 +269,8 @@ Like `org-babel-expand-src-block'.
 Set `help-window-select' variable to to t to get focus.
 When universal  ARG specifide  output more  raw information  splitted by
 messages."
+  ; org-babel-expand-src-block put overlay with `org-src--make-source-overlay'
+  ; We add text properties in `oai-block-tags--replace-last-regex-smart'
   (interactive "P")
   (when-let* ((element (oai-block-p)) ; oai-block.el
               (res-str (if arg
@@ -393,7 +397,7 @@ messages."
   (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
   (define-key map (kbd "C-c C-.") #'oai-open-request-buffer) ; oai-restapi.el
   (define-key map (kbd "C-c .") #'oai-expand-block) ; oai-block.el
-  (define-key map (kbd (concat "C-c " "m")) #'oai-set-max-tokens)) ; oai-block.el
+  (define-key map (kbd "C-c C-t") #'oai-set-max-tokens)) ; oai-block.el
 
 
 (define-minor-mode oai-mode

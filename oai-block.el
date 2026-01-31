@@ -75,10 +75,9 @@
   :group 'oai)
 
 (defcustom oai-block-roles-prefixes '(("SYS" . system)
-                                   ("+me" . user) ; for output
                                    ("ME" . user) ; to understand user input
-                                   ("ai+" . assistant) ; for output
-                                   ("AI" . assistant) ; to understand user input
+                                   ("ai" . assistant) ; for output, with some style
+                                   ;; ("AI" . assistant) ; to understand user input
                                    ("AI_REASON" . assistant_reason)) ; "AI_REASON" used in `oai-block--parse-part'
   "Map oai roles to chat prefixes to output to user.
 When restapi -> prefix, first matched is used.
@@ -386,14 +385,16 @@ Optional argument ELEMENT should be ai block if specified."
             (goto-char (org-element-property :begin element))
             (list (line-beginning-position 2) (line-beginning-position 2))))))))
 
-(defun oai-block-get-content (&optional element)
+(defun oai-block-get-content (&optional element context)
   "Extracts the text content of the #+begin_ai...#+end_ai block.
 ELEMENT is the element of the special block.
-
 Will expand noweb templates if an `oai-noweb' property or
 `noweb' header arg is \"yes\".
 Use ELEMENT only in current moment, if buffer modified you will need new
-ELEMENT."
+ELEMENT.
+CONTEXT may be one of :tangle, :export or :eval, the last is by default.
+Don't support tags and Org links expansion, for that use
+`oai-block-tags-get-content' instead."
   (when-let ((reg (oai-block-contents-begin-end element)))
     (seq-let (con-beg con-end) reg
       (org-with-wide-buffer
@@ -402,11 +403,14 @@ ELEMENT."
                                     ;; else
                                     (string-trim (buffer-substring-no-properties con-beg con-end))))
               (info (oai-block-get-info element))
-              (noweb-control (or (alist-get :noweb info nil)
-                                 (org-entry-get (point) "oai-noweb" 1)
-                                 "no"))
-              (content (if (string-equal-ignore-case "yes" noweb-control)
-                           (org-babel-expand-noweb-references (list "markdown" unexpanded-content))
+              ;; (noweb-control (or (alist-get :noweb info nil)
+              ;;                    (org-entry-get (point) "oai-noweb" 1)
+              ;;                    "no"))
+              ;;                    (if (string-equal-ignore-case "yes" noweb-control)
+              (noweb-control (or (org-babel-noweb-p info (or context :eval))))
+              (content (if (or noweb-control
+                               (org-entry-get (point) "oai-noweb" t))
+                           (org-babel-expand-noweb-references (list "markdown" unexpanded-content)) ; main
                          unexpanded-content)))
          (string-trim content))))))
 

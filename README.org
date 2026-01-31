@@ -4,7 +4,7 @@
 
 * OAI - chat interface to LLMs and AI agents in Org blocks.
 
-*Version 0.1*
+*Version 0.2*
 Emacs package, provide block ~#+begin_ai~ in Org mode for communication with LLMs APIs. Inspired by Robert Krahn's [[https://github.com/rksm/org-ai][org-ai package]]
 
 Protocol: “OpenAI like” HTTP REST API. (url.el)

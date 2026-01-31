@@ -58,7 +58,7 @@ asd2")
       (setq res (substring-no-properties (oai-expand-block nil)))
       (should
        (string-equal
-        "[+me]: \n```text
+        "[ME]: \n```text
 # tt1
 asd
 

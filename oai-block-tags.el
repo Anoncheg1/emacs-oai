@@ -117,8 +117,9 @@ and
 
 (defvar oai-block-tags-org-blocks-types '(comment-block center-block dynamic-block example-block
                                                         export-block quote-block special-block
-                                                        src-block verse-block inline-src-block) ; check: center-block dynamic-block quote-block verse-block
-                                                          ; add: ? latex-fragment? footnote-definition? inline-src-block?
+                                                        src-block verse-block inline-src-block
+                                                        latex-fragment) ; check: center-block dynamic-block
+                                                          ; add: ? footnote-definition? inline-src-block?
   "Org block types that we wrap to markdown and may get by the first line.")
 
 
@@ -336,6 +337,20 @@ Works for ai block also."
       ;;       ))
       ;;   (list beg end))))
 
+(defun oai-block-tags-get-content (&optional element)
+  "For supported blocks With properly expansion of tags and noweb references.
+For evaluation, tangling, or exporting."
+  (if (eq (org-element-type element) 'src-block)
+                           (org-babel--expand-body (org-babel-get-src-block-info))
+                         ;; else
+                         (if (string-equal "ai" (org-element-property :type element))
+                             (oai-block-get-content element)
+                           ;; else
+                           (string-trim (buffer-substring-no-properties beg end))))
+
+  (when-let* ((element (or element (oai-block-p))))
+    (oai-block-get-content)))
+
 (defun oai-block-tags--markdown-fenced-code-body-get-range (&optional limit-begin limit-end)
   "Return (begin end) if point is inside a Markdown fenced language block.
 Blocks without language not supported
@@ -392,19 +407,29 @@ Works for language markdown block only inside some org block."
 (defun oai-block-tags--get-org-content-m-block (&optional element)
   "Return markdown block for blocks in Org mode at current position.
 May ELEMENT instead.
+Used for request, noweb activated with :eval context.
 Works only supported blocks in `oai-block-tags-org-blocks-types'.
 Move pointer to the end of block.
 Steps: find max, min region of special-block/src-block/buffer
 `org-babel-read-element' from ob-core.el"
   ;; (org-element-property :name (oai-block-p))
   ;; 1) enshure that we are inside some Org block
+  (oai--debug "oai-block-tags--get-org-content-m-block")
   (when-let* ((element (or element (oai-block-p) (org-element-at-point)))
-              (region (oai-block-tags--get-org-block-region element))
-              (beg (car region))
-              (end (cadr region)))
+
+              ;; (region (oai-block-tags--get-org-block-region element))
+              ;; (beg (car region))
+              ;; (end (cadr region))
+              (content (if (eq (org-element-type element) 'src-block)
+                           (org-babel--expand-body (org-babel-get-src-block-info))
+                         ;; else
+                         (if (string-equal "ai" (org-element-property :type element))
+                             (oai-block-get-content element)
+                           ;; else
+                           (string-trim (buffer-substring-no-properties beg end))))))
     (oai-block-tags--compose-m-block
      ;; content
-     (string-trim (buffer-substring-no-properties beg end))
+     content
      :lang (if (eq (org-element-type element) 'src-block)
                (org-element-property :language element))
      :header (when-let ((name (org-element-property :name element))) ; nil or string

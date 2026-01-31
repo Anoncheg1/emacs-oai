@@ -781,6 +781,83 @@ ss
   (should (oai-block-tags--string-is-quoted-p "`as`\n`as`" 1)) ; t
   (should-not (oai-block-tags--string-is-quoted-p "`as`\n`as`" 0))) ; nil
 
+;; -=-= Test: noweb: oai-block-tags--get-org-content-m-block, oai-block-get-content.
+
+
+(ert-deftest oai-tests-block-tags--noweb1 ()
+
+  ;; oai-block-get-content
+  (should
+   (string-equal
+    "Never a foot too far, even."
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+NAME: initialization
+#+BEGIN_SRC emacs-lisp
+  (setq sentence \"Never a foot too far, even.\")
+#+END_SRC
+
+#+begin_ai :noweb yes
+<<initialization()>>
+#+end_ai")
+      (let (org-confirm-babel-evaluate)
+      (oai-block-get-content))))))
+
+(ert-deftest oai-tests-block-tags--noweb2 ()
+  ;; oai-block-get-content
+  (should
+   (string-equal
+    "<<initialization()>>"
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+NAME: initialization
+#+BEGIN_SRC emacs-lisp
+  (setq sentence \"Never a foot too far, even.\")
+#+END_SRC
+
+#+begin_ai :noweb
+<<initialization()>>
+#+end_ai")
+      (oai-block-get-content))))
+
+  (should
+   (string-equal
+    "(setq sentence \"Never a foot too far, even.\")"
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+NAME: initialization
+#+BEGIN_SRC emacs-lisp
+  (setq sentence \"Never a foot too far, even.\")
+#+END_SRC
+
+#+begin_ai :noweb yes
+<<initialization>>
+#+end_ai")
+      (oai-block-get-content)))))
+
+;; (ert-deftest oai-tests-block-tags--noweb ()
+;;   ;; oai-block-get-content
+;;   (should
+;;    (string-equal
+;;     "Never a foot too far, even."
+;;     (with-temp-buffer
+;;       (org-mode)
+;;       (insert "
+;; #+NAME: initialization1
+;; #+begin_ai :noweb yes
+;; text
+;; #+end_ai
+
+;; #+NAME: initialization
+;; #+begin_ai :noweb yes
+;; ss
+;; <<initialization1()>>
+;; #+end_ai
+
+;; #+begin_ai :noweb yes
+;; <<initialization>>
+;; #+end_ai")
+;;       (oai-block-get-content)))))
 
 ;; -=-= provide
 (provide 'oai-tests-block-tags)
