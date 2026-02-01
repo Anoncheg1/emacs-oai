@@ -271,11 +271,11 @@ PATH-STRING may be path to file or a directory."
                                             ;; else
                                             (org-file-contents path-string)))) ; oai-block-tags--read-file-to-string-safe
 
-(cl-loop with context = (org-element-context)
-         while (and context
-                    (not (member (org-element-type context) oai-block-tags-org-blocks-types)))
-         do (setq context (org-element-property :parent context))
-         finally return context)
+;; (cl-loop with context = (org-element-context)
+;;          while (and context
+;;                     (not (member (org-element-type context) oai-block-tags-org-blocks-types)))
+;;          do (setq context (org-element-property :parent context))
+;;          finally return context)
 ;; (oai-block-tags--compose-block-for-path-full "/home/g/sources/nongnu/Makefile")
 ;; -=-= help functions: blocks
 ;; (defun oai-block-tags--get-org-block-element ()
@@ -303,6 +303,7 @@ PATH-STRING may be path to file or a directory."
 
 (defun oai-block-tags--get-block-at-point (&optional element)
   "Get Org block if point at one of `oai-block-tags-org-blocks-types'.
+Otherwise return nil.
 Optional argument ELEMENT is any Org element."
   (let ((context (or element (org-element-context))))
     (while (and context
@@ -582,7 +583,7 @@ Works in any mode buffers.
 
 (defun oai-block-tags--get-content-at-point-org ()
   "For position at begining of the line we prepare block for LLM."
-  (let* ((element (org-element-context))
+  (let* ((element (or (oai-block-tags--get-block-at-point) (org-element-context)))
          (type (org-element-type element)))
     (oai--debug "oai-block-tags--get-content-at-point type %s" type)
     ;; - (1) case - headline

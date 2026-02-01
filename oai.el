@@ -1,4 +1,4 @@
-;;; oai.el --- AI-LLM blocks for org-mode -*- lexical-binding: t; -*-
+;;; oai.el --- AI-LLM chat block for org-mode as a minor mode -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
 ;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
@@ -115,7 +115,6 @@
 ;; - key to enable full Org highlighting? think about it
 ;; - fontify latex [[file:/usr/share/emacs/30.2/lisp/org/org.el::16097::(defun org-inside-latex-macro-p ()]]
 ;; [[file:/usr/share/emacs/30.2/lisp/textmodes/tex-mode.el::1277::(setq-local font-lock-defaults]]
-;; - add support for one line code blocks: ```toon users[3]{id,name,role}: 1,Alice,admin 2,Bob,user 3,Charlie,user
 ;; - small markdown mode on highlighting
 ;; - simple Elisp function to ask LLM
 ;; - add guide to use `oai-restapi-request' and with retries for simple ELisp LLM call and get result for TAB key and some place in buffer.
@@ -124,6 +123,7 @@
 ;; - add buttons: 1) generate button based on LLM answer 2) handle clicking.
 ;; - default requst as one plist configuration
 ;; - support for https://github.com/LionyxML/markdown-ts-mode
+;; - check big markdown-mode for insights for us.
 ;; - stop previous request if new one called
 ;; - fill-paragraph should not break markdown quotes and bolds
 ;; - add new line before ai answer
@@ -132,7 +132,7 @@
 ;; - make `oai-expand-block' executed with `org-babel-expand-src-block'.
 ;; - provide place or hook to add custom expansion of link to one line for user defined mode
 ;; - support vars as tags    https://orgmode.org/manual/Environment-of-a-Code-Block.html
-;; - write test for `oai-block-tags-get-content'.
+;; - write test for `oai-block-tags-get-content' and `oai-block-tags--get-content-at-point-org'.
 ;;; Code:
 ;; Touch: Pain, water and warm.
 
