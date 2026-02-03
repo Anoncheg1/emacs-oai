@@ -1,4 +1,4 @@
-;;; oai.el --- AI-LLM chat block for org-mode. -*- lexical-binding: t; -*-
+;;; oai.el --- AI-LLM chat blocks for org-mode -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
 ;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
@@ -67,7 +67,7 @@
 ;; - In block #+begin_ai..#+end_ai blocks:
 ;;     - C-c C-c - to send the text to the OpenAI API and insert a response
 ;;     - C-c . - to inspect raw data (and C-u C-c .)
-;;     - C-c C-. - to see url.el raw HTTP data (working only during request)
+;;     - C-c C-.  - to see url.el raw HTTP data (working only during request)
 ;;     - M-h - mark element in ai block (C-u M-h - mark chat message)
 ;;     - C-c C-t - set :max-tokens
 ;; - in buffer with oai-mode enabled:
@@ -358,6 +358,7 @@ If optional argument ARG is non-nil, mark current message of chat."
     (call-interactively #'org-mark-element)))
 
 (defun oai-expand-block-org ()
+  "Show a temp buffer with what the ai block expands to."
   (interactive)
   (if (oai-block-p)
       (call-interactively #'oai-expand-block)

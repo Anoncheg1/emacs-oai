@@ -158,7 +158,7 @@ Built-in url.el have ability to output request and resonse headers, for that you
 : (setq url-debug '(http))
 * Extension guide
 ** Hooks for post-processing of LLM resonse
-There are a hook ~oai-restapi-after-chat-insertion-hook~ that accpet two arguments (par1 par2)
+There are a hook ~oai-block-after-chat-insertion-hook~ that accpet two arguments (par1 par2)
 - type :: simbol \='role, \='text or'end.
 - role-text :: text or role name.
 - pos :: position before text insertion.
@@ -181,7 +181,7 @@ Example to remove empty lines after AI answer:
                (con-end (org-element-property :contents-end context)))
           (oai-optional-remove-distant-empty-lines con-beg con-end)))))
 
-(add-hook 'oai-restapi-after-chat-insertion-hook #'my/ai-postprocess)
+(add-hook 'oai-block-after-chat-insertion-hook #'my/ai-postprocess)
 #+end_src
 
 ** Hooks for for pre-processing of requests to LLM or text of blocks

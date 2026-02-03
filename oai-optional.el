@@ -29,9 +29,9 @@
 ;; Configuration for usage:
 
 ;; (require 'oai-optional)
-;; (add-hook 'oai-restapi-after-chat-insertion-hook
+;; (add-hook 'oai-block-after-chat-insertion-hook
 ;;          #'oai-optional-remove-headers-hook-function)
-;; (add-hook 'oai-restapi-after-chat-insertion-hook
+;; (add-hook 'oai-block-after-chat-insertion-hook
 ;;          #'oai-optional-remove-distant-empty-lines-hook-function)
 
 (require 'cl-lib) ; Ensure cl-lib is loaded for cl-defun and cl-destructuring-bind
@@ -125,7 +125,7 @@ contains [ME]:"
 (defun oai-optional-remove-distant-empty-lines-hook-function (type content before-pos stream)
   "Remove empty lines when there is too many of them.
 TYPE _CONTENT BEFORE-POS BUF parameters described in
-`oai-restapi-after-chat-insertion-hook' hook.
+`oai-block-after-chat-insertion-hook' hook.
 Argument STREAM not used."
   (ignore content stream)
   (save-excursion
@@ -153,10 +153,10 @@ user-configured prefixes."
 
 
 (defun oai-optional-remove-headers-hook-function (type _content before-pos _stream)
-  "Ready for usage in `oai-restapi-after-chat-insertion-hook'.
+  "Ready for usage in `oai-block-after-chat-insertion-hook'.
 Remove Org headers between BEFORE-POS and current position in BUF buffer.
 TYPE _CONTENT BEFORE-POS BUF parameters described in
-`oai-restapi-after-chat-insertion-hook' hook."
+`oai-block-after-chat-insertion-hook' hook."
   (oai--debug "IN A HOOK oai-optional-remove-headers-for-hook: %s %s %s %s"
               before-pos
               (point)

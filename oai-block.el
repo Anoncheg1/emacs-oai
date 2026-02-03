@@ -104,6 +104,18 @@ Used by `oai-block--insert-stream-response' in sensitive to case way."
 ;; (cdr (assoc-string "assistant" oai-block-roles-restapi)) ; => assistant
 ;; (car (rassoc ' oai-block-roles-restapi)) ; => "+me"
 
+(defvar oai-block-after-chat-insertion-hook nil
+  "Hook that is called when a chat response is inserted.
+Note this is called for every stream response so it will typically only
+contain fragments.
+For STREAM executed for every word and one time with TYPE=\'end.
+For non-STREAM executed one time with TYPE=\'end.
+Arguments: type, role-text, pos, buffer
+- TYPE - simbol \='role, \='text or'end,
+- ROLE-TEXT - text or role name,
+- POS - position before text insertion
+- STREAM - stream mode or a single insertion.")
+
 
 (defcustom oai-block-parse-part-hook nil
   "Call hook function with raw string of current block after role prefix.
@@ -505,7 +517,7 @@ Variable `oai-block-roles-prefixes' is used to format role to text."
               (newline)
 
               (condition-case hook-error
-                  (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos nil)
+                  (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos nil)
                 (error
                  (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
               (when final
@@ -620,7 +632,7 @@ Argument INSERT-ME insert [ME]: at stop type of message."
                                (insert "\n[" role-prefix "]: " (when (eql role-oai 'assistant) "\n")) ; "\n[ME:] " or "\n[AI:] \n"
 
                                (condition-case hook-error
-                                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'role payload pos t)
+                                   (run-hook-with-args 'oai-block-after-chat-insertion-hook 'role payload pos t)
                                  (error
                                   (message "Error during \"after-chat-insertion-hook\" for role: %s" hook-error)))
 
@@ -633,7 +645,7 @@ Argument INSERT-ME insert [ME]: at stop type of message."
                                (funcall oai-block-fill-function pos t))
 
                              (condition-case hook-error
-                                 (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'text payload pos t)
+                                 (run-hook-with-args 'oai-block-after-chat-insertion-hook 'text payload pos t)
                                (error
                                 (message "Error during \"after-chat-insertion-hook\" for text: %s" hook-error)))
                              (setq pos (point))
@@ -650,7 +662,7 @@ Argument INSERT-ME insert [ME]: at stop type of message."
                                  (setq text ""))
 
                                (condition-case hook-error
-                                   (run-hook-with-args 'oai-restapi-after-chat-insertion-hook 'end text pos t)
+                                   (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos t)
                                  (error
                                   (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
                                (setq pos (point)))
@@ -1286,8 +1298,6 @@ Return number of marked content."
 
             (deactivate-mark)
             (goto-char pos)
-            (setq beg nil)
-            (setq end nil)
             (when-let* ((reg (funcall step))
                         (beg (car reg))
                         (end (cadr reg))
@@ -1547,6 +1557,7 @@ the rest of the result."
 ;; -=-= Fontify: help functions
 (defun oai-block--fontify-markdown-subblocks (start end)
   "Fontify ```language ... ``` fenced mardown code blocks.
+Support markdown blocks with and without language specified.
 We search for begining of block, then for end of block, then fontify
  with `org-src-font-lock-fontify-block'.
 Argument START and END are limits for searching."
@@ -1578,7 +1589,8 @@ Argument START and END are limits for searching."
              block-end block-end-end
              '(face org-block-end-line))
 
-            (remove-text-properties block-begin block-end '(face nil))
+            (remove-text-properties block-begin block-end '(face nil org-emphasis))
+
             ;; Add Org faces.
             (let ((src-face (nth 1 (assoc-string lang org-src-block-faces t))))
               (when (or (facep src-face) (listp src-face))
@@ -1587,6 +1599,7 @@ Argument START and END are limits for searching."
 
             ;; (put-text-property block-end block-end-end 'face 'org-block-end-line)
             ;; (unless (and lang (string-match-p "```" lang))
+
             (when (and lang
                        (not (string-match-p "```" lang))
                        (fboundp (org-src-get-lang-mode lang))) ; for org-src-font-lock-fontify-block
@@ -1597,18 +1610,18 @@ Argument START and END are limits for searching."
                                  'oai-markdown-block t)
               t)))))))
 
-(defun oai-block--fontify-markdown-subblocks-shallow (lim-beg lim-end)
-  "Fontify chat message prefixes like [ME:] with face.
-Argument LIM-BEG ai block begining.
-Argument LIM-END ai block ending."
-  (let (sbeg send)
-    (goto-char lim-beg)
-    (prog1 (while (re-search-forward oai-block--markdown-end-re lim-end t)
-             (setq sbeg (match-beginning 0))
-             (setq send (match-end 0))
-             (unless (oai-block--at-special-p send)
-               (put-text-property sbeg send 'face '(org-meta-line))))
-      (goto-char lim-end))))
+;; (defun oai-block--fontify-markdown-subblocks-shallow (lim-beg lim-end)
+;;   "Fontify ``` ... ``` fenced multiline mardown code blocks.
+;; Argument LIM-BEG ai block begining.
+;; Argument LIM-END ai block ending."
+;;   (let (sbeg send)
+;;     (goto-char lim-beg)
+;;     (prog1 (while (re-search-forward oai-block--markdown-end-re lim-end t)
+;;              (setq sbeg (match-beginning 0))
+;;              (setq send (match-end 0))
+;;              (unless (oai-block--at-special-p send)
+;;                (put-text-property sbeg send 'face '(org-meta-line))))
+;;       (goto-char lim-end))))
 
 (defun oai-block--fontify-org-tables (start end)
   "Set face for lines like Org tables.
@@ -1620,8 +1633,8 @@ Executed in `font-lock-defaults' chain."
       (setq mbeg (match-beginning 0)) ; (prop-match-beginning match))
       (unless (oai-block--at-special-p mbeg)
         (end-of-line)
-        ;; (remove-text-properties mbeg (point)
-        ;;                         (list 'face '(org-block)))
+        (remove-text-properties mbeg (point)
+                                (list 'face))
         (put-text-property mbeg (point)
                            'face 'org-table)
         t))))
@@ -1687,11 +1700,12 @@ support splitting."
     (goto-char start)
     ;; 1. *Bold*
     ;; (while (re-search-forward "\\(^\\|[^*]\\)\\(\\*\\*\\*\\|\\*\\*\\)" end t) ; lines not started with *
-    (while (re-search-forward "\\*\\{1,3\\}\\w" end t) ; lines not started with *
-      (goto-char (match-beginning 0))
-      (if (re-search-forward "\\*\\{1,3\\}\\(\\w[^*]+\\)\\*\\{1,3\\}" (line-end-position) t)
+    ;; (while (re-search-forward "\\*\\{1,3\\}\\w" end t) ; lines not started with *
+      ;; (goto-char (match-beginning 0))
+      (while (re-search-forward "\\*\\{1,3\\}\\(\\w[^*\n]+\\)\\*\\{1,3\\}" end t)
       ;; (if (re-search-forward "\\*\\{2,3\\}\\(\\w[^*]+\\)\\*\\{2,3\\}" (line-end-position) t)
           (progn
+            (setq b1 (match-beginning 0))
             (setq e1 (match-end 0))
             (setq b2 (match-beginning 1)) ; **asd**
             (setq e2 (match-end 1))
@@ -1699,12 +1713,13 @@ support splitting."
 
 
               ;; Only fontify the marker, not surrounding text
+              (remove-text-properties b1 e1 '(face nil org-emphasis))
               (put-text-property b2 e2
                                  ;; 'face '(bold)))
                                  'face 'oai-bold))
             (goto-char e1))
         ;; else
-        (forward-line)))
+        (forward-line))
     ;; 2. `quote` RosyBrown1
     (goto-char start)
     (while (re-search-forward "`[^`]" end t) ; lines not started with *
@@ -1810,9 +1825,10 @@ TODO: fontify if there is only end of ai block on page."
         (when oai-block-fontify-latex
           (oai-block--fontify-latex-blocks beg end))
         ;; ```block
-        (when oai-block-fontify-markdown-flag
-          ;; (oai-block--fontify-markdown-subblocks-shallow beg end)
-          (oai-block--fontify-markdown-subblocks beg end)))
+        ;; (when oai-block-fontify-markdown-flag
+        ;;   ;; (oai-block--fontify-markdown-subblocks-shallow beg end)
+        ;;   (oai-block--fontify-markdown-subblocks beg end))
+        )
       (goto-char end))
     ;; required by font lock mode:
     (goto-char limit))) ; return t

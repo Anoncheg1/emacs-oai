@@ -36,8 +36,8 @@
 (require 'ert)
 (require 'oai-debug)
 ;; (require 'oai-tests-integration) ; `oai-tests--my-http-server-handler' and `oai-tests--create-http-service'
-(require 'oai-prompt)
 (require 'oai)
+(require 'oai-prompt)
  ;; (require 'cl-macs) ; cl-letf
 
 (defvar stub-retries nil)
@@ -218,7 +218,7 @@ and INFO-ALIST is the parameters from its header."
       ;;                                    ;; (print "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]:\n#+end_ai")
       ;;                                    ;; (print (list "wtf" (buffer-substring-no-properties (point-min) (point-max) )
       ;;                                    ;; (message "A:%S\nB:%S"
-      ;;                                    ;; (print (list "oai-restapi-after-chat-insertion-hook" oai-restapi-after-chat-insertion-hook))
+      ;;                                    ;; (print (list "oai-block-after-chat-insertion-hook" oai-block-after-chat-insertion-hook))
       ;;                                    ;; (message "A:%S\nB:%S" (buffer-substring-no-properties (point-min) (point-max) )
       ;;                                    ;;          "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]: \n#+end_ai")
       ;;                                    (should (string-equal
@@ -306,7 +306,7 @@ and INFO-ALIST is the parameters from its header."
       ;;                                    ;; (print "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]:\n#+end_ai")
       ;;                                    ;; (print (list "wtf" (buffer-substring-no-properties (point-min) (point-max) )
       ;;                                    ;; (message "A:%S\nB:%S"
-      ;;                                    ;; (print (list "oai-restapi-after-chat-insertion-hook" oai-restapi-after-chat-insertion-hook))
+      ;;                                    ;; (print (list "oai-block-after-chat-insertion-hook" oai-block-after-chat-insertion-hook))
       ;;                                    ;; (message "A:%S\nB:%S" (buffer-substring-no-properties (point-min) (point-max) )
       ;;                                    ;;          "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]: \n#+end_ai")
       ;;                                    (should (string-equal

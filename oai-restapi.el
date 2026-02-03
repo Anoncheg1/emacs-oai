@@ -253,17 +253,6 @@ that is why defined as lambda with marker.")
 (defvar-local oai-restapi--current-request-is-streamed nil
   "Whether we expect a streamed response or a single completion payload.")
 
-(defvar oai-restapi-after-chat-insertion-hook nil
-  "Hook that is called when a chat response is inserted.
-Note this is called for every stream response so it will typically only
-contain fragments.
-For STREAM executed for every word and one time with TYPE=\'end.
-For non-STREAM executed one time with TYPE=\'end.
-Arguments: type, role-text, pos, buffer
-- TYPE - simbol \='role, \='text or'end,
-- ROLE-TEXT - text or role name,
-- POS - position before text insertion
-- STREAM - stream mode or a single insertion.")
 
 ;; (defvar-local oai-restapi--currently-reasoning nil)
 
