@@ -25,7 +25,7 @@ At left - main window with AI answer. At right - help window with expanded link.
 * Prerequisites
 Emacs 29.1+, 30.2
 
-Token API for remove LLM.
+Token API for remote LLMs.
 
 Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/emacs-org-links
 
@@ -50,7 +50,7 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 - Google
 - Github
 - Together
-- llama.cpp
+- llama.cpp (local)
 
 oai-restapi-con-service [[./oai-restapi.el]]
 
