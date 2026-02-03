@@ -675,8 +675,8 @@ as
 (ert-deftest oai-block--in-markdown-any-quotes-p-mixed-outside2 ()
   (should-not (oai-tests-block--test--with-temp-buffer-at-pos "ss`foo` and ```bar```" 0 #'oai-block--in-markdown-any-quotes-p)))
 
-;; -=-= Test: oai-block--markdown-begin-end
-(ert-deftest oai-tests-block-tags--markdown-begin-end ()
+;; -=-= Test: oai-block--markdown-area
+(ert-deftest oai-tests-block--markdown-area ()
   (let (kill-buffer-query-functions
         org-execute-file-search-functions
         points
@@ -685,7 +685,7 @@ as
       (org-mode)
       (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
       (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n#+end_ai")
-      (setq res (oai-block--markdown-begin-end (point-min) (point-min) (point-max)))
+      (setq res (oai-block--markdown-area (point-min) (point-min) (point-max)))
       ;; (oai-block-tags--markdown-mark-fenced-code-body))))
       (should-not res))
     (with-temp-buffer
@@ -706,26 +706,31 @@ as
         (push (point) points)
         (insert "#+end_ai")
         (insert "\n")
-      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
+      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
       (should-not res)
-      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
-      (should-not res)
-      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
-      (should-not res)
-      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
-      (should (equal res '(100 101)))
-      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
-      (should (equal res '(100 101)))
-      (setq res (oai-block--markdown-begin-end (pop points) (point-min) (point-max)))
+      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
+      ;; (should-not res
+      (should (equal res '((91 105) (100 99))))
+      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
+      (should (equal res '((91 105) (100 99))))
+
+      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
+      (should (equal res '((91 105) (100 99))))
+      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
+      (should (equal res '((91 105) (100 99))))
+      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
       (should-not res)))))
 
 
 ;; -=-= Test: `oai-block-mark-at-point'
 (ert-deftest oai-tests-oai--mark-at-point ()
     (with-temp-buffer
+      ;; (setq ert-enabled nil)
       (org-mode)
+      (transient-mark-mode)
       (let (p1 p2
-            (oai-restapi-con-token '(:openai "test-token-openai")))
+            (oai-restapi-con-token '(:openai "test-token-openai"))
+            res)
         (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n")
         (setq p1 (point))
         (insert "```elisp\n")
@@ -734,10 +739,22 @@ as
         (insert "```\n#+end_ai")
         (goto-char p1)
         (call-interactively #'oai-block-mark-at-point)
-        (should (equal (list (region-beginning) (region-end)) '(100 103)))
+        (setq res (list (region-beginning) (region-end)))
+        (should (equal res '(100 102)))
+        (deactivate-mark)
         (goto-char p2)
         (call-interactively #'oai-block-mark-at-point)
-        (should (equal (list (region-beginning) (region-end)) '(100 103)))
+        (setq res (list (region-beginning) (region-end)))
+        (should (equal res '(100 102)))
+        (call-interactively #'oai-block-mark-at-point)
+        (setq res (list (region-beginning) (region-end)))
+        (should (equal res '(91 106)))
+        (call-interactively #'oai-block-mark-at-point)
+        (setq res (list (region-beginning) (region-end)))
+        (should (equal (list (region-beginning) (region-end)) '(91 107)))
+        (call-interactively #'oai-block-mark-at-point)
+        (setq res (list (region-beginning) (region-end)))
+        (should (equal (list (region-beginning) (region-end)) '(1 115)))
         )))
 ;; -=-= provide
 (provide 'oai-tests-block)

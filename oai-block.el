@@ -202,7 +202,7 @@ In `oai-block-roles-prefixes'.")
 (defconst oai-block--ai-block-end-re "^#\\+end_ai.*$")
 
 (defvar oai-block--markdown-begin-re "^\\s-*```\\([^\s\t\n[{]+\\)[\s\t]?$")
-(defvar oai-block--markdown-end-re "^\\s-*```\\s-*$")
+(defvar oai-block--markdown-end-re "^[\s\t]**```\\s-*$")
 (defvar oai-block--markdown-beg-end-re "^[\s\t]*```\\(.*\\)$")
 (defvar oai-block--chat-prefixes-re "^\\s-*\\[\\([^\]]+\\)\\(:\\]\\|\\]:\\)\\s-*"
   "Prefix should be at the begining of the line with spaces or without.
@@ -378,12 +378,12 @@ Optional argument ELEMENT should be ai block if specified."
      (let* ((beg (org-element-property :contents-begin element))
             (end (org-element-property :contents-end element)))
        (if (and beg end)
-           (list beg end)
+           (cons beg end)
          ;; else - empty block
          (org-with-wide-buffer
           (save-excursion
             (goto-char (org-element-property :begin element))
-            (list (line-beginning-position 2) (line-beginning-position 2))))))))
+            (cons (line-beginning-position 2) (line-beginning-position 2))))))))
 
 
 (defun oai-block--area (&optional element)
@@ -398,7 +398,7 @@ Optional argument ELEMENT is ai block."
 
 (defun oai-block-get-content (&optional element context)
   "Extracts the text content of the #+begin_ai...#+end_ai block.
-ELEMENT is the element of the special block.
+ELEMENT is the element of the ai block.
 Will expand noweb templates if an `oai-noweb' property or
 `noweb' header arg is \"yes\".
 Use ELEMENT only in current moment, if buffer modified you will need new
@@ -407,7 +407,8 @@ CONTEXT may be one of :tangle, :export or :eval, the last is by default.
 Don't support tags and Org links expansion, for that use
 `oai-block-tags-get-content' instead."
   (when-let ((reg (oai-block--contents-area element)))
-    (seq-let (con-beg con-end) reg
+    (let ((con-beg (car reg))
+          (con-end (cdr reg)))
       (org-with-wide-buffer
        (let* ((unexpanded-content (if (or (not con-beg) (not con-end))
                                       (error "Empty block")
@@ -491,7 +492,7 @@ Variable `oai-block-roles-prefixes' is used to format role to text."
               (goto-char (1- pos)) ; to use insert before end-marker to preserve it at the end of block
               (while (bolp)
                 (delete-char -1))
-              (print (point))
+              ;; (print (point))
               (newline)
               (newline)
               ;; (print (point))
@@ -951,47 +952,56 @@ Uses `oai-block-roles-prefixes' variable for mapping roles to prefixes."
 ;;                  (looking-at "^> ")))
 ;;     (goto-char pos)))
 
-(defun oai-block--markdown-begin-end (pos limit-begin limit-end)
-  "Return (begin end) of markdown shallow block.
+(defun oai-block--markdown-area (pos limit-begin limit-end)
+  "Return list with position of markdown multiline block.
+List is ((begin end) (begining-of-content end-of-content))
 If POS position is inside markdown block without specified language or
 specified.  Used in `oai-block-mark-at-point'.
 If there is two markdown begining with language we treat second as
 inside of first.
 Argument LIMIT-BEGIN LIMIT-END are positions ai block header and footer."
-  (oai--debug "oai-block--markdown-begin-end %s %s %s" pos limit-begin limit-end)
+  (oai--debug "oai-block--markdown-area %s %s %s" pos limit-begin limit-end)
   ;; fix limits
   (when (and limit-begin (< pos limit-begin))
     (setq limit-begin pos))
   (when (and limit-end (> pos limit-end))
     (setq limit-end pos))
-  ;; (oai--debug "oai-block--markdown-begin-end0 %s %s %s" pos limit-begin limit-end)
+  ;; (oai--debug "oai-block--markdown-area0 %s %s %s" pos limit-begin limit-end)
   (let (beg
+        end
         beg-cont
-        end found)
+        end-cont
+        found)
     (goto-char limit-begin)
     ;; 1) find begining with or without language
-    ;; (oai--debug "oai-block--markdown-begin-end11 %s %s %s %s" (point) limit-begin limit-end found)
+    ;; (oai--debug "oai-block--markdown-area11 %s %s %s %s" (point) limit-begin limit-end found)
+    ;; [[file:~/tmp/emacs-file2026-01-31.org::(while (and context]]
     (while (and (< (point) limit-end)
-                (re-search-forward oai-block--markdown-beg-end-re limit-end t)
+                (re-search-forward oai-block--markdown-beg-end-re limit-end t) ; point is at end of line now
                 (not found))
-      ;; (oai--debug "oai-block--markdown-begin-endss yes")
       (unless (string-match-p "```" (match-string 1)) ; should not be flat quoted list
-        ;; (oai--debug "oai-block--markdown-begin-end yes")
-        (setq beg-cont (point)) ; end of head line
-        (setq beg (match-beginning 0)) ; end of head line
+        (setq beg (line-beginning-position)) ; begin of head line
         (forward-line)
+        (setq beg-cont (line-beginning-position))
         ;; 2) find end
         (when (and (re-search-forward oai-block--markdown-end-re limit-end t)
-                   (not found))
+                   (not found)) ; pos at next line
           ;; save
-          (setq end (1+ (match-beginning 0)))
-          ;; (oai--debug "oai-block--markdown-begin-end1 %s %s %s" pos beg end)
+          (goto-char (match-beginning 0))
+          (setq end (line-end-position))
+          (while (bolp)
+            (backward-char))
+          (setq end-cont (point))
+          (goto-char end) ; to skip current block
+
+          ;; (oai--debug "oai-block--markdown-area1 %s %s %s" pos beg end)
           (when (and (>= pos beg) (<= pos end))
-            (setq found (list (1+ beg-cont) end))))))
+            (setq found (list (list beg end) (list beg-cont end-cont)))))))
+    (oai--debug "oai-block--markdown-area1 %s " found)
     found))
 
 
-;; (defun oai-block--markdown-lang-begin-end (pos limit-beg limit-end)
+;; (defun oai-block--markdown-lang-area (pos limit-beg limit-end)
 ;;   "Return (begin end) of markdown language block.
 ;; If POS in it.
 ;; Optional argument LIM-BEG is ai block begining position.
@@ -1097,6 +1107,27 @@ on the current line.
   (or (oai-block--in-markdown-quotes-p pos "`")
       (oai-block--in-markdown-quotes-p pos "```")))
 
+;; -=-= interactive: next-ai-block
+(defvar oai-block-ai-block-regexp
+  (concat
+   "^#\\+begin_ai[^\n]*\n"
+   ;; (1) body
+   "\\(\\(?:.\\|\n\\)*?\\)??[ \t\n]*#\\+end_ai")
+  "Regexp used to ai blocks or its body.
+Modified `org-babel-src-block-regexp' for `oai-block-next-ai-block'.")
+
+(defun oai-block-next-ai-block (&optional arg)
+  "Jump to the next ai block.
+Like `org-babel-next-src-block'.
+With optional prefix argument ARG, jump forward ARG many source blocks."
+  (interactive "p")
+  (org-next-block arg nil oai-block-ai-block-regexp))
+
+(defun oai-block-previous-ai-block (&optional arg)
+  "Jump to the previous ai block.
+With optional prefix argument ARG, jump backward ARG many source blocks."
+  (interactive "p")
+  (org-previous-block arg oai-block-ai-block-regexp))
 
 ;; -=-= Interactive
 
@@ -1112,21 +1143,26 @@ on the current line.
 (defun oai-block-mark-chat-message-at-point ()
   "Mark the prompt at point: [ME:], [AI:]."
   (interactive)
+  (oai--debug "oai-block-mark-chat-message-at-point1 %s" (point))
   (when-let* ((regions (oai-block--chat-role-regions))
               (start (cl-find-if (lambda (x) (>= (point) x)) (reverse regions)))
               (end (cl-find-if (lambda (x) (<= (point) x)) regions)))
+    (oai--debug "oai-block-mark-chat-message-at-point2 %s" (point))
     (when (= start end)
       (setq end (cl-find-if (lambda (x) (< start x)) regions)))
     (when (not end)
       (setq end start)
       (setq start (cl-find-if (lambda (x) (> end x)) (reverse regions))))
     (when (and start end)
+      ;; (goto-char end)
+      ;; (while (bolp)
+      ;;       (backward-char))
       (goto-char start)
       (unless (region-active-p) (push-mark end t t))
       (cons start end))))
 
-(defun oai-block-forward-section (&optional arg)
-  "Move forward to end of section.
+(defun oai-block-next-message (&optional arg)
+  "Move to next message or to the end of current in current ai block.
 A negative argument ARG = -N means move backward."
   (interactive "^p")
   ;;   TODO:
@@ -1152,132 +1188,160 @@ A negative argument ARG = -N means move backward."
             (unless (region-active-p) (push-mark nil t)) ; save position
             (goto-char (cl-find-if (lambda (x) (>= (1- start) x)) (reverse regions)))))))))
 
-(defun oai-block-kill-message-at-point (&optional arg)
-  "Kill the prompt at point.
-The numeric ARG can be used for killing the last n."
-  (interactive "P")
-  (if arg
-      (when-let* ((region (oai-block--area))
-                  (start (car region))
-                  (end (cdr region)))
-        (kill-region end start))
-    (when-let* ((region (oai-block-mark-chat-message-at-point))
-                (start (car region))
-                (end (cdr region)))
-      (kill-region end start))))
+(defun oai-block-previous-message (&optional arg)
+  "Move to previous message or to the begining of current in current ai block.
+A positive ARG = N means move backward N sections."
+  (interactive "^p")
+  (oai-block-next-message (- (or arg 1))))
 
-;; (defun oai-block-kill-last-region (&optional arg)
+
+ ;; (defun oai-block-next-element (&optional arg)
+
+;; (defun oai-block-kill-message-at-point (&optional arg)
 ;;   "Kill the prompt at point.
 ;; The numeric ARG can be used for killing the last n."
 ;;   (interactive "P")
-;;   (when-let* ((regions (reverse (oai-block--chat-role-regions)))
-;;               (last-region-end (pop regions))
-;;               (last-region-start (pop regions)))
-;;         (goto-char last-region-end)
-;;         (push-mark last-region-start t t)))
-
-;;   (cl-loop repeat (or arg 1)
-;;            do (when-let ((region (oai-block-mark-chat-message-at-point)))
-;;                 (cl-destructuring-bind (start . end) region
-;;                   (kill-region end start)))))
-
-;; (defun oai-block-mark-at-point-chat-message-region
+;;   (if arg
+;;       (when-let* ((region (oai-block--area))
+;;                   (start (car region))
+;;                   (end (cdr region)))
+;;         (kill-region end start))
+;;     (when-let* ((region (oai-block-mark-chat-message-at-point))
+;;                 (start (car region))
+;;                 (end (cdr region)))
+;;       (kill-region end start))))
 
 (defun oai-block-mark-at-point ()
-  "Mark entities of ai block at current poin in current buffer.
-For second execution mark chat message, then whole ai block.
-Like `org-babel-mark-block'."
+  "Progressively mark a larger region in AI block at point.
+Steps:
+  0. Org element
+  1. Markdown block
+  2. Markdown block with header
+  3. Chat message
+  4. Block content
+  5. Whole block.
+Return number of marked content."
   (interactive)
-  ;; (oai--debug "oai-block-mark-at-point0 %s %s" (point) arg)
-  (let ((cur-reg-range (when (use-region-p)
-                         (- (region-end) (region-beginning)))))
-    ;; else
-    ;; (oai--debug "oai-block-mark-at-point01 %s" (point))
-    (when-let ((pos
-                ;; (progn (when (looking-at oai-block--markdown-beg-end-re)
-                ;;              (forward-line)) ; fix for oai-block--markdown-begin-end that dont work if pointer at markdown begining
-                (point))
-               (reg (oai-block--contents-area))) ; get beg end
+  (let ((pos (point))
+        (expanded nil)
+        (cur-size (if (use-region-p) (- (region-end) (region-beginning)) 0))
+        (inx 0)
+        (prev-inx 0)
+        found-beg found-end
+        step)
+    (save-mark-and-excursion
+      (when-let ((block-region (save-excursion (oai-block--area))))
+        (let* ((block-beg (car block-region))
+               (block-end (cdr block-region))
+               (mark-markdown
+                (lambda ()
+                  (message "MBlock")
+                  (cadr (oai-block--markdown-area (point) block-beg block-end)))) ; beg-cont end-cont
+               (steps
+                (list
+                 ;; Step 0: Org element
+                 (lambda ()
+                   ;; Additionally check if point is in markdown block
+                   ;; that element is less than block.
+                   (let* ((reg (funcall mark-markdown))
+                          (block-size (when reg (- (cadr reg) (car reg)))))
+                     (deactivate-mark)
+                     (goto-char pos)
+                     (ignore-errors                    ;; Guard in case not on element
+                       (message "Org Element")
+                       (org-mark-element)
+                       (if (and block-size (> (- (region-end) (region-beginning)) block-size))
+                           nil
+                         ;; else
+                         (list (region-beginning) (region-end))))))
+                 ;; Step 1: Markdown block
+                 mark-markdown
 
-      (seq-let (bbeg bend) reg
-        (push-mark nil t)
-        ;; (oai--debug "oai-block-mark-at-point1 %s %s %s" pos bbeg bend)
-        ;; - if markdown block
-        (if-let ((m-reg (oai-block--markdown-begin-end pos bbeg bend)))
-            (progn
-              (seq-let (m-beg m-end) m-reg
-                (push-mark m-beg t)
-                (goto-char (1- m-end))
-                (activate-mark))
-              t)
-          ;; else - no markdown block
-          (goto-char pos)
-          (if (not cur-reg-range)
-              (call-interactively #'org-mark-element)
-            ;; else
-            (let (rb re)
-              (save-mark-and-excursion
-                (deactivate-mark)
-                (call-interactively #'org-mark-element)
-                (setq rb (region-beginning))
-                (setq re (region-end)))
-              (if (> (- re rb) cur-reg-range) ; larger than was?
-                  (progn
-                    (set-mark re)
-                    (goto-char rb))
-                ;; else - try other
-                (save-mark-and-excursion
-                  (deactivate-mark)
-                  (oai-block-mark-chat-message-at-point)
-                  (setq rb (region-beginning))
-                  (setq re (region-end)))
-                (if (> (- re rb) cur-reg-range)
-                    (progn
-                      (set-mark re)
-                      (goto-char rb))
-                  ;; else - mark ai block content
-                  (if (> (- bend bbeg) cur-reg-range)
-                      (progn
-                        (set-mark bend)
-                        (goto-char bbeg))
+                 ;; Step 2: Markdown block with header and footer
+                 (lambda ()
+                   (message "MBlock with header")
+                   (when-let ((m-reg (oai-block--markdown-area (point) block-beg block-end)))
+                     (car m-reg)))
+                 ;; Step 3: Chat message
+                 (lambda ()
+                   (message "Chat message")
+                   (oai-block-mark-chat-message-at-point)
+                   (list (region-beginning) (region-end)))
+                 ;; Step 4: Block content
+                 (lambda ()
+                   (message "AI Block content")
+                   (let ((reg (oai-block--contents-area)))
+                     (when reg
+                       (list (car reg) (cdr reg)))))
+                 ;; Step 5: Block whole
+                 (lambda () (message "Block whole") (list block-beg block-end)))))
 
-                    ;; else - mark whole ai block
-                    (let* ((region (oai-block--area))
-                           (bbeg (car region))
-                           (bend (cdr region)))
-                        (set-mark bend)
-                        (goto-char bbeg))))))))
-                ;; (exchange-point-and-mark)
-                ))))
+          ;; Step sequentially
+          (when (region-active-p) (setq inx 1)) ; skip org element if region active.
+          (while (and (< inx 6)
+                      (not expanded))
+            (setq step (nth inx steps))
+            (setq inx (1+ inx))
 
 
-;; (defvar org-babel-src-block-regexp
-;;   (concat
-;;    oai-block--ai-block-begin-re
-;;    ;; (1) indentation                 (2) lang
-;;    "^\\([ \t]*\\)#\\+begin_src[ \t]+\\([^ \f\t\n\r\v]+\\)[ \t]*"
-;;    ;; (3) switches
-;;    "\\([^\":\n]*\"[^\"\n*]*\"[^\":\n]*\\|[^\":\n]*\\)"
-;;    ;; (4) header arguments
-;;    "\\([^\n]*\\)\n"
-;;    ;; (5) body
-;;    "\\(\\(?:.\\|\n\\)*?\n\\)??[ \t]*#\\+end_src")
-;;   "Regexp used to identify code blocks.")
+            (deactivate-mark)
+            (goto-char pos)
+            (setq beg nil)
+            (setq end nil)
+            (when-let* ((reg (funcall step))
+                        (beg (car reg))
+                        (end (cadr reg))
+                        (new-size (- end beg)))
+              (when (<= new-size cur-size)
+                (setq prev-inx (1- inx)))
+              ;; Compare new region size
+              (oai--debug "oai-block-mark-at-point %s %s %s %s" inx reg (when beg (- end beg)) cur-size)
+              (when (and beg end
+                         (> new-size cur-size))
+                (goto-char beg)
+                (set-mark end)
+                (setq expanded t
+                      cur-size (- end beg)
+                      found-beg beg
+                      found-end end)))))))
+    ;; If nothing expanded, just mark whole block
+    (when expanded
+      (deactivate-mark)
+      (goto-char found-beg)
+      (set-mark found-end)
+      ;; (activate-mark)
+      )
+    (list prev-inx inx)))
 
-;; ;;;###autoload
-;; (defun org-babel-next-src-block (&optional arg)
-;;   "Jump to the next source block.
-;; With optional prefix argument ARG, jump forward ARG many source blocks."
-;;   (interactive "p")
-;;   (org-next-block arg nil org-babel-src-block-regexp))
+;; (defun oai-block-next-element (&optional arg)
+;;   "Select next element of ai block or just jump.
+;; If optional argument ARG is non-nil, use default behavior to just jump.
+;; Used with conjunction of `oai-block-mark-at-point' function.
+;; If region is active and no ARG we select next element by selecting it as
+;; current."
+;;   (interactive "P")
+;;   (steps (list 'org-forward-element ;0
+;;                '
+;;                (if (region-active-p)
+;;       (let (
+;;                          )
+;;             (mark-num (save-mark-and-excursion
+;;                         (oai-block-mark-at-point)))) ;
+;;         ;; (deactivate-mark)
+;;         (print mark-num)
+;;          ))
+;;         ;; (cond
+;;         ;;  (eq mark-num
+;;         ;; oai-block-next-message
+;;     ;; else
+;;     (cond
+;;      ((org-in-regexp oai-block--chat-prefixes-re)
+;;       (re-search-forward oai-block--chat-prefixes-re nil t)) ; todo limit current block
+;;     ))
 
-;; ;;;###autoload
-;; (defun org-babel-previous-src-block (&optional arg)
-;;   "Jump to the previous source block.
-;; With optional prefix argument ARG, jump backward ARG many source blocks."
-;;   (interactive "p")
-;;   (org-previous-block arg org-babel-src-block-regexp))
 
+
+;; not used for now
 (defun oai-find-named-block (name)
   "Find block by NAME from begining of current buffer.
 Return the location of the block identified by source
@@ -1294,30 +1358,13 @@ NAME, or nil if no such block exists.
                       (line-beginning-position)))
           (ignore-errors (org-next-block 1 nil regexp))))))
 
-;; (defun oai-block-tags--markdown-mark-fenced-code-body (&optional limit-begin limit-end)
-;;   "Mark content inside Markdown fenced code block (```), excluding header/footer.
-;; LIMIT-BEGIN and LIMIT-END restrict the search region around point.
-;; Returns t if was marked, nil otherwise.
-;; Used in `oai-block-tags-mark-md-block-body'."
-;;   ;; fill limit-begin and limit-end - if they was not profiled
-;;   (when (not (and limit-begin limit-end))
-;;     (when-let* ((region (oai-block-tags--get-org-block-region))) ; maybe use `org-src--contents-area' ?
-;;       (setq limit-begin (car region))
-;;       (setq limit-end (cadr region))))
 
-;;   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range limit-begin limit-end))
-;;               (beg (car r))
-;;               (end (cadr r)))
-;;     (push-mark beg t)
-;;     (goto-char end)
-;;     (forward-line -1)
-;;     (end-of-line)
-;;     (activate-mark)
-;;     t))
 
 (defun oai-block-set-block-parameter (parameter default-value)
   "Jump to header of ai block and set PARAMETER.
-PARAMETER is string, "
+PARAMETER is string for ai block header switch keyword with (:) at
+begining with specified DEFAULT-VALUE.
+Used for `oai-set-max-tokens-org' function."
   (if-let ((element (oai-block-p)))
       (progn
         (push-mark)
@@ -1336,30 +1383,6 @@ PARAMETER is string, "
             (goto-char pos))))
     ;; else
     (message "Not oai block here.")))
-
-
-;; (defun oai-block-set-max-tokens ()
-;;   "Jump to header of ai block and set max-tokens."
-;;   (interactive)
-;;   (if-let ((element (oai-block-p)))
-;;       (progn
-;;         (push-mark)
-;;         (goto-char (car (oai-block--area)))
-;;         (if (search-forward ":max-tokens" (line-end-position) t)
-;;             ;; if - 1) ;modify :max-tokens
-;;             (if (eq (line-end-position) (point))
-;;                 (insert " ")
-;;               ;; else
-;;               (forward-char))
-;;           ;; else - 2) add :max-tokens
-;;           ;; (goto-char beg)
-;;           (forward-char 10)
-;;           (insert " :max-tokens ")
-;;           (let ((pos (point)))
-;;             (insert (format "%s " oai-restapi-default-max-tokens))
-;;             (goto-char pos))))
-;;     ;; else
-;;     (message "Not oai block here.")))
 
 ;; -=-= Markers
 

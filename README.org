@@ -152,6 +152,7 @@ or
 To get full request body and more information set:
 : (setopt oai-debug-buffer "*debug-oai*")
 : (setq debug-on-error t) ; optional
+: (ert-enabled t) ; debug output to stdout for ert tests
 
 Built-in url.el have ability to output request and resonse headers, for that you need to set
 : (setq url-debug '(http))

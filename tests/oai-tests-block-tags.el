@@ -445,16 +445,17 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
 ;; -=-= Test: oai-block-tags--get-org-block-region
 (ert-deftest oai-tests-block-tags--get-org-block-region ()
   (let (kill-buffer-query-functions
-        org-execute-file-search-functions)
+        org-execute-file-search-functions
+        res)
     (with-temp-buffer
       (org-mode)
       (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
       (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n#+end_ai")
       (goto-char (point-min))
       ;; (print (oai-block-tags--get-org-block-region))
-      (let ((res (oai-block-tags--get-org-block-region)))
-        (should (= (car res) 91 ))
-        (should (= (cadr res) 91 )))
+      (setq res (oai-block-tags--get-org-block-region))
+      (should (= (car res) 91 ))
+      (should (= (cdr res) 91 ))
 
       (goto-char (point-max))
       (insert "\n")
@@ -466,7 +467,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       ;; (print (oai-block-tags--get-org-block-region))
       (let ((res (oai-block-tags--get-org-block-region)))
         (should (= (car res) 190 ))
-        (should (= (cadr res) 192 )))
+        (should (= (cdr res) 192 )))
       )))
 
 ;; -=-= Test: oai-block-tags--filepath-to-language

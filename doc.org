@@ -236,8 +236,8 @@ We use
 #+end_src
 
 * Function for ``` markdown blocks
-- oai-block--markdown-begin-end - any ``` block at separate lines.
-- oai-block--markdown-lang-begin-end - ``` with language
+- oai-block--markdown-area - any ``` block at separate lines.
+- oai-block--markdown-lang-area - ``` with language
 * Org noweb
 ** how:
 Expand links on  evaluating, tangling, or exporting.

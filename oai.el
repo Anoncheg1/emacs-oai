@@ -1,4 +1,4 @@
-;;; oai.el --- AI-LLM chat block for org-mode as a minor mode -*- lexical-binding: t; -*-
+;;; oai.el --- AI-LLM chat block for org-mode. -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
 ;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
@@ -68,11 +68,8 @@
 ;;     - C-c C-c - to send the text to the OpenAI API and insert a response
 ;;     - C-c . - to inspect raw data (and C-u C-c .)
 ;;     - C-c C-. - to see url.el raw HTTP data (working only during request)
-;;     - M-h - mark ai block content
-;;     - C-u M-h - mark chat message
-;;     - C-c <backspace> - (kill-region-at-point) to remove the chat
-;;       part under point.  (oai-block.el)
-;;     - C-c C-l - set :max-tokens
+;;     - M-h - mark element in ai block (C-u M-h - mark chat message)
+;;     - C-c C-t - set :max-tokens
 ;; - in buffer with oai-mode enabled:
 ;;     - C-g - to stop all requsts.
 
@@ -124,7 +121,7 @@
 ;; - default requst as one plist configuration
 ;; - support for https://github.com/LionyxML/markdown-ts-mode
 ;; - check big markdown-mode for insights for us.
-;; - stop previous request if new one called
+;; - stop previous request if new one called with all equal parameters
 ;; - fill-paragraph should not break markdown quotes and bolds
 ;; - add new line before ai answer
 ;; - make font-lock better like in [[file:/usr/share/emacs/30.2/lisp/gnus/message.el
@@ -133,6 +130,12 @@
 ;; - provide place or hook to add custom expansion of link to one line for user defined mode
 ;; - support vars as tags    https://orgmode.org/manual/Environment-of-a-Code-Block.html
 ;; - write test for `oai-block-tags-get-content' and `oai-block-tags--get-content-at-point-org'.
+;; - add advanced forward section that check what type of region is
+;; active and do appropriate forward with preserving region
+;; - noweb evaluation with support of variables with some text. like <<call("as")>>
+;; - rebind keys to C-x C-a
+;; - function to replace "^[\s+]- **word1 [word2]:**" to "^^[\s+]- word1 [word2] :: " and highligh it.
+;; - fix highlight to highlight when there is only "#+end_ai"
 ;;; Code:
 ;; Touch: Pain, water and warm.
 
@@ -261,7 +264,6 @@ Return list of strings to print."
 			     :service service
 			     :stream stream)))))
 
-;;;###autoload
 (defun oai-expand-block (arg)
   "Show a temp buffer with what the ai block expands to.
 If there is ai block at current position in current buffer.
@@ -298,7 +300,6 @@ messages."
       res-str)))
 
 ;; -=-= interactive fn: key C-g: keyboard quit
-
 (defun oai-keyboard-quit ()
   "Keyboard quit advice.
 - If there is an active region at current position in current buffer, do
@@ -323,9 +324,7 @@ messages."
               (call-interactively #'oai-restapi-stop-url-request) ; oai-restapi.el
             (error nil)))))))
 
-
 ;; -=-= interactive fn: M-x oai-toggle-debug
-;;;###autoload
 (defun oai-toggle-debug ()
   "Enable/disable debug."
   (interactive)
@@ -337,22 +336,83 @@ messages."
     (setq oai-debug-buffer   "*debug-oai*")
     (message "Enable oai debugging")))
 
-;; -=-= interactive fn: M-x oai-set-max-tokens
-;;;###autoload
-(defun oai-set-max-tokens ()
+;; -=-= interactive aliases
+;; ;;;###autoload
+;; (defalias 'oai-mark-at-point #'oai-block-mark-at-point)
+;; ;;;###autoload
+;; (defalias 'oai-forward-section #'oai-block-forward-section)
+
+;; -=-= interactive fns: Org keys remapings
+(defun oai-mark-at-point-org (&optional arg)
+  "Mark element of ai block, large we every next execution.
+If optional argument ARG is non-nil, mark current message of chat."
+  (interactive "P")
+  (if (oai-block-p)
+      (if arg
+          (progn (deactivate-mark)
+                 (oai-block-mark-chat-message-at-point)
+                 (message "Chat message"))
+        ;; else
+        (call-interactively #'oai-block-mark-at-point))
+    ;; else
+    (call-interactively #'org-mark-element)))
+
+(defun oai-expand-block-org ()
+  (interactive)
+  (if (oai-block-p)
+      (call-interactively #'oai-expand-block)
+    ;; else
+    (call-interactively (key-binding (kbd "C-c .")))))
+
+(defun oai-set-max-tokens-org ()
   "Jump to header of ai block and set max-tokens."
   (interactive)
-  (oai-block-set-block-parameter ":max-tokens" oai-restapi-default-max-tokens))
+  (if (oai-block-p)
+      (oai-block-set-block-parameter ":max-tokens" oai-restapi-default-max-tokens)
+    ;; else
+    (call-interactively (key-binding (kbd "C-c C-t")))))
 
-;; -=-= interactive aliases
-;;;###autoload
-(defalias 'oai-kill-message-at-point #'oai-block-kill-message-at-point)
-;;;###autoload
-(defalias 'oai-mark-at-point #'oai-block-mark-at-point)
-;;;###autoload
-(defalias 'oai-forward-section #'oai-block-forward-section)
+;; -=-= interactive fn: Summarize *TODO:*
+;; (defun oai-summarize ()
+;;   "Jump to header of ai block and set max-tokens."
+;;   (interactive)
+;;   (let ((element (oai-block-p)))
+;;       (when element
+;;         ;; Determine the boundaries of the content
+;;         (let ( ;; ai block range
+;;               (beg (org-element-property :contents-begin element)) ; first line of content
+;;               (end (org-element-property :contents-end element))) ; #+end_ai
+;;           ;; Content exist?
+;;           (when (or (not beg)
+;;                     (not end))
+;;             (error "Empty block"))
+;;           ;; format
+;;           (while
 
-;; -=-= Fontify Markdown blocks and Tags - function for hook
+
+;; -=-= Minor mode: keymap
+;;;###autoload
+(defvar-keymap oai-mode-map
+  :repeat nil
+  :parent org-mode-map
+  "<remap> <org-next-visible-heading>" #'oai-block-next-message ; todo make org
+  "<remap> <org-previous-visible-heading>" #'oai-block-previous-message ; todo make org
+  "<remap> <org-mark-element>" #'oai-mark-at-point-org
+  "C-c ." #'oai-expand-block-org
+  "C-c C-." #'oai-open-request-buffer
+  "C-c C-t" #'oai-set-max-tokens-org)
+
+;; (define-key global-map (kbd "C-c C-a") oai-mode-map)
+
+;; (let ((map oai-mode-map))
+;;   (define-key map (kbd (string-join (list "C-c" " <backspace>"))) #'oai-kill-message-at-point) ; oai-block.el
+;;   (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
+;;   (define-key map (kbd "C-c C-.") #'oai-open-request-buffer) ; oai-restapi.el
+;;   (define-key map (kbd "C-c .") #'oai-expand-block) ; oai-block.el
+;;   (define-key map (kbd "C-c C-t") #'oai-set-max-tokens)) ; oai-block.el
+
+
+;; -=-= Minor mode: hook - Fontify Markdown blocks and Tags - function for hook
 
 (defun oai-block--set-ai-keywords ()
   "Hook, that Insert our fontify functions in Org font lock keywords."
@@ -375,37 +435,9 @@ messages."
                                         (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
                                         '(oai-block--font-lock-fontify-markdown-and-org)))))
 
-
-;; -=-= interactive fn: Summarize *TODO:*
-;; (defun oai-summarize ()
-;;   "Jump to header of ai block and set max-tokens."
-;;   (interactive)
-;;   (let ((element (oai-block-p)))
-;;       (when element
-;;         ;; Determine the boundaries of the content
-;;         (let ( ;; ai block range
-;;               (beg (org-element-property :contents-begin element)) ; first line of content
-;;               (end (org-element-property :contents-end element))) ; #+end_ai
-;;           ;; Content exist?
-;;           (when (or (not beg)
-;;                     (not end))
-;;             (error "Empty block"))
-;;           ;; format
-;;           (while
-
-
 ;; -=-= Minor mode
-(defvar oai-mode-map (make-sparse-keymap)
-  "Keymap for `oai-mode'.")
 
-(let ((map oai-mode-map))
-  (define-key map (kbd (string-join (list "C-c" " <backspace>"))) #'oai-kill-message-at-point) ; oai-block.el
-  (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
-  (define-key map (kbd "C-c C-.") #'oai-open-request-buffer) ; oai-restapi.el
-  (define-key map (kbd "C-c .") #'oai-expand-block) ; oai-block.el
-  (define-key map (kbd "C-c C-t") #'oai-set-max-tokens)) ; oai-block.el
-
-
+;;;###autoload
 (define-minor-mode oai-mode
   "Minor mode for `org-mode' integration with the OpenAI API."
   :init-value nil
@@ -428,7 +460,7 @@ messages."
     (org-set-font-lock-defaults)
     (font-lock-refresh-defaults)))
 
-;;;###autoload
+
 (defun oai-open-request-buffer ()
   "Opens the url request buffer for ai block at current position."
   (interactive)

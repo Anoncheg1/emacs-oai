@@ -301,7 +301,7 @@ PATH-STRING may be path to file or a directory."
 ;;       (and (when (member (org-element-type (org-element-at-point)) oai-block-tags-org-blocks-types)
 ;;              (org-element-at-point)))))
 
-(defun oai-block-tags--get-block-at-point (&optional element)
+ (defun oai-block-tags--get-block-at-point (&optional element)
   "Get Org block if point at one of `oai-block-tags-org-blocks-types'.
 Otherwise return nil.
 Optional argument ELEMENT is any Org element."
