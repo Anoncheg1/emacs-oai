@@ -1696,7 +1696,7 @@ Org vs Markdown -
 - Org - may be split with new line.
 We dont support Org-like split.  LLMs commonly think that Org dont
 support splitting."
-  (let (e1 b2 e2)
+  (let (b1 e1 b2 e2)
     (goto-char start)
     ;; 1. *Bold*
     ;; (while (re-search-forward "\\(^\\|[^*]\\)\\(\\*\\*\\*\\|\\*\\*\\)" end t) ; lines not started with *
