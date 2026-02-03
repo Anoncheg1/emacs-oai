@@ -54,7 +54,7 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 
 oai-restapi-con-service [[./oai-restapi.el]]
 
-[*] According to the Free Software philosophy, in practice all remote LLMs are considered SaaSS (Service as a Software Substitute). Rather than communicating directly with users, these systems perform remote computation for every visitor. They not provide access to *data, model weights, code*, or licensing rights needed to reproduce the model.
+[*] In practice all LLMs are not free, remote are considered as SaaSS (Service as a Software Substitute). These systems perform remote computation, not provide access to *data, model weights, code*, or licensing rights needed to reproduce the model.
 * Installation
 ** Installation - from MELPA
 1) add to ~.emacs~
