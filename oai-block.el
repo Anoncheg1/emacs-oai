@@ -1890,7 +1890,7 @@ the end of the line."
 For `fill-region-as-paragraph' that applied per lines.
 Argument FROM TO JUSTIFY NOSQUEEZE SQUEEZE-AFTER is arguments of
 fill-region-as-paragraph."
-  (oai--debug "oai-block-fill-region-as-paragraph %s %s" from to)
+  ;; (oai--debug "oai-block-fill-region-as-paragraph %s %s" from to)
   (goto-char (min from to))
   (if (not (or (looking-at "^> ")
                (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))

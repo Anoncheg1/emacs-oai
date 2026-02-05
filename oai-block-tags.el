@@ -123,12 +123,6 @@ and
   "Org block types that we wrap to markdown and may get by the first line.")
 
 
-;; (defvar oai-block--markdown-begin-re "^[\s-]*```\\([^ \t\n[{]+\\)[\s-]?\n")
-;; (defvar oai-block--markdown-begin-re "^\\s-*```\\([\w\s_\-]*\\)\\s-*$")
-;; (defvar oai-block--markdown-end-re "^\\s-*```\\s-*$")
-;; (defvar oai-block--ai-block-begin-re "^#\\+begin_ai.*$")
-;; (defvar oai-block--ai-block-end-re "^#\\+end_ai.*$")
-
 (defvar oai-block-tags--org-link-any-re (cl-letf (((symbol-function 'org-link-types)
                                               (lambda () (list "file"))))
                                      (let (
@@ -188,23 +182,6 @@ Nil if buffer does not exist."
             (buffer-substring-no-properties (point-min) (point-max)))
         (kill-buffer buf)))))
 
-;; replaced with `org-file-contents'
-;; (defun oai-block-tags--read-file-to-string-safe (path-string &optional coding)
-;;   "Read file to string at PATH-STRING, that should be a readable file."
-;;   ;; check
-;;   (when (not (and (file-exists-p path-string)
-;;                   (file-regular-p path-string)
-;;                   (file-readable-p path-string)))
-;;            (user-error "File does not exist or not readable: %s" path-string))
-;;   ;; read
-;;   (condition-case err
-;;       (with-temp-buffer
-;;         (when coding
-;;           (set-buffer-file-coding-system coding))
-;;         (insert-file-contents path-string)
-;;         (buffer-string))
-;;     (error (message "Error reading file %s: %s" path-string err)
-;;            nil)))
 
 (defun oai-block-tags--filepath-to-language (path-or-mode-string)
   "Get short name of language that for path major mode string.
@@ -291,15 +268,6 @@ PATH-STRING may be path to file or a directory."
 ;;                             finally return context)))
 ;;         element))))
 
-;; (defun oai-block-tags--get-org-block-element ()
-;;   "Return Org block element at current position in current buffer.
-;; If position at begining of of ai block or in any place of supported
-;; blocks in `oai-block-tags-org-blocks-types'.
-;; Return nil otherwise."
-;;   (or (and (org-looking-at-p oai-block--ai-block-begin-re)
-;;            (oai-block-p))
-;;       (and (when (member (org-element-type (org-element-at-point)) oai-block-tags-org-blocks-types)
-;;              (org-element-at-point)))))
 
  (defun oai-block-tags--get-block-at-point (&optional element)
   "Get Org block if point at one of `oai-block-tags-org-blocks-types'.
@@ -320,46 +288,26 @@ Works for ai block also."
     (if (string-equal "ai" (org-element-property :type element))
         (oai-block--contents-area element)
       ;; else
-      (nbutlast (org-src--contents-area element) 1)))) ; not support
-
-      ;; (let ((beg (or (org-element-property :contents-begin element)
-      ;;                (org-element-property :begin element)))
-      ;;       (end (or (org-element-property :contents-end element)
-      ;;                (org-element-property :end element))))
-      ;;   ;; Bug end is wrong if "#\\+end_" at next line.
-      ;;   (when (and beg end)
-      ;;     ;; - skip headers if begin at header and fix end bug.
-      ;;     (save-excursion
-      ;;       (goto-char beg)
-      ;;       (when (or (looking-at "#\\+begin_")
-      ;;                 (search-forward "#+begin_" end t))
-      ;;         (forward-line) ; at begin of line after
-      ;;         (setq beg (point)))
-      ;;       (when
-      ;;           (search-forward "#+end_" end t)
-      ;;         (setq end (line-beginning-position)))
-      ;;       ;; ;; (goto-char end)
-      ;;       ;; (when (or (looking-at "#\\+end_")
-      ;;       ;;           (search-backward "#+end_" beg t))
-      ;;       ;; (forward-line -1)
-      ;;       ;; (setq end (line-beginning-position))
-      ;;       ))
-      ;;   (list beg end))))
-
+      (when-let* ((res (org-src--contents-area element)))
+                 (cons (car res) (cadr res))))))
 
 
 (defun oai-block-tags-get-content (&optional element)
   "For supported blocks With properly expansion of tags and noweb references.
 For evaluation, tangling, or exporting.
 For ai block we replace links and tags in last user message only.
-Optional argument ELEMENT is Org block."
+Optional argument ELEMENT is Org block.
+Return string with expanded content."
+  (oai--debug "oai-block-tags-get-content")
   (when-let* ((element (or element (oai-block-tags--get-block-at-point))))
     ;; (print (list (org-element-type element) (member (org-element-type element) oai-block-tags-org-blocks-types)))
+    (oai--debug "oai-block-tags-get-content1 %s" element)
     (cond
      ((string-equal "ai" (org-element-property :type element))
-      (let* ((expanded (string-trim (oai-block-get-content element)))
-             (expanded (oai-restapi--modify-last-user-content expanded 'user #'oai-block-tags-replace))
-             (expanded (oai-block--stringify-chat-messages expanded)))
+      (let* ((messages (oai-block--collect-chat-messages-at-point element))
+             (messages (oai-restapi--modify-last-user-content messages #'oai-block-tags-replace))
+             (expanded (oai-block--stringify-chat-messages messages)))
+        (oai--debug "oai-block-tags-get-content2")
              expanded))
 
       ((eq (org-element-type element) 'src-block)
@@ -368,8 +316,6 @@ Optional argument ELEMENT is Org block."
       ((member (org-element-type element) oai-block-tags-org-blocks-types)
        (caddr (org-src--contents-area element))))))
 
-      ;; (t
-      ;;  (string-trim (buffer-substring-no-properties beg end)))
 
 (defun oai-block-tags--markdown-fenced-code-body-get-range (&optional limit-begin limit-end)
   "Return (begin end) if point is inside a Markdown fenced language block.
@@ -415,7 +361,7 @@ Works for language markdown block only inside some org block."
   ;; check that we are in Org block
   (when-let* ((region (oai-block-tags--get-org-block-region))
               (beg (car region))
-              (end (cadr region)))
+              (end (cdr region)))
   ;;             (beg (or (org-element-property :contents-begin element)
   ;;                      (org-element-property :begin element))
   ;;             (end (or (org-element-property :contents-end element)

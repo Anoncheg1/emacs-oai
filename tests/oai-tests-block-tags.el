@@ -689,13 +689,23 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
 
 
 ;; -=-= Test: oai-block-tags--get-org-content-m-block
-(ert-deftest oai-tests-block-tags--get-org-content-m-block ()
+(ert-deftest oai-tests-block-tags--get-org-content-m-block1 ()
   (should
    (string-equal
     "\nBlock name: asd\n```elisp\naa\n```"
     (with-temp-buffer
       (org-mode)
       (insert "#+NAME: asd\n#+begin_src elisp\naa\n#+end_src\n")
+      (goto-char 11)
+      (oai-block-tags--get-org-content-m-block)))))
+
+(ert-deftest oai-tests-block-tags--get-org-content-m-block2 ()
+  (should
+   (string-equal
+    "\nBlock name: asd\n```elisp\naa\n```"
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+NAME: asd\n#+begin_ai\naa\n#+end_ai\n")
       (goto-char 11)
       (oai-block-tags--get-org-content-m-block)))))
 

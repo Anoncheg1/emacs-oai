@@ -51,10 +51,10 @@
 ;; of features and setup instructions.
 ;;
 ;; Configuration:
-;; (add-to-list 'load-path "path/to/oai")
+;; (add-to-list 'load-path "path/to/oai") ; (optional)
 ;; (require 'oai)
 ;; (add-hook 'org-mode-hook #'oai-mode) ; oai.el
-;; (setq oai-restapi-con-token "xxx") ; oai-restapi.el
+;; (setq oai-restapi-con-token "xxx") ; oai-restapi.el (optional)
 ;;
 ;; You will need an OpenAI API key-token.
 ;; It can be stored in the format:
@@ -395,7 +395,8 @@ If optional argument ARG is non-nil, mark current message of chat."
 ;;;###autoload
 (defvar-keymap oai-mode-map
   :repeat nil
-  :parent org-mode-map
+  :parent nil
+  ;; :parent org-mode-map
   "<remap> <org-next-visible-heading>" #'oai-block-next-message ; todo make org
   "<remap> <org-previous-visible-heading>" #'oai-block-previous-message ; todo make org
   "<remap> <org-mark-element>" #'oai-mark-at-point-org

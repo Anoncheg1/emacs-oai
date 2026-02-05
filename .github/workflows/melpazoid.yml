@@ -75,3 +75,6 @@ jobs:
           if grep -q ' with checkdoc ' output.log ; then
             echo "Checkdoc warning detected, failing workflow" ; exit 1
           fi
+          if grep -q 'much wider than 80 characters' output.log ; then
+            echo "Checkdoc warning detected, failing workflow" ; exit 1
+          fi
