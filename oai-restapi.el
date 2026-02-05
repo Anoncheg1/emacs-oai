@@ -566,13 +566,14 @@ Handle Tags, two types of REQ-TYPE and separation of PROMPT and MESSAGES.
 Return:
 - vector with messages for chat REQ-TYPE.
 - string for completion REQ-TYPE.
-Element is result of `oai-block-p'.
+ELEMENT is result of `oai-block-p'.
 Optional arguments:
 
 If NOWEB-CONTROL is not-nil, activate expansion of noweb links in all
 user messages.
-If MAX-TOKENS is not-nil, and `oai-restapi-add-max-tokens-recommendation' is set,
- recommendation about MAX-TOKENS added to first system message.
+If MAX-TOKENS is not-nil, and
+ `oai-restapi-add-max-tokens-recommendation' is set, recommendation
+ about MAX-TOKENS added to first system message.
 REQ-TYPE is completion, return string, otherwise prcess body for chat.
 Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
 `oai-restapi-request-prepare', used only if non-nil."
@@ -622,6 +623,7 @@ PRESENCE-PENALTY integer - -2-2, lower less repeat concepts.
 SERVICE symbol or string - is the AI cloud service such as openai or
   azure-openai.
 STREAM string - as bool, indicates whether to stream the response."
+  (ignore info)
   (oai--debug "oai-restapi-request-prepare %s" sys-prompt-for-all-messages)
   (let* ((content (oai-restapi-prepare-content element noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens))
          (end-marker (oai-block--get-content-end-marker element))

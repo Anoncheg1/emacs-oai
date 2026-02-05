@@ -116,7 +116,7 @@ Modeline notification:
 1) `oai-timers--set' used in `oai-restapi-request-llm-retries'.
 2) `oai-timers--set' here
 3) `oai-timers--progress-reporter-run' - here
-For REQ-TYPE, ELEMENT, SYS-PROMPT, SYS-PROMPT-FOR-ALL-MESSAGES, MODEL,
+For REQ-TYPE, ELEMENT, NOWEB-CONTROL, SYS-PROMPT, SYS-PROMPT-FOR-ALL-MESSAGES, MODEL,
 MAX-TOKENS, TOP-P, TEMPERATURE, FREQUENCY-PENALTY, PRESENCE-PENALTY,
 SERVICE, STREAM, INFO see `oai-restapi-request-prepare'."
   (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
