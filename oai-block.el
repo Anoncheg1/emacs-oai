@@ -179,6 +179,10 @@ TODO: for streaming: save and pass begining of paragraph or line."
   "Face for single markdown header three and more # characters."
   :group 'oai-faces)
 
+(defcustom oai-block-m-header-colors '(oai-block-m-header1 oai-block-m-header2 oai-block-m-header3 oai-block-m-header4)
+  "Colors that used to fontify markdown headers.
+First is used for one # character 4 for ####, for 5 and more 4 is used.")
+
 (defface oai-chat-role	   ;Copied from `font-lock-variable-name-face'
   '((((class color) (min-colors 16) (background light)) (:foreground "sienna" :slant italic))
     (((class color) (min-colors 16) (background dark)) (:foreground "DarkGoldenrod" :slant italic))
@@ -194,11 +198,11 @@ TODO: for streaming: save and pass begining of paragraph or line."
 ;; -=-= variables
 (defvar oai-block-roles-restapi-unknown 'assistant
   "Used for restapi reply if role in JSON was not found.
-In `oai-block--insert-stream-response'.")
+  In `oai-block--insert-stream-response'.")
 
 (defvar oai-block-roles-prefixes-unknown 'assistant
   "Used in `oai-block--parse-part' for prefix not found.
-In `oai-block-roles-prefixes'.")
+  In `oai-block-roles-prefixes'.")
 
 ;; ;; RestAPI -> Prefix
 ;; (let ((role 'user1))
@@ -218,13 +222,13 @@ In `oai-block-roles-prefixes'.")
 (defvar oai-block--markdown-beg-end-re "^[\s\t]*```\\(.*\\)$")
 (defvar oai-block--chat-prefixes-re "^\\s-*\\[\\([^\]]+\\)\\(:\\]\\|\\]:\\)\\s-*"
   "Prefix should be at the begining of the line with spaces or without.
-Or roles regex.")
+  Or roles regex.")
 
 
 (defface oai-block--me-ai-chat-prefixes-font-face
   '((t :weight bold))
   "Face font for chat roles (default bold).
-You can customize this font with `set-face-attribute'."
+  You can customize this font with `set-face-attribute'."
   :group 'oai)
 
 ;; -=-= loading code: activate "ai" block in Org mode
@@ -245,7 +249,7 @@ You can customize this font with `set-face-attribute'."
 
 (defun oai-block-p ()
   "Are we inside a #+begin_ai...#+end_ai block?
-Like `org-in-src-block-p'.  Return element."
+  Like `org-in-src-block-p'.  Return element."
   (oai-block--org-element-with-disabled-cache ;; with cache enabled we get weird Cached element is incorrect warnings
     (cl-loop with context = (org-element-context)
              while (and context
@@ -254,17 +258,27 @@ Like `org-in-src-block-p'.  Return element."
              do (setq context (org-element-property :parent context))
              finally return context)))
 
+;; -=-= fn: compare
+(defun oai-block-equal-p (element1 element2)
+  "Compare ai blocks."
+  (and
+   (equal (org-element-type elem1)
+          (org-element-type elem2))
+   (string-equal "ai" (org-element-property :type elem1))
+   (string-equal "ai" (org-element-property :type elem2))
+   (equal (org-element-property :contents-begin elem1)
+          (org-element-property :contents-begin elem2))))
 ;; -=-= info fn: get-info, get-request-type, get-sys
 (defun oai-block-get-info (&optional element no-eval)
   "Parse the header of #+begin_ai...#+end_ai block.
-ELEMENT is the element of the special block.
-Like `org-babel-get-src-block-info' but instead of list return only
-arguments.
-To get value use: (alist-get :value (oai-block-get-info))
-Use ELEMENT only in current moment.
-When optional argument NO-EVAL is non-nil, do not evaluate Lisp
-in parameters.
-Return an alist of key-value pairs."
+  ELEMENT is the element of the special block.
+  Like `org-babel-get-src-block-info' but instead of list return only
+  arguments.
+  To get value use: (alist-get :value (oai-block-get-info))
+  Use ELEMENT only in current moment.
+  When optional argument NO-EVAL is non-nil, do not evaluate Lisp
+  in parameters.
+  Return an alist of key-value pairs."
   (org-babel-parse-header-arguments
    (org-element-property
     :parameters
@@ -272,8 +286,8 @@ Return an alist of key-value pairs."
 
 (defun oai-block--get-request-type (info)
   "Look at the header of the #+begin_ai...#+end_ai block.
-returns the type of request.  INFO is the alist of key-value
-pairs from `oai-block-get-info'."
+  returns the type of request.  INFO is the alist of key-value
+  pairs from `oai-block-get-info'."
   (cond
    ((not (eql 'x (alist-get :chat info 'x))) 'chat)
    ((not (eql 'x (alist-get :completion info 'x))) 'completion)
@@ -282,10 +296,10 @@ pairs from `oai-block-get-info'."
 
 (cl-defun oai-block--get-sys (&key info default)
   "Check if :sys exist in #+begin_ai parameters.
-If exist return nil or string, if not exist  return `default'.
-Argument INFO is the alist of key-value
-pairs from `oai-block-get-info'.
-DEFAULT is a string with default system prompt for LLM."
+  If exist return nil or string, if not exist  return `default'.
+  Argument INFO is the alist of key-value
+  pairs from `oai-block-get-info'.
+  DEFAULT is a string with default system prompt for LLM."
   (let ((sys-raw  (alist-get :sys info 'x)))
     ;; if 'x - not resent
     (if (eql 'x sys-raw)
@@ -296,18 +310,18 @@ DEFAULT is a string with default system prompt for LLM."
 ;; -=-= macro: let-params
 (defmacro oai-block--let-params (info definitions &rest body)
   "A specialized `let*' macro for Oai parameters.
-DEFINITIONS is a list of (VARIABLE &optional DEFAULT-FORM &key TYPE).
-TYPE can be \='number, \='bool, \='string, or \='identity (no conversion).
-Return one of:
-- t symbol, if value for key not specified, if specied, return string.
-- for number type, `string-to-number' used, that return 0 if number not
-  recognized.
-- for number if specified without value return t.
-- Processed value of parameter (e.g., t/nil for bool).
-Parameters are sourced from:
-1. From Oai block header INFO alist.  (e.g., :model \"gpt-4\")
-2. Org inherited property. (e.g., #+PROPERTY: model gpt-4)
-3. DEFAULT-FORM."
+  DEFINITIONS is a list of (VARIABLE &optional DEFAULT-FORM &key TYPE).
+  TYPE can be \='number, \='bool, \='string, or \='identity (no conversion).
+  Return one of:
+  - t symbol, if value for key not specified, if specied, return string.
+  - for number type, `string-to-number' used, that return 0 if number not
+    recognized.
+  - for number if specified without value return t.
+  - Processed value of parameter (e.g., t/nil for bool).
+  Parameters are sourced from:
+  1. From Oai block header INFO alist.  (e.g., :model \"gpt-4\")
+  2. Org inherited property. (e.g., #+PROPERTY: model gpt-4)
+  3. DEFAULT-FORM."
   (setq info info) ; for melpazoid
   `(let* ,(cl-loop for def-item in definitions
                    collect
@@ -385,7 +399,7 @@ Parameters are sourced from:
 
 (defun oai-block--contents-area (&optional element)
   "Return typle :contents-begin and :contents-end for ai block only.
-Optional argument ELEMENT should be ai block if specified."
+  Optional argument ELEMENT should be ai block if specified."
   (when-let ((element (or element (oai-block-p))))
      (let* ((beg (org-element-property :contents-begin element))
             (end (org-element-property :contents-end element)))
@@ -400,8 +414,8 @@ Optional argument ELEMENT should be ai block if specified."
 
 (defun oai-block--area (&optional element)
   "Return whole ai block begin and end for selection or removal.
-Same to `org-src--contents-area'.
-Optional argument ELEMENT is ai block."
+  Same to `org-src--contents-area'.
+  Optional argument ELEMENT is ai block."
   (when-let ((element (or element (oai-block-p))))
     (cons (org-element-property :begin element)
 	  (progn (goto-char (org-element-property :end element))
@@ -410,14 +424,14 @@ Optional argument ELEMENT is ai block."
 
 (defun oai-block-get-content (&optional element context)
   "Extracts the text content of the #+begin_ai...#+end_ai block.
-ELEMENT is the element of the ai block.
-Will expand noweb templates if an `oai-noweb' property or
-`noweb' header arg is \"yes\".
-Use ELEMENT only in current moment, if buffer modified you will need new
-ELEMENT.
-CONTEXT may be one of :tangle, :export or :eval, the last is by default.
-Don't support tags and Org links expansion, for that use
-`oai-block-tags-get-content' instead."
+  ELEMENT is the element of the ai block.
+  Will expand noweb templates if an `oai-noweb' property or
+  `noweb' header arg is \"yes\".
+  Use ELEMENT only in current moment, if buffer modified you will need new
+  ELEMENT.
+  CONTEXT may be one of :tangle, :export or :eval, the last is by default.
+  Don't support tags and Org links expansion, for that use
+  `oai-block-tags-get-content' instead."
   (when-let ((reg (oai-block--contents-area element)))
     (let ((con-beg (car reg))
           (con-end (cdr reg)))
@@ -441,11 +455,11 @@ Don't support tags and Org links expansion, for that use
 ;; -=-= help function to call hooks as pipeline with one argument
 (defun oai-block--pipeline (funcs init-val &rest args)
   "Process INIT-VAL through a pipeline of functions FUNCS.
-Each function in FUNCS is called as (func val &rest ARGS), where VAL
-is the result of previous function (or INIT-VAL for the first), and
-ARGS are optional additional arguments supplied to this function.
+  Each function in FUNCS is called as (func val &rest ARGS), where VAL
+  is the result of previous function (or INIT-VAL for the first), and
+  ARGS are optional additional arguments supplied to this function.
 
-Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS is nil."
+  Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS is nil."
   (if funcs
       (let ((result init-val))
         (dolist (f funcs result)
@@ -475,7 +489,7 @@ Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS is nil."
 ;; -=-= chat: insert message
 (defun oai-block--insert-single-response (end-marker &optional text insert-me final)
   "Insert result to ai block.
-Should be used in two steps: 1) for insertion of text 2) with TEXT equal
+  Should be used in two steps: 1) for insertion of text 2) with TEXT equal
 to nil, for finalizing by setting pointer to the end and insertion of me
 role.
 Here used for completion mode in `oai-restapi-request'.
@@ -1594,8 +1608,8 @@ Argument START and END are limits for searching."
             ;; Add Org faces.
             (let ((src-face (nth 1 (assoc-string lang org-src-block-faces t))))
               (when (or (facep src-face) (listp src-face))
-                (font-lock-append-text-property start end 'face src-face))
-              (font-lock-append-text-property start end 'face 'org-block))
+                (font-lock-append-text-property block-begin block-end 'face src-face))
+              (font-lock-append-text-property block-begin block-end 'face 'org-block))
 
             ;; (put-text-property block-end block-end-end 'face 'org-block-end-line)
             ;; (unless (and lang (string-match-p "```" lang))
@@ -1643,48 +1657,78 @@ Executed in `font-lock-defaults' chain."
 (defun oai-block--fontify-markdown-headers (start end)
   "Fontify started with # character headers.
 Argument START END are block begin and end, used as limits here."
-    (goto-char start)
-    (while (re-search-forward "^\\(#+\\)\\s-+\\(.*\\)$" end t)
-      ;; (print (point))
+  (goto-char start)
 
-      (let ((b1 (match-beginning 1))
-            (e1 (match-end 1))
-            ;; (b2 (match-beginning 2))
-            (e2 (match-end 2))
-            (hash-chars-length (1- (length (match-string 1))))
-            (colors '(oai-block-m-header1 oai-block-m-header2 oai-block-m-header3 oai-block-m-header4)))
-        ;; Group 1: the '#' chars
-        (put-text-property b1 e1
-                           'face
-                           (if (<= hash-chars-length 3)
-                               (nth hash-chars-length colors)
-                             ;; else
-                             'oai-block-m-header4))
-        ;;   (setq i (1+ i)))
-        ;; (when (looking-at "\\s-[1-9][).]\\s-")
-           (goto-char e1)
-           (when (re-search-forward "\\s-\\([1-9a-lA-L][).]\\)\\s-" (line-end-position) t)
-             ;; (print (list (match-beginning 1)  e1))
-             (when (eql (match-beginning 1)  (1+ e1))
-               (put-text-property (match-beginning 1) (match-end 1)
-                                  'face
-                                  (if (<= hash-chars-length 3)
-                                      (nth hash-chars-length colors)
-                                    ;; else
-                                    'oai-block-m-header4))))
-        ;;   (put-text-property (match-beginning 1) (match-end 1)
-        ;;                      'face (nth (1- i) colors))
-        ;;   ;; (print (list "cyes" (match-string 1)))
-        ;;   )
-        ;; )
-        ;; (put-text-property b1 e1
-        ;;                    'face 'outline-2)
-        ;; ;; Group 2: the header text
-        ;; (put-text-property b2 e2
-        ;;                    'face 'outline-1)
-        ;; )
-        (goto-char e2)))
-    (goto-char end))
+  (while (re-search-forward "^\\(#+\\)\\s-+\\([0-9a-zA-Z][).]\\)?\\s-*\\(.*\\)$" end t)
+    ;; (print (point))
+
+    (let ((b1 (match-beginning 1))
+          (e1 (match-end 1))
+          (b2 (match-beginning 2))
+          (e2 (match-end 2))
+          (b3 (match-beginning 3))
+          (e3 (match-end 3))
+          (hash-chars-length (1- (length (match-string 1)))))
+      (let ((color (if (< hash-chars-length (length oai-block-m-header-colors)) ; 4
+                       (nth hash-chars-length oai-block-m-header-colors)
+                     ;; else
+                     'oai-block-m-header4)))
+        (remove-text-properties b3 e3
+                                  (list 'face 'org-block nil '(org-block)))
+        ;; Group 1: the first '#' chars
+        (put-text-property b1 e1 'face color)
+        ;; Group 2: 1) a) - numeration
+        (when (and b2 e2)
+          (put-text-property b2 e2 'face color))
+
+        (when (and b3 e3)
+          (remove-text-properties b3 e3
+                                  (list '(org-block) 'org-block)))
+        ;; ;; fontify bold more
+        ;; (goto-char b3)
+
+        ;; (when (re-search-forward (re-search-forward "\\*\\{1,3\\}\\(\\w[^*\n]+\\)\\*\\{1,3\\}" end t) end t)
+          ;;   (put-text-property (match-beginning 1) (match-end 1)
+          ;;                      'face (nth (1- i) colors))
+          ;;   ;; (print (list "cyes" (match-string 1)))
+          ;;   )
+          ;; )
+          ;; (put-text-property b1 e1
+          ;;                    'face 'outline-2)
+          ;; ;; Group 2: the header text
+          ;; (put-text-property b2 e2
+          ;;                    'face 'outline-1)
+          ;; )
+          )))
+  (goto-char end))
+
+;; ;; Test Markdown header regex:
+;; (with-temp-buffer
+;;   (let ((str "## Core Concepts"))
+;;     (with-temp-buffer
+;;       (insert str)
+;;       (goto-char (point-min))
+;;       (when (re-search-forward "^\\(#+\\)\\s-+\\([0-9a-zA-Z][).]\\)?\\s-*\\(.*\\)$" nil t)
+;;         (list (match-string 1) (match-string 2) (match-string 3) (match-beginning 2))))))
+;; returns: ("##" nil "Core Concepts" nil)
+
+;; (with-temp-buffer
+;;   (let ((str "## 1. Core Concepts"))
+;;     (with-temp-buffer
+;;       (insert str)
+;;       (goto-char (point-min))
+;;       (when (re-search-forward "^\\(#+\\)\\s-+\\([0-9a-zA-Z][).]\\)?\\s-*\\(.*\\)$" nil t)
+;;         (list (match-string 1) (match-string 2) (match-string 3))))))
+;; ;; returns: ("##" "1." "Core Concepts")
+
+;; (with-temp-buffer
+;;   (let ((str "## a)"))
+;;     (with-temp-buffer
+;;       (insert str)
+;;       (goto-char (point-min))
+;;       (when (re-search-forward "^\\(#+\\)\\s-+\\([0-9a-zA-Z][).]\\)?\\s-*\\(.*\\)$" nil t)
+;;         (list (match-string 1) (match-string 2) (match-string 3))))))
+;; ;; returns: ("##" "a)" "")
 
 (defun oai-block--fontify-markdown-single-quotes-and-formatting (start end)
   "Fontify markdown features between START and END.
@@ -1701,25 +1745,39 @@ support splitting."
     ;; 1. *Bold*
     ;; (while (re-search-forward "\\(^\\|[^*]\\)\\(\\*\\*\\*\\|\\*\\*\\)" end t) ; lines not started with *
     ;; (while (re-search-forward "\\*\\{1,3\\}\\w" end t) ; lines not started with *
-      ;; (goto-char (match-beginning 0))
-      (while (re-search-forward "\\*\\{1,3\\}\\(\\w[^*\n]+\\)\\*\\{1,3\\}" end t)
+    ;; (goto-char (match-beginning 0))
+    (while (re-search-forward "\\*\\{1,3\\}\\(\\w[^*\n]+\\)\\*\\{1,3\\}" end t)
       ;; (if (re-search-forward "\\*\\{2,3\\}\\(\\w[^*]+\\)\\*\\{2,3\\}" (line-end-position) t)
-          (progn
-            (setq b1 (match-beginning 0))
-            (setq e1 (match-end 0))
-            (setq b2 (match-beginning 1)) ; **asd**
-            (setq e2 (match-end 1))
-            (unless (oai-block--at-special-p b2)
+      (progn
+        (setq b1 (match-beginning 0))
+        (setq e1 (match-end 0))
+        (setq b2 (match-beginning 1)) ; **asd**
+        (setq e2 (match-end 1))
+        (unless (oai-block--at-special-p b2)
 
 
-              ;; Only fontify the marker, not surrounding text
-              (remove-text-properties b1 e1 '(face nil org-emphasis))
-              (put-text-property b2 e2
-                                 ;; 'face '(bold)))
-                                 'face 'oai-bold))
-            (goto-char e1))
-        ;; else
-        (forward-line))
+          ;; Only fontify the marker, not surrounding text
+          (remove-text-properties b1 e1 '(face nil org-emphasis))
+          (put-text-property b1 e1 'face (list :inherit '(org-block)))
+          (beginning-of-line)
+          (if (looking-at "^\\(#+\\)\\s-+")
+              (put-text-property b2 e2 'face 'bold)
+            ;; else
+            (add-text-properties
+	     b2 e2
+	     (list 'face
+		   (list :inherit
+			 (append '(bold)
+				 '(org-block))))))
+
+          ;; (add-txe b2 e2 'face (append (list bold)
+          ;;                                        '(org-block))))
+
+          ;; (append (list bold)
+          ;;         '(org-block))))
+          (goto-char e1))))
+
+        ;; (forward-line))
     ;; 2. `quote` RosyBrown1
     (goto-char start)
     (while (re-search-forward "`[^`]" end t) ; lines not started with *
@@ -1819,8 +1877,12 @@ TODO: fontify if there is only end of ai block on page."
           (oai-block--fontify-org-tables beg end))
         ;; headers and *bold*
         (when oai-block-fontify-markdown-headers-and-formatting
+          ;; Headers should be after bold formatting, because we
+          ;; remove org-block from bold text on header and for bold
+          ;; don't place org-block if on header
           (oai-block--fontify-markdown-headers beg end)
-          (oai-block--fontify-markdown-single-quotes-and-formatting beg end))
+          (oai-block--fontify-markdown-single-quotes-and-formatting beg end)
+          )
         ;; LaTeX startin with [ or (
         (when oai-block-fontify-latex
           (oai-block--fontify-latex-blocks beg end))
@@ -1855,7 +1917,8 @@ TODO: fontify if there is only end of ai block on page."
         ;; ```block
         (when oai-block-fontify-markdown-flag
           ;; (oai-block--fontify-markdown-subblocks-shallow beg end)
-          (oai-block--fontify-markdown-subblocks beg end)))
+          (oai-block--fontify-markdown-subblocks beg end)
+          ))
       (goto-char end))
     ;; required by font lock mode:
     (goto-char limit))) ; return t
