@@ -69,7 +69,7 @@
   "Compose messages for LLM for IND step of COMMANDS.
 Add to result of `oai-restapi--collect-chat-messages' CoT prompts.
 Compose IND request for COMMANDS and ind-1 response.
-MESSAGES is result of `oai-block-get-content'.
+MESSAGES is result of `oai-restapi-prepare-content'.
 IND count from 0.  RESP-QUEST  is list of string  of lengh IND+1  - raw
 content of ai block or answer from  LLM.  We assume that commands and AI
 answers except of the first one are already in MESSAGES."
@@ -104,7 +104,7 @@ Return t if we replace default call implementation
       (apply #'oai-prompt-request-chain args)
       t))
 
-(defun oai-prompt-request-chain (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional info)
+(defun oai-prompt-request-chain (req-type element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional info)
   "Use :chain parameter to activate and use :step to execute chain of prompt.
 Aspects:
 1) start and stop reporter at begining and at the end (final callback).
@@ -156,7 +156,11 @@ SERVICE, STREAM, INFO see `oai-restapi-request-prepare'."
                                                                                                         step
                                                                                                         (with-current-buffer (marker-buffer header-marker)
                                                                                                           ;; get messages vector
-                                                                                                          (oai-restapi--collect-chat-messages-at-point (oai-block-element-by-marker header-marker)))
+                                                                                                          (oai-restapi-prepare-content (oai-block-element-by-marker header-marker)
+                                                                                                                                       noweb-control
+                                                                                                                                       'chat)
+                                                                                                          ;; (oai-restapi--collect-chat-messages-at-point (oai-block-element-by-marker header-marker))
+                                                                                                          )
                                                                                                                                                             ;; (oai-block-get-content (oai-block-element-by-marker header-marker)))
                                                                                                         sys-prompt
                                                                                                         max-tokens)

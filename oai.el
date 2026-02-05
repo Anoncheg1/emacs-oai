@@ -129,7 +129,7 @@
 ;; - make `oai-expand-block' executed with `org-babel-expand-src-block'.
 ;; - provide place or hook to add custom expansion of link to one line for user defined mode
 ;; - support vars as tags    https://orgmode.org/manual/Environment-of-a-Code-Block.html
-;; - write test for `oai-block-tags-get-content' and `oai-block-tags--get-content-at-point-org'.
+;; - write test for `oai-block-tags-get-content' and `oai-block-tags--get-content-at-point-org' and noweb parameter usage
 ;; - add advanced forward section that check what type of region is
 ;; active and do appropriate forward with preserving region
 ;; - noweb evaluation with support of variables with some text. like <<call("as")>>
@@ -205,7 +205,9 @@ Return list of arguments args."
                                           oai-restapi-default-inject-sys-prompt-for-all-messages)) ; oai-restapi.el
          (sys-prompt (or (org-entry-get-with-inheritance "SYS") ; org
                          (oai-block--get-sys :info info ; oai-block.el
-                                             :default oai-restapi-default-chat-system-prompt)))) ; oai-restapi.el variable
+                                             :default oai-restapi-default-chat-system-prompt)))
+         (noweb-control (or (org-babel-noweb-p info :eval)
+                            (org-entry-get (point) "oai-noweb" t)))) ; oai-restapi.el variable
     ;; - Process Org params and call agent
     (oai-block--let-params info
                            ;; format: (variable optional-default type)
@@ -232,7 +234,7 @@ Return list of arguments args."
                                           ;; else
                                           model)))
                                  ;; return
-                                 (list element sys-prompt sys-prompt-for-all-messages ; message
+                                 (list element noweb-control sys-prompt sys-prompt-for-all-messages ; message
                                           model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
                                           info)))))
 
@@ -240,16 +242,18 @@ Return list of arguments args."
 (defun oai-expand-block-deep ()
   "Output almost RAW information about request with headers and messages.
 Return list of strings to print."
-  (seq-let (element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream info) (oai-parse-org-header)
+  (seq-let (element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream info) (oai-parse-org-header)
     (let* ((req-type-completion (not (eq 'x (alist-get :completion info 'x))))
            ;; (req-type
            (messages (unless req-type-completion
                        ;; - split content to messages
-                       (oai-restapi--collect-chat-messages-at-point element
-                                                                    sys-prompt
-                                                                    sys-prompt-for-all-messages
-                                                                    (if oai-restapi-add-max-tokens-recommendation
-                                                                        (oai-restapi--get-lenght-recommendation max-tokens))))))
+                       (oai-restapi-prepare-content element noweb-control 'chat sys-prompt sys-prompt-for-all-messages max-tokens)
+                       ;; (oai-restapi--collect-chat-messages-at-point element
+                       ;;                                              sys-prompt
+                       ;;                                              sys-prompt-for-all-messages
+                       ;;                                              (if oai-restapi-add-max-tokens-recommendation
+                       ;;                                                  (oai-restapi--get-lenght-recommendation max-tokens)))
+                       )))
       (list
        (oai-restapi--get-endpoint messages service)
        (oai-restapi--get-headers service)

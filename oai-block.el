@@ -431,9 +431,9 @@ Don't support tags and Org links expansion, for that use
               ;;                    (org-entry-get (point) "oai-noweb" 1)
               ;;                    "no"))
               ;;                    (if (string-equal-ignore-case "yes" noweb-control)
-              (noweb-control (or (org-babel-noweb-p info (or context :eval))))
-              (content (if (or noweb-control
-                               (org-entry-get (point) "oai-noweb" t))
+              (noweb-control (or (org-babel-noweb-p info (or context :eval))
+                                 (org-entry-get (point) "oai-noweb" t)))
+              (content (if noweb-control
                            (org-babel-expand-noweb-references (list "markdown" unexpanded-content)) ; main
                          unexpanded-content)))
          (string-trim content))))))

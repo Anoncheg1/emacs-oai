@@ -78,15 +78,18 @@ asd2
 
 
 (ert-deftest oai-tests-oai--expand-block-deep ()
+  (let ((oai-restapi-con-token '(:openai "test-token-openai"))
+            res)
     (with-temp-buffer
-      (let ((oai-restapi-con-token '(:openai "test-token-openai")))
         (org-mode)
         (insert oai-tests-oai--expand-block-string)
         (goto-char 1)
         ;; (print (list "wtf" (oai-expand-block-deep)))))
         ;; (print (oai-expand-block-deep))))
-        (should
-         (equal
+        (setq res (oai-expand-block-deep))
+        ;; (print res)))
+    (should
+         (equal res
 
 '("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json")
                                                 ("Authorization" . "Bearer test-token-openai"))
@@ -104,12 +107,8 @@ asd
 ```text
 # tt2
 asd2
-```")]) (stream . t)))
-
-        (oai-expand-block-deep)
-        ))
-      )
-    ))
+```")]) (stream . t)))))))
+    )
 
 ;; -=-= provide
 (provide 'oai-tests-oai)

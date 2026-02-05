@@ -1054,7 +1054,7 @@ Used for `oai-expand-block' that show fontificated of markdown blocks,
 made by `oai-block-tags--replace-last-regex-smart'.
 Return modified STRING."
   (set-text-properties 0 (length string) nil string)
-  string)
+  (string-trim string))
 
 ;; (oai-block-tags-replace  "[[./]]")
 ;; (oai-block-tags-replace  "11[[sas]]222[[bbbaa]]3333[[sas]]4444")

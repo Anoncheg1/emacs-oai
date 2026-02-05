@@ -560,14 +560,22 @@ Useful for small max-tokens.
 
 ;; -=-= Prepare content
 
-(defun oai-restapi-prepare-content (element req-type sys-prompt sys-prompt-for-all-messages max-tokens)
+(defun oai-restapi-prepare-content (element &optional noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens)
   "Get content of ai block of element in current buffer.
 Handle Tags, two types of REQ-TYPE and separation of PROMPT and MESSAGES.
 Return:
 - vector with messages for chat REQ-TYPE.
 - string for completion REQ-TYPE.
-Parameters ELEMENT REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES
-MAX-TOKENS described in `oai-restapi-request-prepare'."
+Element is result of `oai-block-p'.
+Optional arguments:
+
+If NOWEB-CONTROL is not-nil, activate expansion of noweb links in all
+user messages.
+If MAX-TOKENS is not-nil, and `oai-restapi-add-max-tokens-recommendation' is set,
+ recommendation about MAX-TOKENS added to first system message.
+REQ-TYPE is completion, return string, otherwise prcess body for chat.
+Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
+`oai-restapi-request-prepare', used only if non-nil."
   (oai--debug "oai-restapi-prepare-content %s" sys-prompt-for-all-messages)
   ;; (let ((content (oai-block-get-content element))) ; string - is block content
   (if (eql req-type 'completion)
@@ -577,16 +585,20 @@ MAX-TOKENS described in `oai-restapi-request-prepare'."
     (let* ((messages (oai-block--collect-chat-messages-at-point element
                                                                 sys-prompt
                                                                 sys-prompt-for-all-messages
-                                                                (when oai-restapi-add-max-tokens-recommendation
-                                                                  (oai-restapi--get-lenght-recommendation max-tokens))))
+                                                                (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
+                                                                      (oai-restapi--get-lenght-recommendation max-tokens))))
            (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
            (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
+           (messages (if noweb-control
+                         (oai-restapi--modify-vector-content messages 'user
+                                                             (lambda (string) (org-babel-expand-noweb-references (list "markdown" string))))
+                       messages)) ; noweb
            (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
       messages))) ; return vector
 
 
 ;; -=-= Main
-(defun oai-restapi-request-prepare (req-type element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional info)
+(defun oai-restapi-request-prepare (req-type element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional info)
   "Compose API request from data and start a server-sent event stream.
 Call `oai-restapi-request' function as a next step.
 Called from `oai-call-block' in main file.
@@ -594,6 +606,7 @@ ELEMENT org-element - is ai block, should be converted to market at
 once.
 REQ-TYPE symbol - is completion or chat mostly.  Set
   `oai-block--get-request-type'.
+noweb-control - if non-nill, noweb links should be expanded.
 SYS-PROMPT string - first system instruction as a string.
 SYS-PROMPT-FOR-ALL-MESSAGES from
   `oai-restapi-default-inject-sys-prompt-for-all-messages' variable.
@@ -610,8 +623,7 @@ SERVICE symbol or string - is the AI cloud service such as openai or
   azure-openai.
 STREAM string - as bool, indicates whether to stream the response."
   (oai--debug "oai-restapi-request-prepare %s" sys-prompt-for-all-messages)
-  (ignore info)
-  (let* ((content (oai-restapi-prepare-content element req-type sys-prompt sys-prompt-for-all-messages max-tokens))
+  (let* ((content (oai-restapi-prepare-content element noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens))
          (end-marker (oai-block--get-content-end-marker element))
          (callback (if (eql req-type 'completion) ; chat - ; set to oai-restapi--current-url-request-callback
                        ;; completion mode
@@ -1562,7 +1574,7 @@ MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
 (defun oai-restapi--modify-vector-content (vec role new-content)
   "Modify every string content of messages VEC that match role.
 ROLE is symbol.  NEW-CONTENT may be string or function that accept one
-string arguments and return new content."
+string arguments and return new content, like `oai-block-tags-replace'."
   (unless (vectorp vec)
     (error "Not a vector"))
   (let ((i (1- (length vec)))
@@ -1586,7 +1598,8 @@ string arguments and return new content."
 
 (defun oai-restapi--modify-last-user-content (vec new-content)
   "Replacing last \='user :content with NEW-CONTENT in VEC.
-NEW-CONTENT is either (string or function of old content).
+NEW-CONTENT is either (string or function of old content), like
+`oai-block-tags-replace'.
 Uses `oai-restapi--find-last-user-index`.
 Return new vector based on VEC.
 Used in `oai-restapi-request-prepare' to send history of conversation."

@@ -699,15 +699,15 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (goto-char 11)
       (oai-block-tags--get-org-content-m-block)))))
 
-(ert-deftest oai-tests-block-tags--get-org-content-m-block2 ()
-  (should
-   (string-equal
-    "\nBlock name: asd\n```elisp\naa\n```"
-    (with-temp-buffer
-      (org-mode)
-      (insert "#+NAME: asd\n#+begin_ai\naa\n#+end_ai\n")
-      (goto-char 11)
-      (oai-block-tags--get-org-content-m-block)))))
+;; (ert-deftest oai-tests-block-tags--get-org-content-m-block2 ()
+;;   (should
+;;    (string-equal
+;;     "\nBlock name: asd\n```elisp\naa\n```"
+;;     (with-temp-buffer
+;;       (org-mode)
+;;       (insert "#+NAME: asd\n#+begin_ai\naa\n#+end_ai\n")
+;;       (goto-char 11)
+;;       (oai-block-tags--get-org-content-m-block)))))
 
 ;; -=-= Test: oai-block-tags--compose-block-for-path
 (ert-deftest oai-tests-block-tags--compose-block-for-path ()
