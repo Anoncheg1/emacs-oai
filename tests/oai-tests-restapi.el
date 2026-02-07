@@ -624,7 +624,7 @@
             (:role system :content "other")])))
 
 ;; -=-= For: `oai-restapi--modify-vector-content'
-(ert-deftest oai-tests-restapi--modify-vector-content ()
+(ert-deftest oai-tests-restapi--modify-vector-content1 ()
   (should
    (equal (oai-restapi--modify-vector-content
            '[(:role system :content "foo")
@@ -632,13 +632,28 @@
              (:role assistant :content "IDK.")
              (:role user :content "How to make coffe2?")
              (:role system :content "other")]
-           'user
-           (lambda (x) (concat x " w11")))
+           (lambda (x) (concat x " w11"))
+           'user)
           '[(:role system :content "foo")
             (:role user :content "How to make coffe1? w11")
             (:role assistant :content "IDK.")
             (:role user :content "How to make coffe2? w11")
             (:role system :content "other")])))
+
+(ert-deftest oai-tests-restapi--modify-vector-content2 ()
+  (should
+   (equal (oai-restapi--modify-vector-content
+           '[(:role system :content "foo")
+             (:role user :content "How to make coffe1?")
+             (:role assistant :content "IDK.")
+             (:role user :content "How to make coffe2?")
+             (:role system :content "other")]
+           (lambda (x) (concat x " w11")))
+          '[(:role system :content "foo w11")
+            (:role user :content "How to make coffe1? w11")
+            (:role assistant :content "IDK. w11")
+            (:role user :content "How to make coffe2? w11")
+            (:role system :content "other w11")])))
 
 
 (provide 'oai-tests-restapi)
@@ -684,7 +699,7 @@
 
 ;; -=-= For fooks: oai-restapi-after-prepare-messages-hook and
 (defun oai-tests-restapi--hooks-help-fun (messages)
-  (oai-restapi--modify-vector-content messages 'user (lambda (x) (concat x "hh1"))))
+  (oai-restapi--modify-vector-content messages (lambda (x) (concat x "hh1")) 'user))
 
 (ert-deftest oai-tests-restapi--prepare-messages-hooks ()
   (with-temp-buffer

@@ -75,10 +75,9 @@
   :group 'oai)
 
 (defcustom oai-block-roles-prefixes '(("SYS" . system)
-                                   ("ME" . user) ; to understand user input
-                                   ("ai" . assistant) ; for output, with some style
-                                   ;; ("AI" . assistant) ; to understand user input
-                                   ("AI_REASON" . assistant_reason)) ; "AI_REASON" used in `oai-block--parse-part'
+                                      ("ME" . user)
+                                      ("ai" . assistant) ; lowercase for style, but case is ignored
+                                      ("AI_REASON" . assistant_reason)) ; "AI_REASON" used in `oai-block--parse-part'
   "Map oai roles to chat prefixes to output to user.
 When restapi -> prefix, first matched is used.
 Used in `oai-block--parse-part' with ignoring case..
@@ -268,6 +267,7 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
    (string-equal "ai" (org-element-property :type elem2))
    (equal (org-element-property :contents-begin elem1)
           (org-element-property :contents-begin elem2))))
+
 ;; -=-= info fn: get-info, get-request-type, get-sys
 (defun oai-block-get-info (&optional element no-eval)
   "Parse the header of #+begin_ai...#+end_ai block.
@@ -398,23 +398,30 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
 ;;    ((eq type 'latex-fragment)
 
 (defun oai-block--contents-area (&optional element)
-  "Return typle :contents-begin and :contents-end for ai block only.
-  Optional argument ELEMENT should be ai block if specified."
+  "Return cons with start and end position of content.
+Start and first line after header, end at of line of the first not empty
+ line before footer.
+Optional argument ELEMENT should be ai block if specified."
   (when-let ((element (or element (oai-block-p))))
-     (let* ((beg (org-element-property :contents-begin element))
-            (end (org-element-property :contents-end element)))
-       (if (and beg end)
-           (cons beg end)
-         ;; else - empty block
-         (org-with-wide-buffer
-          (save-excursion
-            (goto-char (org-element-property :begin element))
-            (cons (line-beginning-position 2) (line-beginning-position 2))))))))
+    (let ((beg (org-element-property :contents-begin element))
+          (end (org-element-property :contents-end element)))
+      (save-excursion
+        (if (and beg end)
+            (progn
+              (goto-char end)
+              (while (bolp)
+                (backward-char))
+              (cons beg (point)))
+          ;; else - empty block
+          (org-with-wide-buffer
+           (goto-char (org-element-property :begin element))
+           (cons (line-beginning-position 2) (line-beginning-position 2))))))))
 
 
 (defun oai-block--area (&optional element)
-  "Return whole ai block begin and end for selection or removal.
-  Same to `org-src--contents-area'.
+  "Return whole ai block cons start and end positions.
+Start at header begining of line, end at footer end of line.
+Same to `org-src--contents-area'.
   Optional argument ELEMENT is ai block."
   (when-let ((element (or element (oai-block-p))))
     (cons (org-element-property :begin element)
@@ -422,16 +429,16 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
 		 (skip-chars-backward " \r\t\n")
                  (point)))))
 
-(defun oai-block-get-content (&optional element context)
+(defun oai-block-get-content (&optional element noweb-control noweb-context)
   "Extracts the text content of the #+begin_ai...#+end_ai block.
-  ELEMENT is the element of the ai block.
-  Will expand noweb templates if an `oai-noweb' property or
-  `noweb' header arg is \"yes\".
-  Use ELEMENT only in current moment, if buffer modified you will need new
-  ELEMENT.
-  CONTEXT may be one of :tangle, :export or :eval, the last is by default.
-  Don't support tags and Org links expansion, for that use
-  `oai-block-tags-get-content' instead."
+ELEMENT is the element of the ai block.
+Will expand noweb templates if an `oai-noweb' property or `noweb' header
+arg is \"yes\".
+Use ELEMENT only in current moment, if buffer modified you will need new
+ELEMENT.
+NOWEB-CONTEXT may be one of :tangle, :export or :eval, the last is by default.
+Don't support tags and Org links expansion, for that use
+`oai-block-tags-get-content' instead."
   (when-let ((reg (oai-block--contents-area element)))
     (let ((con-beg (car reg))
           (con-end (cdr reg)))
@@ -440,12 +447,8 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
                                       (error "Empty block")
                                     ;; else
                                     (string-trim (buffer-substring-no-properties con-beg con-end))))
-              (info (oai-block-get-info element))
-              ;; (noweb-control (or (alist-get :noweb info nil)
-              ;;                    (org-entry-get (point) "oai-noweb" 1)
-              ;;                    "no"))
-              ;;                    (if (string-equal-ignore-case "yes" noweb-control)
-              (noweb-control (or (org-babel-noweb-p info (or context :eval))
+              (noweb-control (or noweb-control
+                                 (org-babel-noweb-p (oai-block-get-info element) (or context :eval))
                                  (org-entry-get (point) "oai-noweb" t)))
               (content (if noweb-control
                            (org-babel-expand-noweb-references (list "markdown" unexpanded-content)) ; main
@@ -954,7 +957,7 @@ Uses `oai-block-roles-prefixes' variable for mapping roles to prefixes."
     ;; 2) convert every message to a string and join them.
     (string-join
      (mapcar #'oai-block--format-message messages)
-     "\n\n")))
+    "\n\n")))
 
 ;; (oai-block--stringify-chat-messages '[(:role assistant :content "Be helpful; then answer.") (:role user :content "Be hnswer.")] "as")
 
@@ -1237,7 +1240,7 @@ A positive ARG = N means move backward N sections."
 ;;                 (end (cdr region)))
 ;;       (kill-region end start))))
 
-(defun oai-block-mark-at-point ()
+(defun oai-block-mark-at-point (&optional arg)
   "Progressively mark a larger region in AI block at point.
 Steps:
   0. Org element
@@ -1248,94 +1251,99 @@ Steps:
   5. Whole block.
 Return number of marked content."
   (interactive)
-  (let ((pos (point))
-        (expanded nil)
-        (cur-size (if (use-region-p) (- (region-end) (region-beginning)) 0))
-        (inx 0)
-        (prev-inx 0)
-        found-beg found-end
-        step)
-    (save-mark-and-excursion
-      (when-let ((block-region (save-excursion (oai-block--area))))
-        (let* ((block-beg (car block-region))
-               (block-end (cdr block-region))
-               (mark-markdown
-                (lambda ()
-                  (message "MBlock")
-                  (cadr (oai-block--markdown-area (point) block-beg block-end)))) ; beg-cont end-cont
-               (steps
-                (list
-                 ;; Step 0: Org element
-                 (lambda ()
-                   ;; Additionally check if point is in markdown block
-                   ;; that element is less than block.
-                   (let* ((reg (funcall mark-markdown))
-                          (block-size (when reg (- (cadr reg) (car reg)))))
-                     (deactivate-mark)
-                     (goto-char pos)
-                     (ignore-errors                    ;; Guard in case not on element
-                       (message "Org Element")
-                       (org-mark-element)
-                       (if (and block-size (> (- (region-end) (region-beginning)) block-size))
-                           nil
-                         ;; else
-                         (list (region-beginning) (region-end))))))
-                 ;; Step 1: Markdown block
-                 mark-markdown
+  (if arg
+      (progn (deactivate-mark)
+             (oai-block-mark-chat-message-at-point)
+             (message "Chat message"))
+    ;; else
+    (let ((pos (point))
+          (expanded nil)
+          (cur-size (if (use-region-p) (- (region-end) (region-beginning)) 0))
+          (inx 0)
+          (prev-inx 0)
+          found-beg found-end
+          step)
+      (save-mark-and-excursion
+        (when-let ((block-region (save-excursion (oai-block--area))))
+          (let* ((block-beg (car block-region))
+                 (block-end (cdr block-region))
+                 (mark-markdown
+                  (lambda ()
+                    (message "MBlock")
+                    (cadr (oai-block--markdown-area (point) block-beg block-end)))) ; beg-cont end-cont
+                 (steps
+                  (list
+                   ;; Step 0: Org element
+                   (lambda ()
+                     ;; Additionally check if point is in markdown block
+                     ;; that element is less than block.
+                     (let* ((reg (funcall mark-markdown))
+                            (block-size (when reg (- (cadr reg) (car reg)))))
+                       (deactivate-mark)
+                       (goto-char pos)
+                       (ignore-errors                    ;; Guard in case not on element
+                         (message "Org Element")
+                         (org-mark-element)
+                         (if (and block-size (> (- (region-end) (region-beginning)) block-size))
+                             nil
+                           ;; else
+                           (list (region-beginning) (region-end))))))
+                   ;; Step 1: Markdown block
+                   mark-markdown
 
-                 ;; Step 2: Markdown block with header and footer
-                 (lambda ()
-                   (message "MBlock with header")
-                   (when-let ((m-reg (oai-block--markdown-area (point) block-beg block-end)))
-                     (car m-reg)))
-                 ;; Step 3: Chat message
-                 (lambda ()
-                   (message "Chat message")
-                   (oai-block-mark-chat-message-at-point)
-                   (list (region-beginning) (region-end)))
-                 ;; Step 4: Block content
-                 (lambda ()
-                   (message "AI Block content")
-                   (let ((reg (oai-block--contents-area)))
-                     (when reg
-                       (list (car reg) (cdr reg)))))
-                 ;; Step 5: Block whole
-                 (lambda () (message "Block whole") (list block-beg block-end)))))
+                   ;; Step 2: Markdown block with header and footer
+                   (lambda ()
+                     (message "MBlock with header")
+                     (when-let ((m-reg (oai-block--markdown-area (point) block-beg block-end)))
+                       (car m-reg)))
+                   ;; Step 3: Chat message
+                   (lambda ()
+                     (message "Chat message")
+                     (oai-block-mark-chat-message-at-point)
+                     (list (region-beginning) (region-end)))
+                   ;; Step 4: Block content
+                   (lambda ()
+                     (message "AI Block content")
+                     (let ((reg (oai-block--contents-area)))
+                       (when reg
+                         (list (car reg) (cdr reg)))))
+                   ;; Step 5: Block whole
+                   (lambda () (message "Block whole") (list block-beg block-end)))))
 
-          ;; Step sequentially
-          (when (region-active-p) (setq inx 1)) ; skip org element if region active.
-          (while (and (< inx 6)
-                      (not expanded))
-            (setq step (nth inx steps))
-            (setq inx (1+ inx))
+            ;; Step sequentially
+            (when (region-active-p) (setq inx 1)) ; skip org element if region active.
+            (while (and (< inx 6)
+                        (not expanded))
+              (setq step (nth inx steps))
+              (setq inx (1+ inx))
 
 
-            (deactivate-mark)
-            (goto-char pos)
-            (when-let* ((reg (funcall step))
-                        (beg (car reg))
-                        (end (cadr reg))
-                        (new-size (- end beg)))
-              (when (<= new-size cur-size)
-                (setq prev-inx (1- inx)))
-              ;; Compare new region size
-              (oai--debug "oai-block-mark-at-point %s %s %s %s" inx reg (when beg (- end beg)) cur-size)
-              (when (and beg end
-                         (> new-size cur-size))
-                (goto-char beg)
-                (set-mark end)
-                (setq expanded t
-                      cur-size (- end beg)
-                      found-beg beg
-                      found-end end)))))))
-    ;; If nothing expanded, just mark whole block
-    (when expanded
-      (deactivate-mark)
-      (goto-char found-beg)
-      (set-mark found-end)
-      ;; (activate-mark)
-      )
-    (list prev-inx inx)))
+              (deactivate-mark)
+              (goto-char pos)
+              (when-let* ((reg (funcall step))
+                          (beg (car reg))
+                          (end (cadr reg))
+                          (new-size (- end beg)))
+                (when (<= new-size cur-size)
+                  (setq prev-inx (1- inx)))
+                ;; Compare new region size
+                (oai--debug "oai-block-mark-at-point %s %s %s %s" inx reg (when beg (- end beg)) cur-size)
+                (when (and beg end
+                           (> new-size cur-size))
+                  (goto-char beg)
+                  (set-mark end)
+                  (setq expanded t
+                        cur-size (- end beg)
+                        found-beg beg
+                        found-end end)))))))
+      ;; If nothing expanded, just mark whole block
+      (when expanded
+        (deactivate-mark)
+        (goto-char found-beg)
+        (set-mark found-end)
+        ;; (activate-mark)
+        )
+      (list prev-inx inx))))
 
 ;; (defun oai-block-next-element (&optional arg)
 ;;   "Select next element of ai block or just jump.
@@ -1429,13 +1437,12 @@ Used in `oai-call-block'"
   "Return marker for ai block at current buffer at current positon.
 Pointer between # an + characters.
 Use ELEMENT only in current moment in element buffer."
-  (when-let ((el (or element (oai-block-p))))
-    ;; (with-current-buffer (org-element-property :buffer el)
+  (when-let* ((el (or element (oai-block-p) (org-element-at-point)))
+              (begin (org-element-property :begin el)))
     (save-excursion
-      (goto-char (org-element-property :contents-begin el))
-      (forward-line -1)
-      (forward-char) ; 1+ to have something before marker for correct work.
-      (copy-marker (point)))))
+      (goto-char begin)
+      (forward-char) ; between # an + characters
+      (point-marker))))
 
 ;; -=-= Result
 

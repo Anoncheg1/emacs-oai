@@ -275,31 +275,41 @@ This is what will be sent to the api.  ELEMENT is the ai block.
 Like `org-babel-expand-src-block'.
 Set `help-window-select' variable to to t to get focus.
 When universal  ARG specifide  output more  raw information  splitted by
-messages."
+messages.
+Return expanded content if at current point of current buffer supported
+block was found, otherwise nil."
   ; org-babel-expand-src-block put overlay with `org-src--make-source-overlay'
   ; We add text properties in `oai-block-tags--replace-last-regex-smart'
   (interactive "P")
-  (when-let* ((element (oai-block-p)) ; oai-block.el
+  (when-let* ((element (oai-block-p)) ; (oai-block-tags--block-at-point))) ; oai-block.el
               (res-str (if arg
                            (pp-to-string (oai-expand-block-deep))
                          ;; else
-                         ;; (print (oai-block-tags-replace (oai-block-get-content element)))
-                         (let* (
-                                ;; get block
-                                (expanded (string-trim
-                                           (oai-block-get-content element))) ; oai-block.el
-                                ;; (expanded (oai-block-tags-replace expanded))
-                                ;; vector
-                                (expanded (oai-block--collect-chat-messages-from-string expanded))
-                                (expanded (oai-restapi--modify-vector-content expanded 'user #'oai-block-tags-replace))
-                                ;; one string
-                                (expanded (oai-block--stringify-chat-messages expanded)))
-                           expanded))))
+                         ;; (let* (
+                         ;;        ;; get block
+
+                         ;;        (expanded (string-trim
+                         ;;                   (oai-block-get-content element))) ; oai-block.el
+                         ;;        ;; (expanded (oai-block-tags-replace expanded))
+                         ;;        ;; vector
+                         ;;        (expanded (oai-block--collect-chat-messages-from-string expanded))
+                         ;;        (expanded (oai-restapi--modify-vector-content expanded #'oai-block-tags-replace 'user))
+                         ;;        ;; one string
+                         ;;        (expanded (oai-block--stringify-chat-messages expanded)))
+                         ;;   expanded))))
+                         (oai-block-tags-get-content element
+                                                     t ; tags-control
+                                                     t  ; noweb-control
+                                                     :eval ; noweb-context
+                                                      t ; links-only-last
+                                                      t ; not-clear-properties
+                                                     ))))
     (if (called-interactively-p 'any)
         (let ((buf (get-buffer-create "*OAI Preview*")))
           (with-help-window buf (with-current-buffer buf
                                   (insert res-str)))
-          (switch-to-buffer buf))
+          (switch-to-buffer buf)
+          t)
       ;; else
       res-str)))
 
@@ -340,11 +350,54 @@ messages."
     (setq oai-debug-buffer   "*debug-oai*")
     (message "Enable oai debugging")))
 
-;; -=-= interactive aliases
-;; ;;;###autoload
-;; (defalias 'oai-mark-at-point #'oai-block-mark-at-point)
-;; ;;;###autoload
-;; (defalias 'oai-forward-section #'oai-block-forward-section)
+;; -=-= fn: Help function to rebind major mode with chaining
+(defun oai--call-next-remap-protected (command &optional seen)
+  "Call the next remapping of COMMAND, skipping any commands already in SEEN.
+If no further remappings found, calls COMMAND interactively if possible."
+  (let ((minor-mode-map-alist (cdr minor-mode-map-alist)))
+    (let ((binding (key-binding (vector 'remap command))))
+      (cond
+       ;; No binding found, or recursion, fallback to original
+       ((or (null binding) (memq binding seen))
+        (when (commandp command)
+          (call-interactively command)))
+       ;; Valid binding, try further
+       ((commandp binding)
+        (call-next-remap-protected command (cons binding seen)))))))
+
+(defun oai--call-next-key-remap-protected (key &optional seen)
+  "Call the next binding of KEY, skipping handlers already in SEEN.
+If no further binding found, calls the major mode's or global binding.
+KEY is a string representing the keystroke, e.g., \"C-c a\".
+SEEN is a list of commands already called, used to prevent recursion."
+
+  ;; Locally shadow minor-mode-map-alist to remove the highest-priority minor mode map.
+  (let ((minor-mode-map-alist (cdr minor-mode-map-alist)))
+    ;; Find the current binding for KEY after skipping the top minor mode.
+    (let ((binding (key-binding (kbd key) nil nil)))
+      (cond
+       ;; If no binding found or we've already seen this binding, try major mode and then global map.
+       ((or (null binding) (memq binding seen))
+        ;; Attempt to find the binding in the major mode's keymap.
+        (let* ((major-mode-map (current-local-map))
+               (binding-major (and major-mode-map (lookup-key major-mode-map (kbd key)))))
+          (if (commandp binding-major)
+              ;; If found and it's a command, call interactively.
+              (call-interactively binding-major)
+            ;; Otherwise, try the global map for the key.
+            (let ((global-binding (key-binding (kbd key) t t)))
+              (if (commandp global-binding)
+                  (call-interactively global-binding)
+                ;; If no valid binding anywhere, notify the user.
+                (message "No valid binding for %s" key)))))
+        )
+       ;; If binding is a command, recursively try to find the next remapped binding,
+       ;; and add this binding to SEEN for recursion protection.
+       ((commandp binding)
+        (call-next-key-remap-protected key (cons binding seen)))
+       ;; Handle the case where binding is not a command (function, lambda, etc.).
+       (t
+        (message "Binding for %s is not a command" key))))))
 
 ;; -=-= interactive fns: Org keys remapings
 (defun oai-mark-at-point-org (&optional arg)
@@ -359,15 +412,14 @@ If optional argument ARG is non-nil, mark current message of chat."
         ;; else
         (call-interactively #'oai-block-mark-at-point))
     ;; else
-    (call-interactively #'org-mark-element)))
+    (oai--call-next-remap-protected #'org-mark-element)))
 
 (defun oai-expand-block-org ()
   "Show a temp buffer with what the ai block expands to."
   (interactive)
-  (if (oai-block-p)
-      (call-interactively #'oai-expand-block)
+  (if (not (call-interactively #'oai-expand-block))
     ;; else
-    (call-interactively (key-binding (kbd "C-c .")))))
+    (oai--call-next-key-remap-protected "C-c .")))
 
 (defun oai-set-max-tokens-org ()
   "Jump to header of ai block and set max-tokens."
@@ -375,7 +427,7 @@ If optional argument ARG is non-nil, mark current message of chat."
   (if (oai-block-p)
       (oai-block-set-block-parameter ":max-tokens" oai-restapi-default-max-tokens)
     ;; else
-    (call-interactively (key-binding (kbd "C-c C-t")))))
+    (oai--call-next-key-remap-protected "C-c C-t")))
 
 ;; -=-= interactive fn: Summarize *TODO:*
 ;; (defun oai-summarize ()
@@ -400,23 +452,12 @@ If optional argument ARG is non-nil, mark current message of chat."
 (defvar-keymap oai-mode-map
   :repeat nil
   :parent nil
-  ;; :parent org-mode-map
-  "<remap> <org-next-visible-heading>" #'oai-block-next-message ; todo make org
-  "<remap> <org-previous-visible-heading>" #'oai-block-previous-message ; todo make org
-  "<remap> <org-mark-element>" #'oai-mark-at-point-org
+  "<remap> <org-next-visible-heading>" #'oai-block-next-message ; C-c C-n todo make org
+  "<remap> <org-previous-visible-heading>" #'oai-block-previous-message ; C-c C-p todo make org
+  "<remap> <org-mark-element>" #'oai-mark-at-point-org ; M-h
   "C-c ." #'oai-expand-block-org
   "C-c C-." #'oai-open-request-buffer
   "C-c C-t" #'oai-set-max-tokens-org)
-
-;; (define-key global-map (kbd "C-c C-a") oai-mode-map)
-
-;; (let ((map oai-mode-map))
-;;   (define-key map (kbd (string-join (list "C-c" " <backspace>"))) #'oai-kill-message-at-point) ; oai-block.el
-;;   (define-key map (kbd "M-h") #'oai-mark-at-point) ; oai-block.el
-;;   (define-key map (kbd "C-c C-.") #'oai-open-request-buffer) ; oai-restapi.el
-;;   (define-key map (kbd "C-c .") #'oai-expand-block) ; oai-block.el
-;;   (define-key map (kbd "C-c C-t") #'oai-set-max-tokens)) ; oai-block.el
-
 
 ;; -=-= Minor mode: hook - Fontify Markdown blocks and Tags - function for hook
 
@@ -490,7 +531,7 @@ If optional argument ARG is non-nil, mark current message of chat."
         ;; else
         (message "No url buffer found"))
   ;; - else - no element - call original Org key
-  (call-interactively (lookup-key org-mode-map (kbd "C-c ?")))))
+  (oai--call-next-key-remap-protected "C-c C-.")))
 
 ;; -=-= Minor mode - string line
 (defvar oai-mode-line-string "")

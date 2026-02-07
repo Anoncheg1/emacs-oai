@@ -588,11 +588,12 @@ Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
                                                                 sys-prompt-for-all-messages
                                                                 (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
                                                                       (oai-restapi--get-lenght-recommendation max-tokens))))
-           (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
-           (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
+           (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
+           (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties))
            (messages (if noweb-control
-                         (oai-restapi--modify-vector-content messages 'user
-                                                             (lambda (string) (org-babel-expand-noweb-references (list "markdown" string))))
+                         (oai-restapi--modify-vector-content messages
+                                                             (lambda (string) (org-babel-expand-noweb-references (list "markdown" string)))
+                                                             'user)
                        messages)) ; noweb
            (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
       messages))) ; return vector
@@ -1055,8 +1056,8 @@ We store url-buf with marker of header in oai-timers.el"
   (with-current-buffer (marker-buffer header-marker)
     (let* (
           ;; prepare request - apply tags to message
-          (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
-          (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
+          (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
+          (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties 'user))
           (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
       (when (or (and retries (> retries 0))
                 (not retries))
@@ -1573,9 +1574,10 @@ MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
     idx))
 
 
-(defun oai-restapi--modify-vector-content (vec role new-content)
+(defun oai-restapi--modify-vector-content (vec new-content &optional role &rest rest)
   "Modify every string content of messages VEC that match role.
-ROLE is symbol.  NEW-CONTENT may be string or function that accept one
+When ROLE is non-nil, it used to filter all such messages.
+NEW-CONTENT may be string or function that accept one
 string arguments and return new content, like `oai-block-tags-replace'."
   (unless (vectorp vec)
     (error "Not a vector"))
@@ -1588,17 +1590,22 @@ string arguments and return new content, like `oai-block-tags-replace'."
       (setq el (aref newvec i)) ; from 0 to len-1
       (setq content (plist-get el :content))
       ;; replace content for role
-      (when (eql role (plist-get el :role))
+      (when (or (and role
+                     (eql role (plist-get el :role)))
+                (not role))
         (setq content (if (functionp new-content)
-                          (funcall new-content content)
+                          (if rest
+                              (apply #'funcall new-content content rest)
+                            ;; else
+                            (funcall new-content content))
                         ;; else
                         new-content))
         (aset newvec i (plist-put (copy-sequence el) :content content)))
-      (setq i (1- i))) ; ++1
+      (setq i (1- i)))
     newvec))
 
 
-(defun oai-restapi--modify-last-user-content (vec new-content)
+(defun oai-restapi--modify-last-user-content (vec new-content &rest rest)
   "Replacing last \='user :content with NEW-CONTENT in VEC.
 NEW-CONTENT is either (string or function of old content), like
 `oai-block-tags-replace'.
@@ -1613,8 +1620,10 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
       (let* ((elt (aref newvec idx))
              (old-content (plist-get elt :content))
              (rep-content (if (functionp new-content)
-                              ;; oai-restapi--modify-last-user-content
-                              (funcall new-content old-content)
+                              (if rest
+                                  (apply #'funcall new-content old-content rest)
+                                ;; else
+                                (funcall new-content old-content))
                             new-content))
              (new-elt (plist-put (copy-sequence elt) :content rep-content)))
         (aset newvec idx new-elt)))

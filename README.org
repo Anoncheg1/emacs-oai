@@ -13,12 +13,12 @@ Protocol: “OpenAI like” HTTP REST API. (url.el)
 
 O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organization, Open Archives Initiative, Object-action interface, Shorthand for OpenAI.
 * Features:
-- Tags: expansion of links in block
-- Do parallel request in the same or different buffer without waiting
-- Highlighting: markdown big blocks, tags and links, headers, bold text, Org tables, LaTeX
-- Commands to inspect raw data, jumping
-- Autofilling, hooks, powerful debugger
-- Provide prompt engineering tools, there is ~:chain~ of calls out-of-the-box
+- *Tags* expansion of tags, Org links and noweb references
+- *Parallel request* in the same or different buffer without waiting
+- *Highlighting* markdown big blocks, tags and links, headers, bold text, Org tables, LaTeX
+- *Transparency* inspect raw data request
+- *Customization* Autofilling, hooks, powerful debugger
+- *Prompt engineering* tools, there is ~:chain~ of calls out-of-the-box
 * Screenshot
 At left - main window with AI answer. At right - help window with expanded link.
 [[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]
@@ -135,6 +135,7 @@ or
 - AI_REASON - excluded
 - ME - role: user
 
+See ~oai-block-roles-prefixes~ in [[.oai-block.el]] for more info.
 * Supported parameteres for #+begin_ai
 - :model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" - string
 - :service <service> - string symbol/string (oai-restapi-con-service)
@@ -217,6 +218,8 @@ For *RESTAPI* requesting LLMs we provide two functions:
 - ~oai-restapi-request-llm-retries~ - retry request if it fails.
 
 For make *chain of calls* we have ~oai-async1.el~ static framework that simplify making parallel and sequencial requests.
+
+For *keys remapping* we bind keys to Org commands or key if pointer is not in ai-block, we call original key or command with “hack” functions.
 * Other packages
 - Navigation in Dired, Packages, Buffers modes https://github.com/Anoncheg1/firstly-search
 - Search with Chinese	https://github.com/Anoncheg1/pinyin-isearch

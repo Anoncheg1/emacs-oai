@@ -9,6 +9,11 @@ For sending request we replace links in all user messages, for expansion of link
 
 Arguments not implemented: https://orgmode.org/manual/Environment-of-a-Code-Block.html
 * preparation steps of block content for LLM
+Main function to get content of block:
+- oai-block-get-content - works without links and tags expansion
+- oai-restapi-prepare-content - works for all user messages
+- oai-block-tags-get-content - replace links aonly in last user message, works for all oai-block-tags-org-blocks-types
+
 *oai-restapi-request-prepare chain* that call `oai-restapi-prepare-content'
 1) oai-restapi--collect-chat-messages-at-point
   + oai-block-get-content - string
@@ -25,6 +30,8 @@ Arguments not implemented: https://orgmode.org/manual/Environment-of-a-Code-Bloc
 3) oai-restapi-request-llm-retries ->
   - (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
   - (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
+
+
 
 * Hooks - messages preparation for sending or content reading
 cases:

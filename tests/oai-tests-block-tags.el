@@ -442,7 +442,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
                      (should (string-match-p "^ bbb$" (nth 8 res))))))
 
 
-;; -=-= Test: oai-block-tags--get-org-block-region
+;; -=-= Test: oai-block-tags--contents-area
 (ert-deftest oai-tests-block-tags--get-org-block-region ()
   (let (kill-buffer-query-functions
         org-execute-file-search-functions
@@ -452,20 +452,20 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
       (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n#+end_ai")
       (goto-char (point-min))
-      ;; (print (oai-block-tags--get-org-block-region))
-      (setq res (oai-block-tags--get-org-block-region))
+      ;; (print (oai-block-tags--contents-area))
+      (setq res (oai-block-tags--contents-area))
       (should (= (car res) 91 ))
       (should (= (cdr res) 91 ))
 
       (goto-char (point-max))
       (insert "\n")
-      ;; (let ((res (oai-block-tags--get-org-block-region)))
+      ;; (let ((res (oai-block-tags--contents-area)))
       ;;   (should (= (car res) 91 ))
       ;;   (should (= (cadr res) 91 )))
       (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n\n\n#+end_ai")
       ;; (goto-char (point-min))
-      ;; (print (oai-block-tags--get-org-block-region))
-      (let ((res (oai-block-tags--get-org-block-region)))
+      ;; (print (oai-block-tags--contents-area))
+      (let ((res (oai-block-tags--contents-area)))
         (should (= (car res) 190 ))
         (should (= (cdr res) 192 )))
       )))
@@ -666,7 +666,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (let ((p (point)))
         (insert "\naa\n```\n#+end_src\n")
         (goto-char p)
-        ;; (oai-block-tags--get-org-block-region)))
+        ;; (oai-block-tags--contents-area)))
         ;; (oai-block-tags--markdown-block-range)))
         ;; (oai-block-tags--get-m-block)))
         (oai-block-tags--get-content-at-point))))))
@@ -681,7 +681,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (let ((p (point)))
         (insert "aa```\n#+end_src\n")
         (goto-char p)
-        ;; (oai-block-tags--get-org-block-region)))
+        ;; (oai-block-tags--contents-area)))
         ;; (oai-block-tags--markdown-block-range)))
         ;; (oai-block-tags--get-m-block)))
         (oai-block-tags--get-content-at-point))))))
