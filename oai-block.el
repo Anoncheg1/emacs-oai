@@ -409,7 +409,7 @@ Optional argument ELEMENT should be ai block if specified."
         (if (and beg end)
             (progn
               (goto-char end)
-              (while (bolp)
+              (while (and (bolp) (> (point) beg))
                 (backward-char))
               (cons beg (point)))
           ;; else - empty block
@@ -448,7 +448,7 @@ Don't support tags and Org links expansion, for that use
                                     ;; else
                                     (string-trim (buffer-substring-no-properties con-beg con-end))))
               (noweb-control (or noweb-control
-                                 (org-babel-noweb-p (oai-block-get-info element) (or context :eval))
+                                 (org-babel-noweb-p (oai-block-get-info element) (or noweb-context :eval))
                                  (org-entry-get (point) "oai-noweb" t)))
               (content (if noweb-control
                            (org-babel-expand-noweb-references (list "markdown" unexpanded-content)) ; main

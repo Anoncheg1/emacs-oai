@@ -465,10 +465,14 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n\n\n#+end_ai")
       ;; (goto-char (point-min))
       ;; (print (oai-block-tags--contents-area))
-      (let ((res (oai-block-tags--contents-area)))
-        (should (= (car res) 190 ))
-        (should (= (cdr res) 192 )))
-      )))
+      (setq res (oai-block-tags--contents-area))
+      (should (= (car res) 190 ))
+      (should (= (cdr res) 190 ))
+      (insert "\n")
+      (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\nasda\nasd\n#+end_ai")
+      (setq res (oai-block-tags--contents-area))
+      (should (= (car res) 291 ))
+      (should (= (cdr res) 299 )))))
 
 ;; -=-= Test: oai-block-tags--filepath-to-language
 (ert-deftest oai-tests-block-tags--filepath-to-language ()

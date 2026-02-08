@@ -266,18 +266,17 @@ Optional argument ELEMENT is any Org element."
     context))
 
 (defun oai-block-tags--contents-area (&optional element)
-  "Return (beg end) pair for any Org block ELEMENT or nil.
-beg end is content begin and #+end.
-`org-src--contents-area'
-Works for ai block also."
+  "Return cons with start and end position of content.
+Works for ai blocks and supported Org block
+ `oai-block-tags-org-blocks-types'.
+Start and first line after header, end at of line of the first not empty
+ line before footer."
   (when-let* ((element (or element (oai-block-tags--block-at-point))))
     (if (string-equal "ai" (org-element-property :type element))
         (oai-block--contents-area element)
       ;; else
       (when-let* ((res (org-src--contents-area element)))
                  (cons (car res) (cadr res))))))
-
-
 
 (defun oai-block-tags-get-content-ai-messages (&optional element tags-control noweb-control noweb-context links-only-last not-clear-properties req-type sys-prompt sys-prompt-for-all-messages max-tokens info)
   (oai--debug "oai-block-tags-get-content-ai-messages %s %s" tags-control noweb-control)
