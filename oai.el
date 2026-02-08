@@ -147,6 +147,10 @@
 (require 'oai-prompt) ; for `oai-prompt-request-chain'
 
 ;; -=-= C-c C-c main interface
+(defgroup my-package nil
+  "OAI package customization."
+  :group 'oai)
+
 (defcustom oai-fontification-flag t
   "Non-nil means enable fontification for markdown and Org elements in block."
   :type 'boolean
@@ -363,12 +367,12 @@ If no further remappings found, calls COMMAND interactively if possible."
           (call-interactively command)))
        ;; Valid binding, try further
        ((commandp binding)
-        (call-next-remap-protected command (cons binding seen)))))))
+        (oai--call-next-remap-protected command (cons binding seen)))))))
 
 (defun oai--call-next-key-remap-protected (key &optional seen)
   "Call the next binding of KEY, skipping handlers already in SEEN.
 If no further binding found, calls the major mode's or global binding.
-KEY is a string representing the keystroke, e.g., \"C-c a\".
+KEY is a string representing the keystroke.
 SEEN is a list of commands already called, used to prevent recursion."
 
   ;; Locally shadow minor-mode-map-alist to remove the highest-priority minor mode map.
@@ -389,12 +393,11 @@ SEEN is a list of commands already called, used to prevent recursion."
               (if (commandp global-binding)
                   (call-interactively global-binding)
                 ;; If no valid binding anywhere, notify the user.
-                (message "No valid binding for %s" key)))))
-        )
+                (message "No valid binding for %s" key))))))
        ;; If binding is a command, recursively try to find the next remapped binding,
        ;; and add this binding to SEEN for recursion protection.
        ((commandp binding)
-        (call-next-key-remap-protected key (cons binding seen)))
+        (oai--call-next-key-remap-protected key (cons binding seen)))
        ;; Handle the case where binding is not a command (function, lambda, etc.).
        (t
         (message "Binding for %s is not a command" key))))))

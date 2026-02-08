@@ -146,6 +146,11 @@ TODO: for streaming: save and pass begining of paragraph or line."
   :group 'oai)
 
 ;; -=-= faces
+(defgroup oai-faces nil
+  "Faces for OAI blocks."
+  :tag "OAI Faces"
+  :group 'oai)
+
 (defface oai-block-quote
     '((((class color) (min-colors 88) (background dark)) :background "#282828" :foreground "shadow")
       (((class color) (min-colors 88) (background light)) :background "#eeeeee" :foreground "gray")
@@ -180,7 +185,9 @@ TODO: for streaming: save and pass begining of paragraph or line."
 
 (defcustom oai-block-m-header-colors '(oai-block-m-header1 oai-block-m-header2 oai-block-m-header3 oai-block-m-header4)
   "Colors that used to fontify markdown headers.
-First is used for one # character 4 for ####, for 5 and more 4 is used.")
+First is used for one # character 4 for ####, for 5 and more 4 is used."
+  :type '(repeat face)
+  :group 'oai-faces)
 
 (defface oai-chat-role	   ;Copied from `font-lock-variable-name-face'
   '((((class color) (min-colors 16) (background light)) (:foreground "sienna" :slant italic))
@@ -197,11 +204,11 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
 ;; -=-= variables
 (defvar oai-block-roles-restapi-unknown 'assistant
   "Used for restapi reply if role in JSON was not found.
-  In `oai-block--insert-stream-response'.")
+In `oai-block--insert-stream-response'.")
 
 (defvar oai-block-roles-prefixes-unknown 'assistant
   "Used in `oai-block--parse-part' for prefix not found.
-  In `oai-block-roles-prefixes'.")
+In `oai-block-roles-prefixes'.")
 
 ;; ;; RestAPI -> Prefix
 ;; (let ((role 'user1))
@@ -221,13 +228,13 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
 (defvar oai-block--markdown-beg-end-re "^[\s\t]*```\\(.*\\)$")
 (defvar oai-block--chat-prefixes-re "^\\s-*\\[\\([^\]]+\\)\\(:\\]\\|\\]:\\)\\s-*"
   "Prefix should be at the begining of the line with spaces or without.
-  Or roles regex.")
+Or roles regex.")
 
 
 (defface oai-block--me-ai-chat-prefixes-font-face
   '((t :weight bold))
   "Face font for chat roles (default bold).
-  You can customize this font with `set-face-attribute'."
+You can customize this font with `set-face-attribute'."
   :group 'oai)
 
 ;; -=-= loading code: activate "ai" block in Org mode
@@ -248,7 +255,7 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
 
 (defun oai-block-p ()
   "Are we inside a #+begin_ai...#+end_ai block?
-  Like `org-in-src-block-p'.  Return element."
+Like `org-in-src-block-p'.  Return element."
   (oai-block--org-element-with-disabled-cache ;; with cache enabled we get weird Cached element is incorrect warnings
     (cl-loop with context = (org-element-context)
              while (and context
@@ -257,28 +264,17 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
              do (setq context (org-element-property :parent context))
              finally return context)))
 
-;; -=-= fn: compare
-(defun oai-block-equal-p (element1 element2)
-  "Compare ai blocks."
-  (and
-   (equal (org-element-type elem1)
-          (org-element-type elem2))
-   (string-equal "ai" (org-element-property :type elem1))
-   (string-equal "ai" (org-element-property :type elem2))
-   (equal (org-element-property :contents-begin elem1)
-          (org-element-property :contents-begin elem2))))
-
 ;; -=-= info fn: get-info, get-request-type, get-sys
 (defun oai-block-get-info (&optional element no-eval)
   "Parse the header of #+begin_ai...#+end_ai block.
-  ELEMENT is the element of the special block.
-  Like `org-babel-get-src-block-info' but instead of list return only
-  arguments.
-  To get value use: (alist-get :value (oai-block-get-info))
-  Use ELEMENT only in current moment.
-  When optional argument NO-EVAL is non-nil, do not evaluate Lisp
-  in parameters.
-  Return an alist of key-value pairs."
+ELEMENT is the element of the special block.
+Like `org-babel-get-src-block-info' but instead of list return only
+arguments.
+To get value use: (alist-get :value (oai-block-get-info))
+Use ELEMENT only in current moment.
+When optional argument NO-EVAL is non-nil, do not evaluate Lisp
+in parameters.
+Return an alist of key-value pairs."
   (org-babel-parse-header-arguments
    (org-element-property
     :parameters
@@ -286,7 +282,7 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
 
 (defun oai-block--get-request-type (info)
   "Look at the header of the #+begin_ai...#+end_ai block.
-  returns the type of request.  INFO is the alist of key-value
+returns the type of request.  INFO is the alist of key-value
   pairs from `oai-block-get-info'."
   (cond
    ((not (eql 'x (alist-get :chat info 'x))) 'chat)
@@ -296,10 +292,9 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
 
 (cl-defun oai-block--get-sys (&key info default)
   "Check if :sys exist in #+begin_ai parameters.
-  If exist return nil or string, if not exist  return `default'.
-  Argument INFO is the alist of key-value
-  pairs from `oai-block-get-info'.
-  DEFAULT is a string with default system prompt for LLM."
+If exist return nil or string, if not exist  return `default'.
+Argument INFO is the alist of key-value pairs from `oai-block-get-info'.
+DEFAULT is a string with default system prompt for LLM."
   (let ((sys-raw  (alist-get :sys info 'x)))
     ;; if 'x - not resent
     (if (eql 'x sys-raw)
@@ -310,18 +305,18 @@ First is used for one # character 4 for ####, for 5 and more 4 is used.")
 ;; -=-= macro: let-params
 (defmacro oai-block--let-params (info definitions &rest body)
   "A specialized `let*' macro for Oai parameters.
-  DEFINITIONS is a list of (VARIABLE &optional DEFAULT-FORM &key TYPE).
-  TYPE can be \='number, \='bool, \='string, or \='identity (no conversion).
-  Return one of:
-  - t symbol, if value for key not specified, if specied, return string.
-  - for number type, `string-to-number' used, that return 0 if number not
-    recognized.
-  - for number if specified without value return t.
-  - Processed value of parameter (e.g., t/nil for bool).
-  Parameters are sourced from:
-  1. From Oai block header INFO alist.  (e.g., :model \"gpt-4\")
-  2. Org inherited property. (e.g., #+PROPERTY: model gpt-4)
-  3. DEFAULT-FORM."
+DEFINITIONS is a list of (VARIABLE &optional DEFAULT-FORM &key TYPE).
+TYPE can be \='number, \='bool, \='string, or \='identity (no conversion).
+Return one of:
+- t symbol, if value for key not specified, if specied, return string.
+- for number type, `string-to-number' used, that return 0 if number not
+  recognized.
+- for number if specified without value return t.
+- Processed value of parameter (e.g., t/nil for bool).
+Parameters are sourced from:
+1. From Oai block header INFO alist.  (e.g., :model \"gpt-4\")
+2. Org inherited property. (e.g., #+PROPERTY: model gpt-4)
+3. DEFAULT-FORM."
   (setq info info) ; for melpazoid
   `(let* ,(cl-loop for def-item in definitions
                    collect
@@ -436,9 +431,13 @@ Will expand noweb templates if an `oai-noweb' property or `noweb' header
 arg is \"yes\".
 Use ELEMENT only in current moment, if buffer modified you will need new
 ELEMENT.
-NOWEB-CONTEXT may be one of :tangle, :export or :eval, the last is by default.
+NOWEB-CONTROL activate noweb if non-nil, also may be activated with
+ oai-noweb Org property.
+NOWEB-CONTEXT may be one of :tangle, :export or :eval, the last is by
+ default, more documentation in `org-babel-noweb-p' function.
 Don't support tags and Org links expansion, for that use
-`oai-block-tags-get-content' instead."
+ `oai-block-tags-get-content' instead.
+Optional argument NOWEB-CONTEXT is :eval by default, ."
   (when-let ((reg (oai-block--contents-area element)))
     (let ((con-beg (car reg))
           (con-end (cdr reg)))
@@ -458,11 +457,11 @@ Don't support tags and Org links expansion, for that use
 ;; -=-= help function to call hooks as pipeline with one argument
 (defun oai-block--pipeline (funcs init-val &rest args)
   "Process INIT-VAL through a pipeline of functions FUNCS.
-  Each function in FUNCS is called as (func val &rest ARGS), where VAL
-  is the result of previous function (or INIT-VAL for the first), and
-  ARGS are optional additional arguments supplied to this function.
-
-  Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS is nil."
+Each function in FUNCS is called as (func val &rest ARGS), where VAL is
+ the result of previous function (or INIT-VAL for the first), and ARGS
+ are optional additional arguments supplied to this function.
+Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS
+ is nil."
   (if funcs
       (let ((result init-val))
         (dolist (f funcs result)
@@ -492,7 +491,7 @@ Don't support tags and Org links expansion, for that use
 ;; -=-= chat: insert message
 (defun oai-block--insert-single-response (end-marker &optional text insert-me final)
   "Insert result to ai block.
-  Should be used in two steps: 1) for insertion of text 2) with TEXT equal
+Should be used in two steps: 1) for insertion of text 2) with TEXT equal
 to nil, for finalizing by setting pointer to the end and insertion of me
 role.
 Here used for completion mode in `oai-restapi-request'.
@@ -1249,6 +1248,8 @@ Steps:
   3. Chat message
   4. Block content
   5. Whole block.
+If ARG optional universal argument is non-nil, then we select message of
+ chat strictly.
 Return number of marked content."
   (interactive)
   (if arg
@@ -1888,8 +1889,7 @@ TODO: fontify if there is only end of ai block on page."
           ;; remove org-block from bold text on header and for bold
           ;; don't place org-block if on header
           (oai-block--fontify-markdown-headers beg end)
-          (oai-block--fontify-markdown-single-quotes-and-formatting beg end)
-          )
+          (oai-block--fontify-markdown-single-quotes-and-formatting beg end))
         ;; LaTeX startin with [ or (
         (when oai-block-fontify-latex
           (oai-block--fontify-latex-blocks beg end))
@@ -1924,8 +1924,7 @@ TODO: fontify if there is only end of ai block on page."
         ;; ```block
         (when oai-block-fontify-markdown-flag
           ;; (oai-block--fontify-markdown-subblocks-shallow beg end)
-          (oai-block--fontify-markdown-subblocks beg end)
-          ))
+          (oai-block--fontify-markdown-subblocks beg end)))
       (goto-char end))
     ;; required by font lock mode:
     (goto-char limit))) ; return t

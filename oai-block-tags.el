@@ -267,7 +267,7 @@ Optional argument ELEMENT is any Org element."
 
 (defun oai-block-tags--contents-area (&optional element)
   "Return cons with start and end position of content.
-Works for ai blocks and supported Org block
+Works for ai blocks ELEMENT and supported Org block
  `oai-block-tags-org-blocks-types'.
 Start and first line after header, end at of line of the first not empty
  line before footer."
@@ -279,6 +279,12 @@ Start and first line after header, end at of line of the first not empty
                  (cons (car res) (cadr res))))))
 
 (defun oai-block-tags-get-content-ai-messages (&optional element tags-control noweb-control noweb-context links-only-last not-clear-properties req-type sys-prompt sys-prompt-for-all-messages max-tokens info)
+  "Get content of ai block with expansion of links and cleaning.
+Support noweb, tag-links and trimming and removing properties per
+ message.
+Return vector with messages for ai block, or string if REQ-TYPE is
+ 'compeltion.
+Optional arguments ELEMENT TAGS-CONTROL NOWEB-CONTROL NOWEB-CONTEXT LINKS-ONLY-LAST NOT-CLEAR-PROPERTIES REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES MAX-TOKENS INFO documented at `oai-block-tags-get-content'."
   (oai--debug "oai-block-tags-get-content-ai-messages %s %s" tags-control noweb-control)
   (let* ((element (or element (oai-block-p)))
          (info (or info (oai-block-get-info element)))
@@ -294,7 +300,7 @@ Start and first line after header, end at of line of the first not empty
                         (oai-block-tags-replace str)
                       ;; else
                       str))
-               (oai-block-tags--clear-properties str))
+               (str (oai-block-tags--clear-properties str)))
                str) ; return string
       ;; else - req-type = chat
       (let* ((messages (oai-block--collect-chat-messages-at-point element
@@ -348,14 +354,17 @@ it should point to element
  noweb reference don't point to current block to prevent recursion, also
  used in in `oai-block-tags-replace'.
 Optional arguments:
-ELEMENT is Org block. If provided, point may be not at element.
+ELEMENT is Org block.  If provided, point may be not at element.
 If TAGS-CONTROL is non-nil, expand tags in block.
 If NOWEB-CONTROL is non-nil, activate and expand noweb links in block.
+NOWEB-CONTEXT is :eval by default, but may be changed.
 If NOT-CLEAR-PROPERTIES is not-nil, don't clear region highlighting for
  replaced links.
 If LINKS-ONLY-LAST is not-nil, links expansion will be made for last
 user message only, otherwise for all user message.
 Called from `oai-expand-block', goint to use it everywhere.
+REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES MAX-TOKENS INFO
+ arguments documented in `oai-restapi-request-prepare'.
 Return string with expanded content."
   (oai--debug "oai-block-tags-get-content")
   (when-let* ((element (or element (oai-block-p) (oai-block-tags--block-at-point))))
@@ -432,7 +441,8 @@ Works for language markdown block only inside some org block."
 
 (defun oai-block-tags--get-org-content-m-block (&optional element source-block-marker)
   "Return markdown block for supported Org blocks at current position.
-May ELEMENT instead.
+Optional ELEMENT argiment is ai block, SOURCE-BLOCK-MARKER used to
+ prevent loop by coparing with ELEMENT at current position.
 used for requests for now, noweb activated with :eval context.
 Works only supported blocks in `oai-block-tags-org-blocks-types' and ai block.
 Move pointer to the end of block.
@@ -596,7 +606,9 @@ Works with outline, programming, text buffers.
     (user-error "No outline, function or paragraph was found to get a block"))))
 
 (defun oai-block-tags--get-content-at-point-org (&optional source-block-marker)
-  "For current position we prepare block for LLM."
+  "Prepare block for LLM of Org element at current position.
+Optional SOURCE-BLOCK-MARKER argument used to prevent loop.
+Return string."
   (let* ((element (or (oai-block-tags--block-at-point) (org-element-context)))
          (type (org-element-type element)))
     (oai--debug "oai-block-tags--get-content-at-point type %s" type)
@@ -664,6 +676,7 @@ If at current position there is a Org block or markdown block
 Return markdown block for LLM for current element at current position.
 May return nil.
 For Org buffer only.
+Optional SOURCE-BLOCK-MARKER argument used to prevent loop.
 Supported: blocks and headers.
 - Org header - loop over elements and convert to markdown
 - at markdown block header or inside markdown block
@@ -687,7 +700,8 @@ Works for any mode.
 Support for `org-links' package with additional links types.
 Headlines not wrapped in markdown blocks.
 LINK is string in format is what inside [[...]] or Plain link.
-Target may be not in Org buffer."
+Target may be not in Org buffer.
+Optional SOURCE-BLOCK-MARKER argument used to prevent loop."
   ;; (require 'org-links)
   (oai--debug "oai-block-tags--get-org-links-content1 %s " link)
   (if-let ((nums (org-links--local-get-target-position-for-link link))) ; may be nil
@@ -781,6 +795,7 @@ if two targets found.
 Uses `oai-block--block-header-marker' variable to check that target of
 link or noweb reference don't point to current block to prevent
 recursion, created with `oai-block-get-header-marker'.
+Optional SOURCE-BLOCK-MARKER argument used to prevent loop.
 Return replacement string."
   ;; Some code was taken from:
   ;; `org-link-open' for type and opening,  `org-link-search' for search in current buffer.
@@ -1008,7 +1023,6 @@ found."
 Check every type of links if it exist in text, find replacement for the
 fist link and replace link substring with
 `oai-block-tags--replace-last-regex-smart' once.
-Return modified string with text properties or the same string.
 Used for function `oai-restapi--modify-vector-content'.
 Uses `oai-block--block-header-marker' variable to check that target of
 link or noweb reference don't point to current block to prevent
@@ -1016,7 +1030,9 @@ recursion, created with `oai-block-get-header-marker'.
 Called from:
 - `oai-expand-block' interactive function
 - `oai-restapi-request-prepare'
-- `oai-restapi-request-llm-retries'."
+- `oai-restapi-request-llm-retries'.
+Optional SOURCE-BLOCK-MARKER argument used to prevent loop.
+Return modified string with text properties or the same string."
   (oai--debug "oai-block-tags-replace: \"%s\"" string)
   ;; - "@Backtrace" substring exist - replace the last one only
   ;; Result will be *Wrapped in markdown*
@@ -1071,56 +1087,7 @@ Called from:
                                                                       oai-block-tags--org-link-any-re
                                                                       replacement)))
           (setq string new-string))))
-  ;; old
-  ;; (when (not (string-match oai-block-tags--org-link-any-re string)) ; exist in text?
-  ;;   (let ((new-string string) ; ai block content
-  ;;         (path-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--org-link-any-re))
-  ;;         (replaced nil)
-  ;;         (pos-end 0)
-  ;;         (pos-beg 0)
-  ;;         (link)
-  ;;         (replacement))
-  ;;     (print (list "oai-block-tags-replace 0" path-string))
-  ;;     ;; 1) find link
-  ;;     (while (or (= pos-end 0) ; skip first
-  ;;                (string-match oai-block-tags--org-link-any-re new-string pos-end)) ; loop over links in text
-  ;;       (print "found link")
-  ;;       (setq pos-beg (match-beginning 0))
-  ;;       (setq pos-end (match-end 0))
-  ;;       (setq link (match-string 0 new-string))
-  ;;       (print (list "oai-block-tags-replace 1" (oai-block-tags--position-in-markdown-block-str-p new-string pos-beg)))
-  ;;       (when (not (oai-block-tags--position-in-markdown-block-str-p new-string pos-beg)) ; skip links inside markdown
-  ;;         (print (list "oai-block-tags-replace 2"))
-
-
-  ;;         ;; check that there is no clone of this below, hence we replace the last one.
-  ;;         (print (list  (regexp-quote link) new-string pos-end (string-match (regexp-quote link) new-string pos-end)))
-  ;;         (when (not (and (string-match (regexp-quote link) new-string pos-end)
-  ;;                         (not (oai-block-tags--position-in-markdown-block-str-p new-string pos-beg))))
-  ;;           (print (list "oai-block-tags-replace 3" link))
-  ;;           ;; 2) get target for link
-  ;;           (setq replacement (oai-block-tags--get-replacement-for-org-link link))
-  ;;           (print (list "oai-block-tags-replace 4 replacement" replacement))
-  ;;           (when replacement
-  ;;             (setq new-string (concat (substring new-string 0 pos-beg)
-  ;;                                      replacement
-  ;;                                      ;; last-group
-  ;;                                      (substring new-string pos-end)))
-  ;;             (setq pos-end (+ pos-beg (length replacement)))
-  ;;             ;; (print (list pos-end new-string))
-  ;;             (setq replaced t)
-  ;;             ;; (oai-block-tags--replace-last-regex-smart)
-  ;;             ))))
-  ;;     (when replaced
-  ;;       (setq string new-string))))
-
-
-  ;; (if-let* ((path-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--org-link-any-re)))
-  ;;     (progn
-  ;;       (print (list "link" path-string))
-  ;;       string))
-  ;; - default
-  string)
+  string) ; return
 
 (defun oai-block-tags--clear-properties (string)
   "Remove text properties from STRING.
@@ -1132,6 +1099,9 @@ Return modified STRING."
   (string-trim string))
 
 (defun oai-block-tags--apply-noweb (string)
+  "Expand noweb Org links in STRING.
+Used as argument for `oai-restapi--modify-last-user-content' and
+ `oai-restapi--modify-vector-content'."
   (org-babel-expand-noweb-references (list "markdown" string)))
 ;; (oai-block-tags-replace  "[[./]]")
 ;; (oai-block-tags-replace  "11[[sas]]222[[bbbaa]]3333[[sas]]4444")
