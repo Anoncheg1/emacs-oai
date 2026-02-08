@@ -282,9 +282,12 @@ Start and first line after header, end at of line of the first not empty
   "Get content of ai block with expansion of links and cleaning.
 Support noweb, tag-links and trimming and removing properties per
  message.
+Optional arguments ELEMENT TAGS-CONTROL NOWEB-CONTROL NOWEB-CONTEXT
+ LINKS-ONLY-LAST NOT-CLEAR-PROPERTIES REQ-TYPE SYS-PROMPT
+ SYS-PROMPT-FOR-ALL-MESSAGES MAX-TOKENS INFO documented at
+ `oai-block-tags-get-content'.
 Return vector with messages for ai block, or string if REQ-TYPE is
- 'compeltion.
-Optional arguments ELEMENT TAGS-CONTROL NOWEB-CONTROL NOWEB-CONTEXT LINKS-ONLY-LAST NOT-CLEAR-PROPERTIES REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES MAX-TOKENS INFO documented at `oai-block-tags-get-content'."
+ compeltion."
   (oai--debug "oai-block-tags-get-content-ai-messages %s %s" tags-control noweb-control)
   (let* ((element (or element (oai-block-p)))
          (info (or info (oai-block-get-info element)))

@@ -146,11 +146,6 @@ TODO: for streaming: save and pass begining of paragraph or line."
   :group 'oai)
 
 ;; -=-= faces
-(defgroup oai-faces nil
-  "Faces for OAI blocks."
-  :tag "OAI Faces"
-  :group 'oai)
-
 (defface oai-block-quote
     '((((class color) (min-colors 88) (background dark)) :background "#282828" :foreground "shadow")
       (((class color) (min-colors 88) (background light)) :background "#eeeeee" :foreground "gray")

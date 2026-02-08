@@ -146,9 +146,14 @@
 (require 'oai-restapi)
 (require 'oai-prompt) ; for `oai-prompt-request-chain'
 
-;; -=-= C-c C-c main interface
-(defgroup my-package nil
+;; -=-= Customs and groups
+(defgroup oai nil
   "OAI package customization."
+  :group 'oai)
+
+(defgroup oai-faces nil
+  "Faces for OAI blocks."
+  :tag "OAI Faces"
   :group 'oai)
 
 (defcustom oai-fontification-flag t
@@ -167,6 +172,8 @@ parameters."
                 :value-type function
                 :tag "Property list (symbol => funcion)")
   :group 'oai)
+
+;; -=-= C-c C-c main interface
 
 (defun oai-ctrl-c-ctrl-c ()
   "Remove result and parse ai block header parameters.
