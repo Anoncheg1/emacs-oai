@@ -93,7 +93,7 @@
         (nth 1 res) "#+begin_ai"))
       (should
        (string-equal
-        (nth 2 res) "not important **"))
+        (nth 2 res) " ** not important **"))
       (should
        (string-equal
         (nth 3 res) "#+end_ai"))
