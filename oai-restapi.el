@@ -555,7 +555,7 @@ Useful for small max-tokens.
                 (< max-tokens 500))
            (format "Answer very short with in %d sentences or %d lines or less." (/ max-tokens 29) (* (/ max-tokens 29) 3) ))
           ((and (>= max-tokens 500)
-                (<= max-tokens 1000))
+                (< max-tokens 900))
            (format "Answer short in %d paragraphs or %d pages or less." (/ max-tokens 200) (ceiling (/ max-tokens 600.0)))))))
 
 ;; -=-= Prepare content
@@ -886,14 +886,15 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
                   ;; for stream
                   ;; (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t))
                 ;; Called for not stream, call `oai-restapi--current-url-request-callback'
-              (when (or nil ; oai-restapi--current-request-is-streamed
-                        (not (oai-restapi--maybe-show-openai-request-error))) ; t if error
-                (oai-restapi--url-request-on-change-function nil nil nil)) ; should be always called for stream
+              (unwind-protect
+                  (when (or nil ; oai-restapi--current-request-is-streamed
+                            (not (oai-restapi--maybe-show-openai-request-error))) ; t if error
+                    (oai-restapi--url-request-on-change-function nil nil nil)) ; should be always called for stream
 
 
               ;; finally stop track buffer, error or not
               ;; (oai--debug "Main request lambda" _events)
-              (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request)
+                (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request))
               ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--interrupt-url-request)
               ))))
 
@@ -1307,7 +1308,8 @@ Call `oai-restapi--current-url-request-callback' with data.
 After processing call `oai-restapi--current-url-request-callback' with nil.
 This  callback  here  is `oai-block--insert-stream-response'  for  chat  or
 `oai-block--insert-single-response' for completion.
-Called within `url-retrieve' buffer.
+Called within `url-retrieve' buffer, from after-change-functions and
+ from callback of `url-request-buffer'.
 Return JSOIN in plist format."
   (when (and (boundp 'url-http-end-of-headers)
              url-http-end-of-headers

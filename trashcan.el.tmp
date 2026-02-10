@@ -228,3 +228,32 @@ Return string of LLM answer as assistent."
     ret))
 
 (my/sync-request '([(:role system :content "Be helpful. Now, plan research of 3 parts and do only first part to answer this user request:") (:role user :content "How to live?") (:role system :content "Research 2-th part and what was missed before.")] together "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" 1.0e+INF "How to live?" 20 nil nil nil nil))
+
+
+(defun oai-debug--error-async (err &optional bt-string  timeout)
+  "Create Backtrace buffer without buttons async after TIMEOUT.
+ERR is error object catched with `condition-case'.
+Optional arguments:
+TIMEOUT by default is nil, which mean 0
+BT-STRING is a string, by default result
+ of (with-output-to-string (backtrace))."
+  (run-at-time timeout nil
+               (lambda (b)
+                 (with-current-buffer (generate-new-buffer "*Backtrace-async*")
+                   (goto-char (point-max))
+                   (insert (format "\nError: %s\nBacktrace:\n%s\n" err b))
+                   (read-only-mode 1)
+                   (special-mode) ; Gives buffer features like Backtrace
+                   (pop-to-buffer (current-buffer)))
+                 ;; rethrow preserving error type/args
+                 (signal (car err) (cdr err)))
+               (or bt-string
+                   (let* ((backtrace-line-length 20) ; used by `backtrace-get-frames'
+                          (print-level 3)
+                          (print-length 10)
+                          (bt
+                           ;; (with-output-to-string (backtrace))
+                           (backtrace-to-string (backtrace-get-frames 'backtrace))))
+                     bt)
+                   ;; (with-output-to-string (backtrace))
+                   )))

@@ -128,6 +128,13 @@ or
 : machine openai--1 password <your token>
 
 4) Keep token in *encrypted “auth-source” file*. Full decription will be provided later...
+** Optional hooks
+#+begin_src elisp :lexical t :results none :exports code :eval no
+(add-hook 'oai-block-after-chat-insertion-hook #'oai-optional-remove-distant-empty-lines-hook-function)
+(add-hook 'oai-block-after-chat-insertion-hook #'oai-optional-remove-headers-hook-function)
+#+end_src
+One hooks add space “ “ before lines that in ai block that looks like Org header, that fix confustion for Org logic.
+Another hook remove empty lines if there is too much of them in response.
 * Supported “[AI]:” in-text prefixes
 - SYS-EVERYWHERE
 - SYS - role: system
@@ -234,5 +241,5 @@ For *keys remapping* we bind keys to Org commands or key if pointer is not in ai
 * Donate, sponsor author
 You can sponsor author crypto money directly with crypto currencies:
 - BTC (Bitcoin) address: 1CcDWSQ2vgqv5LxZuWaHGW52B9fkT5io25
-- USDT (Tether) address: TVoXfYMkVYLnQZV3mGZ6GvmumuBfGsZzsN
+- USDT (Tether TRX-TRON) address: TVoXfYMkVYLnQZV3mGZ6GvmumuBfGsZzsN
 - TON (Telegram) address: UQC8rjJFCHQkfdp7KmCkTZCb5dGzLFYe2TzsiZpfsnyTFt9D

@@ -135,9 +135,9 @@ Argument STREAM not used."
                 type
                 (type-of type))
     (when (equal type 'end)
-      (let* ((context (oai-block-p))
-             (con-beg (org-element-property :contents-begin context))
-             (con-end (org-element-property :contents-end context)))
+      (let* ((area (oai-block--contents-area))
+             (con-beg (car area))
+             (con-end (cdr area)))
         (oai-optional-remove-distant-empty-lines con-beg con-end)))))
 
 ;; -=-= remove-headers hook
@@ -154,9 +154,11 @@ user-configured prefixes."
 
 (defun oai-optional-remove-headers-hook-function (type _content before-pos _stream)
   "Ready for usage in `oai-block-after-chat-insertion-hook'.
-Remove Org headers between BEFORE-POS and current position in BUF buffer.
+Remove Org headers between BEFORE-POS and current position in current
+ buffer buffer by adding space before it.
 TYPE _CONTENT BEFORE-POS BUF parameters described in
-`oai-block-after-chat-insertion-hook' hook."
+`oai-block-after-chat-insertion-hook' hook.
+Should be added the last to be executed first."
   (oai--debug "IN A HOOK oai-optional-remove-headers-for-hook: %s %s %s %s"
               before-pos
               (point)
@@ -164,9 +166,12 @@ TYPE _CONTENT BEFORE-POS BUF parameters described in
               (type-of type))
   (when (member type '(text end))
     (save-excursion
-      (let ((p (point))
-            (line-beg (progn (goto-char before-pos) (line-beginning-position))))
-        (oai-optional-remove-headers line-beg p)))))
+      (let ((end (point)))
+        (goto-char before-pos)
+        (while (re-search-forward org-outline-regexp-bol end t)
+          (beginning-of-line)
+          (insert " ") ; this effectively quote standard headers
+          (end-of-line))))))
 
 ;; (defcustom oai-optional-fill-paragraph-functions
 ;;   (list

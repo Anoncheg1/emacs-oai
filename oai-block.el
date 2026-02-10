@@ -527,10 +527,17 @@ Variable `oai-block-roles-prefixes' is used to format role to text."
                       text)
               (newline)
 
-              (condition-case hook-error
-                  (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos nil)
-                (error
-                 (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
+
+              (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos nil)
+
+                ;;  ;; (signal (car hook-err) (cdr hook-err))
+                ;;  ))
+                ;;  ;; (run-at-time 1 nil
+                ;;  ;;              (lambda (err)
+                ;;  ;;                (signal (car err) (cdr err)))
+                ;;  ;;              )
+                ;;  )
+                ;; )
               (when final
                 ;; - "auto-fill"
                 (when oai-block-fill-function
@@ -642,10 +649,7 @@ Argument INSERT-ME insert [ME]: at stop type of message."
 
                                (insert "\n[" role-prefix "]: " (when (eql role-oai 'assistant) "\n")) ; "\n[ME:] " or "\n[AI:] \n"
 
-                               (condition-case hook-error
-                                   (run-hook-with-args 'oai-block-after-chat-insertion-hook 'role payload pos t)
-                                 (error
-                                  (message "Error during \"after-chat-insertion-hook\" for role: %s" hook-error)))
+                               (run-hook-with-args 'oai-block-after-chat-insertion-hook 'role payload pos t)
 
                                (setq pos (point)))))
                     ('text (progn ; payload = text
@@ -655,12 +659,9 @@ Argument INSERT-ME insert [ME]: at stop type of message."
                              (when oai-block-fill-function
                                (funcall oai-block-fill-function pos t))
 
-                             (condition-case hook-error
-                                 (run-hook-with-args 'oai-block-after-chat-insertion-hook 'text payload pos t)
-                               (error
-                                (message "Error during \"after-chat-insertion-hook\" for text: %s" hook-error)))
+                             (run-hook-with-args 'oai-block-after-chat-insertion-hook 'text payload pos t)
+
                              (setq pos (point))
-                             ;; (setq not-first t)
                              ))
 
                     ('stop (progn ; payload = stop_reason
@@ -671,11 +672,7 @@ Argument INSERT-ME insert [ME]: at stop type of message."
                                    (insert text)
                                  ;; else
                                  (setq text ""))
-
-                               (condition-case hook-error
-                                   (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos t)
-                                 (error
-                                  (message "Error during \"after-chat-insertion-hook\": %s" hook-error)))
+                               (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos t)
                                (setq pos (point)))
 
                              (org-element-cache-reset)
