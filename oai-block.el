@@ -661,8 +661,7 @@ Argument INSERT-ME insert [ME]: at stop type of message."
 
                              (run-hook-with-args 'oai-block-after-chat-insertion-hook 'text payload pos t)
 
-                             (setq pos (point))
-                             ))
+                             (setq pos (point))))
 
                     ('stop (progn ; payload = stop_reason
                              (oai--debug "oai-block--insert-stream-response3 stop_reason: %s" payload)

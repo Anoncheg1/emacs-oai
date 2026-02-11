@@ -1303,13 +1303,12 @@ Return nil if error."
 Arguments _BEG _END _LEN are not used. They are:
 the positions of the beginning and end of the range of changed text,
 and the length in chars of the pre-change text replaced by that range.
-
 Call `oai-restapi--current-url-request-callback' with data.
 After processing call `oai-restapi--current-url-request-callback' with nil.
 This  callback  here  is `oai-block--insert-stream-response'  for  chat  or
 `oai-block--insert-single-response' for completion.
-Called within `url-retrieve' buffer, from after-change-functions and
- from callback of `url-request-buffer'.
+Called within `url-retrieve' buffer, from `after-change-functions'
+ variable and from callback of `url-request-buffer'.
 Return JSOIN in plist format."
   (when (and (boundp 'url-http-end-of-headers)
              url-http-end-of-headers
