@@ -12,6 +12,7 @@ Protocol: “OpenAI like” HTTP REST API. (url.el)
 *Core principle*: for text, extensibility and comfort.
 
 O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organization, Open Archives Initiative, Object-action interface, Shorthand for OpenAI.
+
 * Features:
 - *Tags* expansion of tags, Org links and noweb references
 - *Parallel request* in the same or different buffer without waiting
@@ -19,9 +20,11 @@ O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organ
 - *Transparency* inspect raw data request
 - *Customization* Autofilling, hooks, powerful debugger
 - *Prompt engineering* tools, there is ~:chain~ of calls out-of-the-box
+
 * Screenshot
 At left - main window with AI answer. At right - help window with expanded link.
 [[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]
+
 * Prerequisites
 Emacs 29.1+, 30.2
 
@@ -128,6 +131,7 @@ or
 : machine openai--1 password <your token>
 
 4) Keep token in *encrypted “auth-source” file*. Full decription will be provided later...
+
 ** Optional hooks
 #+begin_src elisp :lexical t :results none :exports code :eval no
 (add-hook 'oai-block-after-chat-insertion-hook #'oai-optional-remove-distant-empty-lines-hook-function)
@@ -135,6 +139,7 @@ or
 #+end_src
 One hooks add space “ “ before lines that in ai block that looks like Org header, that fix confustion for Org logic.
 Another hook remove empty lines if there is too much of them in response.
+
 * Supported “[AI]:” in-text prefixes
 - SYS-EVERYWHERE
 - SYS - role: system
@@ -164,6 +169,7 @@ To get full request body and more information set:
 
 Built-in url.el have ability to output request and resonse headers, for that you need to set
 : (setq url-debug '(http))
+
 * Extension guide
 ** Hooks for post-processing of LLM resonse
 There are a hook ~oai-block-after-chat-insertion-hook~ that accpet two arguments (par1 par2)
@@ -198,6 +204,7 @@ There are two hooks for that:
 - after all - vector level: as `oai-restapi-after-prepare-messages-hook' in oai-restapi.el
 
 More info: [[doc.org]] in /Main path of JSON decoding/ section.
+
 ** Custom roles
 There are ~oai-block-roles-prefixes~ variable that allow to customize roles at step of parsing ai block before sending.
 
@@ -211,6 +218,7 @@ For incoming RestAPI conversion to prefixes ~oai-block-roles-restapi~ variable u
 - org-babel-mark-block = oai-block-mark-at-point
 - org-babel-find-named-block = oai-find-named-block
 - org-src--contents-area = oai-block--area, oai-block--contents-area
+
 * How this works?
 We add “ai” as a type of special block to variables ~org-protecting-blocks~ and ~org-structure-template-alist~.
 
@@ -227,6 +235,7 @@ For *RESTAPI* requesting LLMs we provide two functions:
 For make *chain of calls* we have ~oai-async1.el~ static framework that simplify making parallel and sequencial requests.
 
 For *keys remapping* we bind keys to Org commands or key if pointer is not in ai-block, we call original key or command with “hack” functions.
+
 * Other packages
 - Navigation in Dired, Packages, Buffers modes https://github.com/Anoncheg1/firstly-search
 - Search with Chinese	https://github.com/Anoncheg1/pinyin-isearch
@@ -241,5 +250,11 @@ For *keys remapping* we bind keys to Org commands or key if pointer is not in ai
 * Donate, sponsor author
 You can sponsor author crypto money directly with crypto currencies:
 - BTC (Bitcoin) address: 1CcDWSQ2vgqv5LxZuWaHGW52B9fkT5io25
+
+[[https://raw.githubusercontent.com/Anoncheg1/public-share/refs/heads/main/BTC-1CcDWSQ2vgqv5LxZuWaHGW52B9fkT5io25.png]]
+
 - USDT (Tether TRX-TRON) address: TVoXfYMkVYLnQZV3mGZ6GvmumuBfGsZzsN
+
+[[https://raw.githubusercontent.com/Anoncheg1/public-share/refs/heads/main/USDT-TVoXfYMkVYLnQZV3mGZ6GvmumuBfGsZzsN.png]]
+
 - TON (Telegram) address: UQC8rjJFCHQkfdp7KmCkTZCb5dGzLFYe2TzsiZpfsnyTFt9D
