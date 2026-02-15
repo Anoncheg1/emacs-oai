@@ -74,7 +74,7 @@ Arguments TYPE_CONTENT BEFORE-POS BUF parameters described in
     (if stream
         (oai-optional-remove-distant-empty-lines (save-excursion oai-block-previous-message)))
     ;; else - not stream
-    (oai-optional-remove-distant-empty-lines (before-pos))))
+    (oai-optional-remove-distant-empty-lines before-pos)))
 
 ;; -=-= remove-headers hook
 (defun oai-optional-remove-headers (beg-pos end-pos)
