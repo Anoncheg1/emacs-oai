@@ -640,8 +640,7 @@ STREAM string - as bool, indicates whether to stream the response."
                                                                                 t))
                        ;; else - not stream
                        (lambda (result) (oai-block--insert-single-response end-marker
-                                                                             (oai-restapi--get-single-response-text result)
-                                                                             t 'final))))))
+                                                                           (oai-restapi--get-single-response-text result)))))))
     ;; - Call and save buffer.
     (oai-timers--set
      (oai-restapi-request service model callback
@@ -887,13 +886,15 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
                   ;; (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t))
                 ;; Called for not stream, call `oai-restapi--current-url-request-callback'
               (unwind-protect
-                  (when (or nil ; oai-restapi--current-request-is-streamed
-                            (not (oai-restapi--maybe-show-openai-request-error))) ; t if error
-                    (oai-restapi--url-request-on-change-function nil nil nil)) ; should be always called for stream
+                  ;; (when (and ; oai-restapi--current-request-is-streamed ; dont call for not streamed
+                  (when (oai-restapi--maybe-show-openai-request-error) ; )) ; t if error
+                    (oai-restapi--url-request-on-change-function nil nil nil))
+                    ;; (oai-restapi--url-request-on-change-function nil nil nil)) ; insert [ME]  for stream, for not stream should not be called
 
 
               ;; finally stop track buffer, error or not
               ;; (oai--debug "Main request lambda" _events)
+                (oai-restapi--url-request-on-change-function nil nil nil)
                 (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request))
               ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--interrupt-url-request)
               ))))

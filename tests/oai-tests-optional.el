@@ -45,11 +45,7 @@
                  (with-temp-buffer
                    ;; Set up initial buffer content
                    (insert string)
-                   ;; Define the region to operate on (entire buffer in this case)
-                   (let ((start (point-min))
-                         (end (point-max)))
-                     ;; Call the function
-                     (oai-optional-remove-distant-empty-lines start end))
+                   (oai-optional-remove-distant-empty-lines (point-min))
                    (buffer-substring-no-properties                           (point-min)
                                                                              (point-max)))))))
 
@@ -59,11 +55,7 @@
                (with-temp-buffer
                  ;; Set up initial buffer content
                  (insert "line 1\n\nline 2\n\nline 3\n\n\n\nline 4\n\nline 5.\n[ME]:line 6\n")
-                 ;; Define the region to operate on (entire buffer in this case)
-                 (let ((start (point-min))
-                       (end (point-max)))
-                   ;; Call the function
-                   (oai-optional-remove-distant-empty-lines start end))
+                 (oai-optional-remove-distant-empty-lines (point-min))
                  (buffer-substring-no-properties                           (point-min)
                                                                            (point-max))))))
 

@@ -35,9 +35,9 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 * Files
 | File              | Purpose                                                            |
 |-------------------+--------------------------------------------------------------------|
-| oai.el            | minor Org oai-mode and ~C-c C-c~ activation of #+begin_ai          |
+| oai.el            | Minor mode and ~C-c C-c~ activation of #+begin_ai                  |
 | oai-restapi.el    | Connection to REST API (OpenAI-compatible)                         |
-| oai-block.el      | handling ai block                                                  |
+| oai-block.el      | Handling ai block                                                  |
 | oai-block-tags.el | Expand tags and links in block                                     |
 | oai-timers.el     | Managing requests, buffers and notifications                       |
 | oai-prompt.el     | (optional) Working with prompt-engineering, :chain parameter       |
@@ -58,6 +58,7 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 oai-restapi-con-service [[./oai-restapi.el]]
 
 [*] In practice all LLMs are not free, remote are considered as SaaSS (Service as a Software Substitute). These systems perform remote computation, not provide access to *data, model weights, code*, or licensing rights needed to reproduce the model.
+
 * Installation
 ** Installation - from MELPA
 1) add to ~.emacs~

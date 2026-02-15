@@ -41,92 +41,29 @@
 ;;; Code:
 
 ;; -=-= remove-distant-empty-lines hook
-(cl-defun oai-optional-remove-distant-empty-lines (start end)
-  "Remove empty lines in current buffer between START and END.
-Removes an empty line only if another empty line is two lines above
-it.
-Empty line is blank or whitespace-only.
-Does not remove an empty line if the line immediately following it
-contains [ME]:"
-  (interactive "r")
+(defun oai-optional-remove-distant-empty-lines (beg)
+  "Remove excessibe empty lines from BEG to current position.
+Don't remove empty lines that have more than two lines in a row before
+ tham."
+  (forward-line -1) ; precaution
+  ;; (beginning-of-line) ; required for loop
+  (let ((empty-line)
+        (cl 0))
+    (while (< beg (point))
+      (when (eq (point) (line-end-position)) ; empty line
+        (when (and (<= cl 2) (> cl 0) empty-line)
+          (save-excursion
+            (goto-char empty-line)
+            (delete-char 1)))
+        (setq cl 0)
+        (setq empty-line (point)))
+      (setq cl (1+ cl ))
+      (forward-line -1))))
 
-  (let ((lines-to-delete-pos '())
-        (original-start start)
-        (original-end end))
-
-    (save-excursion
-      ;; Phase 1: Collect info about lines in the region.
-      ;; Each element: (line-start-position is-blank-p line-text)
-      (let ((line-data-list '()))
-        (goto-char start)
-        (while (and (< (point) end) (not (eobp))) ; Iterate as long as point is within region and not end of buffer
-          (let* ((line-start-pos (line-beginning-position))
-                 (line-end-pos (line-end-position))
-                 (line-text (buffer-substring-no-properties line-start-pos line-end-pos))
-                 (is-blank (string-blank-p line-text)))
-            ;; Store as a simple list: (position is-blank-p line-text)
-            (push (list line-start-pos is-blank line-text) line-data-list))
-          (forward-line 1))
-        (setq line-data-list (nreverse line-data-list)) ; Reverse to get in document order
-
-        ;; Phase 2: Identify lines for deletion.
-        ;; Iterate through the list with indices to check previous and next lines efficiently.
-        (dotimes (i (length line-data-list))
-          ;; Use cl-destructuring-bind for clear access to current line's data
-          (seq-let (current-line-pos current-is-blank current-text) (nth i line-data-list)
-            (ignore current-text)
-          ;; (cl-destructuring-bind (current-line-pos current-is-blank current-text)
-          ;;     (nth i line-data-list)
-            (let* (
-                   ;; Safely get blank status for previous two lines
-                   (prev-line-is-blank
-                    (and (> i 0)
-                         (let ((prev-data (nth (1- i) line-data-list)))
-                           ;; (nth 1 prev-data) gets the 'is-blank-p' value (second element of the list)
-                           (if prev-data (nth 1 prev-data) nil))))
-
-                   (prev-prev-line-is-blank
-                    (and (> i 1)
-                         (let ((prev-prev-data (nth (- i 2) line-data-list)))
-                           ;; (nth 1 prev-prev-data) gets the 'is-blank-p' value
-                           (if prev-prev-data (nth 1 prev-prev-data) nil))))
-
-                   ;; Safely get text for the next line
-                   (next-line-text
-                    (and (< (1+ i) (length line-data-list))
-                         (let ((next-data (nth (1+ i) line-data-list)))
-                           ;; (nth 2 next-data) gets the 'line-text' value (third element of the list)
-                           (if next-data (nth 2 next-data) nil))))
-
-                   (next-line-contains-me-p (and next-line-text (string-match-p "\\[ME\\]:" next-line-text))))
-
-              ;; Condition for deletion:
-              ;; 1. Current line is blank.
-              ;; 2. Line two steps back was blank.
-              ;; 3. The next line does NOT contain "[ME]:".
-              (when (and current-is-blank
-                         (or prev-prev-line-is-blank prev-line-is-blank)
-                         (not next-line-contains-me-p))
-                (push current-line-pos lines-to-delete-pos))))))
-
-    ;; Phase 3: Delete the identified lines.
-    ;; Delete from largest position to smallest to avoid invalidating positions.
-    (save-excursion
-      (dolist (pos lines-to-delete-pos)
-        ;; Ensure the position is still within the original bounds.
-        (when (and (>= pos original-start) (< pos original-end))
-          (goto-char pos)
-          ;; Delete the current line, including its trailing newline.
-          (delete-region (point) (progn (forward-line 1) (point))))))
-
-    ;; (message "Removed empty lines based on condition.")
-    )))
-
-(defun oai-optional-remove-distant-empty-lines-hook-function (type content before-pos stream)
+(defun oai-optional-remove-distant-empty-lines-hook-function (&optional type content before-pos stream)
   "Remove empty lines when there is too many of them.
-TYPE _CONTENT BEFORE-POS BUF parameters described in
-`oai-block-after-chat-insertion-hook' hook.
-Argument STREAM not used."
+Arguments TYPE_CONTENT BEFORE-POS BUF parameters described in
+`oai-block-after-chat-insertion-hook' hook."
   (ignore content stream)
   (save-excursion
     (oai--debug "IN A HOOK oai-optional-remove-distant-empty-lines-hook-function: %s %s %s %s"
@@ -134,11 +71,10 @@ Argument STREAM not used."
                 (point)
                 type
                 (type-of type))
-    (when (equal type 'end)
-      (let* ((area (oai-block--contents-area))
-             (con-beg (car area))
-             (con-end (cdr area)))
-        (oai-optional-remove-distant-empty-lines con-beg con-end)))))
+    (if stream
+        (oai-optional-remove-distant-empty-lines (save-excursion oai-block-previous-message)))
+    ;; else - not stream
+    (oai-optional-remove-distant-empty-lines (before-pos))))
 
 ;; -=-= remove-headers hook
 (defun oai-optional-remove-headers (beg-pos end-pos)
@@ -166,9 +102,9 @@ Should be added the last to be executed first."
               (type-of type))
   (when (member type '(text end))
     (save-excursion
-      (let ((end (point)))
+      (let ((end (point-marker)))
         (goto-char before-pos)
-        (while (re-search-forward org-outline-regexp-bol end t)
+        (while (re-search-forward org-outline-regexp-bol (marker-position end) t)
           (beginning-of-line)
           (insert " ") ; this effectively quote standard headers
           (end-of-line))))))

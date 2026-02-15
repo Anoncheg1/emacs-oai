@@ -155,26 +155,26 @@ TODO: for streaming: save and pass begining of paragraph or line."
   :group 'oai-faces)
 
 (defface oai-block-m-header1
-  '((((background dark)) :foreground "chartreuse" :weight light)
+  '((((background dark)) :foreground "yellow" :weight light)
     (((background light)) :foreground "green" :weight bold))
   "Face for single markdown header single # character."
   :group 'oai-faces)
 
 (defface oai-block-m-header2
   '((((background dark)) :foreground "gold2" :weight light)
-    (((background light)) :foreground "gold2" :weight bold))
+    (((background light)) :foreground "gold3" :weight bold))
   "Face for single markdown header two # characters."
   :group 'oai-faces)
 
 (defface oai-block-m-header3
   '((((background dark)) :foreground "orange" :weight light)
-    (((background light)) :foreground "orange" :weight light))
+    (((background light)) :foreground "gold4" :weight light))
   "Face for single markdown header three and more # characters."
   :group 'oai-faces)
 
 (defface oai-block-m-header4
   '((((background dark)) :foreground "orange3" :weight light)
-    (((background light)) :foreground "orange3" :weight light))
+    (((background light)) :foreground "orange4" :weight light))
   "Face for single markdown header three and more # characters."
   :group 'oai-faces)
 
@@ -486,18 +486,19 @@ Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS
 ;; -=-= chat: insert message
 (defun oai-block--insert-single-response (end-marker &optional text insert-me final)
   "Insert result to ai block.
-Should be used in two steps: 1) for insertion of text 2) with TEXT equal
-to nil, for finalizing by setting pointer to the end and insertion of me
-role.
-Here used for completion mode in `oai-restapi-request'.
+If text is nil, it counts as INSERT-ME and FINAL.
+
+Set as callback `oai-restapi--url-request-on-change-function' in
+`oai-restapi-request'.
 - END-MARKER is where to put result, is a buffer and position at the end
   of block, from `oai-block--get-content-end-marker' function.
 - TEXT  is  string  from  the  response of  OpenAI  API  extracted  with
   `oai-restapi--get-single-response-text'.
-- END-MARKER
+- insert-me is whether to insert [ME].
 - if FINAL is non-nill we add `undo-boundary'.
 Variable `oai-block-roles-prefixes' is used to format role to text."
-  (oai--debug "oai-block--insert-single-response end-marker, text:" end-marker text)
+  (oai--debug "oai-block--insert-single-response end-marker %s \n insert-me %s \n text:"
+              end-marker insert-me text)
   (let ((buffer (marker-buffer end-marker))
         (pos (marker-position end-marker))
         (text (when text (string-trim text))))
@@ -552,7 +553,7 @@ Variable `oai-block-roles-prefixes' is used to format role to text."
       ;; - else - DONE - text is nil
       ;; - special cases for DONE
       (with-current-buffer buffer
-        (when insert-me
+        (when (or insert-me (not text))
           (save-excursion
             ;; - go  to the end of previous line and open new one
             (goto-char pos)
@@ -666,12 +667,12 @@ Argument INSERT-ME insert [ME]: at stop type of message."
                     ('stop (progn ; payload = stop_reason
                              (oai--debug "oai-block--insert-stream-response3 stop_reason: %s" payload)
                              (goto-char pos)
+                             (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos t)
                              (let ((text (concat "\n\n[" (car (rassoc 'user oai-block-roles-prefixes)) "]: "))) ; "ME"
                                (if insert-me
                                    (insert text)
                                  ;; else
                                  (setq text ""))
-                               (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos t)
                                (setq pos (point)))
 
                              (org-element-cache-reset)

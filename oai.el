@@ -144,6 +144,7 @@
 ;; - rebind keys to C-x C-a
 ;; - function to replace "^[\s+]- **word1 [word2]:**" to "^^[\s+]- word1 [word2] :: " and highligh it.
 ;; - fix highlight to highlight when there is only "#+end_ai"
+;; - create function that insert :max-token for given int
 ;;; Code:
 ;; Touch: Pain, water and warm.
 
