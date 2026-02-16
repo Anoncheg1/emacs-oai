@@ -640,7 +640,8 @@ STREAM string - as bool, indicates whether to stream the response."
                                                                                 t))
                        ;; else - not stream
                        (lambda (result) (oai-block--insert-single-response end-marker
-                                                                           (oai-restapi--get-single-response-text result)))))))
+                                                                           (oai-restapi--get-single-response-text result)
+                                                                           t))))))
     ;; - Call and save buffer.
     (oai-timers--set
      (oai-restapi-request service model callback
@@ -671,9 +672,11 @@ Same to `oai-restapi--normalize-response' that used for stream.
 We use separate version, because streaming is complicated,
 but we will keep them interchangable.
 Result used for `oai-block--insert-single-response'.
+Error should be handled before calling this function in
+ `oai-restapi--maybe-show-openai-request-error'.
 Return text of message."
   (when response
-    ;; (oai--debug "oai-restapi--get-single-response-text response:" response)
+    (oai--debug "oai-restapi--get-single-response-text response:" response)
     (if-let ((err-obj (plist-get response 'error)))
         (let ((message (or (plist-get err-obj 'message)
                            err-obj)))
@@ -839,7 +842,7 @@ We count running ones in global integer only.
 
 For not stream url return event and hook `after-change-functions'
  triggered only after url buffer already kill, that is why we don't use
- this hook.
+ this hook. For not stream we process data directly in callback.
 Use argument SERVICE to find endpoint, MODEL as parameter to request."
   ;; - HTTP body preparation as a string
   (let ((url-request-extra-headers (oai-restapi--get-headers service))
@@ -874,30 +877,26 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
             (lambda (events)
               ;; "Called within url-request-buffer after `after-change-functions'"
               (ignore events)
-              ;; called one time at error or at the end of all receiving.
-
-              (oai--debug "oai-restapi-request *url-retrieve callback*")
-
+              ;; debug
               (let (oai-restapi--url-buffer-last-position-marker)
                 (oai-restapi--debug-urllib (current-buffer)))
-
-              ;; (if (oai-restapi--maybe-show-openai-request-error) ; TODO: change to RESULT by global customizable option ; maybe use _events: (:error (error http 400)
-                  ;; for stream
-                  ;; (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t))
-                ;; Called for not stream, call `oai-restapi--current-url-request-callback'
+              ;; error handling and not-stream insert
               (unwind-protect
-                  ;; (when (and ; oai-restapi--current-request-is-streamed ; dont call for not streamed
-                  (when (oai-restapi--maybe-show-openai-request-error) ; )) ; t if error
-                    (oai-restapi--url-request-on-change-function nil nil nil))
-                    ;; (oai-restapi--url-request-on-change-function nil nil nil)) ; insert [ME]  for stream, for not stream should not be called
+                  (when (and (boundp 'url-http-end-of-headers) url-http-end-of-headers)
+                      (unless (oai-restapi--maybe-show-openai-request-error) ; t if error
+                        (unless stream
+                          (goto-char url-http-end-of-headers)
+                          ;; insert [ME]
+                          (funcall oai-restapi--current-url-request-callback
+                                   (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max))))
+                          ;; (funcall oai-restapi--current-url-request-callback nil)
+                          )))
 
 
-              ;; finally stop track buffer, error or not
-              ;; (oai--debug "Main request lambda" _events)
-                (oai-restapi--url-request-on-change-function nil nil nil)
-                (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request))
-              ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--interrupt-url-request)
-              ))))
+                ;; finally stop track buffer, error or not
+                (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request)
+                ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--interrupt-url-request)
+                )))))
 
       (oai--debug "Main request after." url-request-buffer)
 
@@ -1416,13 +1415,14 @@ Return JSOIN in plist format."
 
         ;; - Not-streamed
         ;; response is a single JSON object, no "data: " prefix. {"choices":[...
-        (when (not oai-restapi--current-request-is-streamed)
-          (oai--debug "oai-restapi--url-request-on-change-function NOT-STREAM: %s %s" (point) (point-max))
-          (let ((data (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max)))))
-            (when data
-              (funcall oai-restapi--current-url-request-callback data))
-            ;; - Done or Error
-            (funcall oai-restapi--current-url-request-callback nil)))))))
+        ;; (when (not oai-restapi--current-request-is-streamed)
+        ;;   (oai--debug "oai-restapi--url-request-on-change-function NOT-STREAM: %s %s" (point) (point-max))
+        ;;   (let ((data (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max)))))
+        ;;     (when data
+        ;;       (funcall oai-restapi--current-url-request-callback data))
+        ;;     ;; - Done or Error
+        ;;     (funcall oai-restapi--current-url-request-callback nil)))
+        ))))
 
 
 ;; -=-= Reporter & Requests interrupt functions

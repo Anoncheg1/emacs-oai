@@ -484,7 +484,7 @@ Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS
 ;;  "ss") ; => "ss"
 
 ;; -=-= chat: insert message
-(defun oai-block--insert-single-response (end-marker &optional text insert-me final)
+(defun oai-block--insert-single-response (end-marker &optional text insert-me not-final)
   "Insert result to ai block.
 If text is nil, it counts as INSERT-ME and FINAL.
 
@@ -494,73 +494,67 @@ Set as callback `oai-restapi--url-request-on-change-function' in
   of block, from `oai-block--get-content-end-marker' function.
 - TEXT  is  string  from  the  response of  OpenAI  API  extracted  with
   `oai-restapi--get-single-response-text'.
-- insert-me is whether to insert [ME].
-- if FINAL is non-nill we add `undo-boundary'.
+- if INSERT-ME is not nil, [ME] inserted.
+- if NOT-FINAL is non-nill, fill-function is not used.
 Variable `oai-block-roles-prefixes' is used to format role to text."
-  (oai--debug "oai-block--insert-single-response end-marker %s \n insert-me %s \n text:"
-              end-marker insert-me text)
+  (oai--debug "oai-block--insert-single-response end-marker %s \n insert-me %s \n not-final %s \n text:"
+              end-marker insert-me not-final text)
   (let ((buffer (marker-buffer end-marker))
         (pos (marker-position end-marker))
         (text (when text (string-trim text))))
     (oai--debug "oai-block--insert-single-response buffer,pos:" buffer pos "")
     ;; - write in target buffer
-    (if (and text (not (string-empty-p text)))
+    (with-current-buffer buffer ; Where target ai block located.
+      (save-excursion
+        ;; set mark (point) to allow user "C-u C-SPC" command to easily select the generated text
+        (push-mark end-marker t)
+        ;; - go  to the end of previous line and open new one
+        ;; (goto-char pos)
+        (goto-char (1- pos)) ; to use insert before end-marker to preserve it at the end of block
 
-          (with-current-buffer buffer ; Where target ai block located.
-            ;; set mark (point) to allow user "C-u C-SPC" command to easily select the generated text
-            (push-mark end-marker t)
-            (save-excursion
-              ;; - go  to the end of previous line and open new one
-              (goto-char pos)
-              ;; - remove empty lines between end of block and user question.
-              (goto-char (1- pos)) ; to use insert before end-marker to preserve it at the end of block
-              (while (bolp)
-                (delete-char -1))
-              ;; (print (point))
-              (newline)
-              (newline)
-              ;; (print (point))
-              (insert "[" (car (rassoc 'assistant oai-block-roles-prefixes)) "]: "
-                      (if (string-match "\n" text) ; multiline answer we start with a new line.
-                          "\n"
-                        ;; else
-                        "")
-                      text)
-              (newline)
+        (when (and text (not (string-empty-p text)))
+          ;; - remove empty lines between end of block and user question.
+          (while (bolp)
+            (delete-char -1))
+          (newline)
+          (newline)
+          ;; - insert [ai]: and response
+          (insert "[" (car (rassoc 'assistant oai-block-roles-prefixes)) "]: "
+                  (if (string-match "\n" text) ; multiline answer we start with a new line.
+                      "\n"
+                    ;; else
+                    "")
+                  text)
 
+          ;; - update marker
+          (forward-char) ; for [ME] to the line of end block
+          (set-marker end-marker (point))
+          ;; - hook
+          (undo-boundary)
+          (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos nil)
+          ;; - "auto-fill"
+          (when (and oai-block-fill-function
+                     (not not-final))
+            (undo-boundary)
+            (funcall oai-block-fill-function pos nil))
 
-              (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos nil)
+          (org-element-cache-reset)
 
-                ;;  ;; (signal (car hook-err) (cdr hook-err))
-                ;;  ))
-                ;;  ;; (run-at-time 1 nil
-                ;;  ;;              (lambda (err)
-                ;;  ;;                (signal (car err) (cdr err)))
-                ;;  ;;              )
-                ;;  )
-                ;; )
-              (when final
-                ;; - "auto-fill"
-                (when oai-block-fill-function
-                  (undo-boundary)
-                  (funcall oai-block-fill-function pos nil))
-                (org-element-cache-reset)
-                (undo-boundary))
-              ;; (setq pos (point))
-              ;; (set-marker end-marker (point))
-              ))
+          (setq pos (marker-position end-marker))
+          (goto-char pos))
 
-      ;; - else - DONE - text is nil
-      ;; - special cases for DONE
-      (with-current-buffer buffer
-        (when (or insert-me (not text))
-          (save-excursion
-            ;; - go  to the end of previous line and open new one
-            (goto-char pos)
-            (insert "[" (car (rassoc 'user oai-block-roles-prefixes)) "]: \n")
-            (forward-char -1)
-            (setq pos (point)))
-          (set-marker end-marker (point)))
+        ;; - Insert [ME]
+        (when insert-me
+          (while (bolp)
+            (delete-char -1))
+          (newline)
+          (newline)
+          (insert "[" (car (rassoc 'user oai-block-roles-prefixes)) "]: \n")
+          (forward-char -1)
+          (setq pos (point))
+          (set-marker end-marker pos)))
+
+      (when (or insert-me (and text (not (string-empty-p text))))
         (when oai-block-jump-to-end-of-block
           (goto-char pos))
         ;; final
@@ -667,7 +661,7 @@ Argument INSERT-ME insert [ME]: at stop type of message."
                     ('stop (progn ; payload = stop_reason
                              (oai--debug "oai-block--insert-stream-response3 stop_reason: %s" payload)
                              (goto-char pos)
-                             (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end text pos t)
+                             (run-hook-with-args 'oai-block-after-chat-insertion-hook 'end nil pos t)
                              (let ((text (concat "\n\n[" (car (rassoc 'user oai-block-roles-prefixes)) "]: "))) ; "ME"
                                (if insert-me
                                    (insert text)

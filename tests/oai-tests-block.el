@@ -518,27 +518,6 @@ as
 
 ;; -=-= Test: `oai-block--insert-stream-response'
 
-;; (defun my/diff-strings (str1 str2)
-;;   "Return and print verbose diff between STR1 and STR2 as a list."
-;;   (let ((len1 (length str1))
-;;         (len2 (length str2))
-;;         (maxlen (max len1 len2))
-;;         (diffs '()))
-;;     (dotimes (i maxlen)
-;;       (let ((c1 (if (< i len1) (aref str1 i) nil))
-;;             (c2 (if (< i len2) (aref str2 i) nil)))
-;;         (unless (equal c1 c2)
-;;           (let ((d (list i
-;;                          (if c1 (format "%S" (string c1)) "<none>")
-;;                          (if c2 (format "%S" (string c2)) "<none>"))))
-;;             (push d diffs)
-;;             (message "Difference at index %d: %s vs %s"
-;;                      i (nth 1 d) (nth 2 d))))))
-;;     (unless diffs (message "No differences found"))
-;;     (nreverse diffs)))
-
-;; (verbose-string-diff "hello" "hxlpo")
-
 (ert-deftest oai-tests-block--insert-stream-response ()
   (with-temp-buffer
 
@@ -723,7 +702,7 @@ as
 
 
 ;; -=-= Test: `oai-block-mark-at-point'
-(ert-deftest oai-tests-oai--mark-at-point ()
+(ert-deftest oai-tests-block--mark-at-point ()
     (with-temp-buffer
       ;; (setq ert-enabled nil)
       (org-mode)
@@ -756,6 +735,135 @@ as
         (setq res (list (region-beginning) (region-end)))
         (should (equal (list (region-beginning) (region-end)) '(1 115)))
         )))
+;; -=-= Test: `oai-block--insert-single-response'
+
+
+;; (defun my/diff-strings (str1 str2)
+;;   "Return and print verbose diff between STR1 and STR2 as a list."
+;;   (let* ((len1 (length str1))
+;;         (len2 (length str2))
+;;         (maxlen (max len1 len2))
+;;         (diffs '()))
+;;     (dotimes (i maxlen)
+;;       (let ((c1 (if (< i len1) (aref str1 i) nil))
+;;             (c2 (if (< i len2) (aref str2 i) nil)))
+;;         (unless (equal c1 c2)
+;;           (let ((d (list i
+;;                          (if c1 (format "%S" (string c1)) "<none>")
+;;                          (if c2 (format "%S" (string c2)) "<none>"))))
+;;             (push d diffs)
+;;             (message "Difference at index %d: %s vs %s"
+;;                      i (nth 1 d) (nth 2 d))))))
+;;     (unless diffs (message "No differences found"))
+;;     (nreverse diffs)))
+
+;; (my/diff-strings "hello" "hxlpo")
+
+
+(defun oai-tests-block-insert-block ()
+  (mark-whole-buffer)
+  (call-interactively #'kill-region)
+  (insert "#+begin_ai\n")
+  (let ((p1 (point)))
+    (insert "test\n#+end_ai")
+    (goto-char p1)))
+
+(ert-deftest oai-tests-block-insert-single-response ()
+  (with-temp-buffer
+    ;; (setq ert-enabled nil)
+    (org-mode)
+    ;; (oai-mode)
+    (transient-mark-mode)
+    (let ((fill-called nil)
+          res)
+      (let ( ;oai-block-fill-function
+            (oai-block-fill-function (lambda(pos stream)
+                                       (setq fill-called t)
+                                       ))
+            (fill-column 3)
+            p1)
+        ;; - Test 1
+        (oai-tests-block-insert-block)
+
+        (oai-block--insert-single-response
+         (oai-block--get-content-end-marker (oai-block-p))
+         "asd asd asd asd"
+         t nil)
+        (setq res (buffer-substring-no-properties (point-min)
+                                                  (point-max)))
+
+        ;; (my/diff-strings res "#+begin_ai\ntest\n\n[ai]: asd asd asd asd\n\n[ME]: \n#+end_ai")
+
+        (should (string-equal res "#+begin_ai\ntest\n\n[ai]: asd asd asd asd\n\n[ME]: \n#+end_ai"))
+        (should (eq 47 (point)))
+        (should fill-called)
+        ;; - Test 2
+        (setq fill-called nil)
+        (oai-tests-block-insert-block)
+        (oai-block--insert-single-response
+         (oai-block--get-content-end-marker (oai-block-p))
+         "asd asd asd asd"
+         t t)
+        (setq res (buffer-substring-no-properties (point-min)
+                                                  (point-max)))
+        (should (string-equal res "#+begin_ai\ntest\n\n[ai]: asd asd asd asd\n\n[ME]: \n#+end_ai"))
+        (should (eq 47 (point)))
+        (should-not fill-called)
+
+        ;; - Test 3
+        (setq fill-called nil)
+        (oai-tests-block-insert-block)
+        (oai-block--insert-single-response
+         (oai-block--get-content-end-marker (oai-block-p))
+         "asd asd asd asd"
+         nil t)
+        (setq res (buffer-substring-no-properties (point-min)
+                                                  (point-max)))
+        (should (string-equal res "#+begin_ai\ntest\n\n[ai]: asd asd asd asd\n#+end_ai"))
+        (should (eq 40 (point)))
+        (should-not fill-called)
+
+        ;; - Test 4
+        (setq fill-called nil)
+        (oai-tests-block-insert-block)
+        (oai-block--insert-single-response
+         (oai-block--get-content-end-marker (oai-block-p))
+         "asd asd asd asd"
+         nil nil)
+        (setq res (buffer-substring-no-properties (point-min)
+                                                  (point-max)))
+        (should (string-equal res "#+begin_ai\ntest\n\n[ai]: asd asd asd asd\n#+end_ai"))
+        (should (eq 40 (point)))
+        (should fill-called)
+
+        ;; - Test 5 - nil
+        (setq fill-called nil)
+        (oai-tests-block-insert-block)
+        (oai-block--insert-single-response
+         (oai-block--get-content-end-marker (oai-block-p))
+         nil
+         nil nil)
+        (setq res (buffer-substring-no-properties (point-min)
+                                                  (point-max)))
+        (should (string-equal res "#+begin_ai\ntest\n#+end_ai"))
+        ;; (print (point)))))
+        (should (eq 12 (point)))
+        (should-not fill-called)
+
+        ;; - Test 5 - ""
+        (setq fill-called nil)
+        (oai-tests-block-insert-block)
+        (oai-block--insert-single-response
+         (oai-block--get-content-end-marker (oai-block-p))
+         nil
+         nil nil)
+        (setq res (buffer-substring-no-properties (point-min)
+                                                  (point-max)))
+        (should (string-equal res "#+begin_ai\ntest\n#+end_ai"))
+        ;; (print (point)))))
+        (should (eq 12 (point)))
+        (should-not fill-called)))))
+
 ;; -=-= provide
 (provide 'oai-tests-block)
 
