@@ -50,7 +50,7 @@ Don't remove empty lines that have more than two lines in a row before
   (let ((empty-line)
         (cl 0))
     (while (< beg (point))
-      (when (eq (point) (line-end-position)) ; empty line
+      (when (eolp) ; empty line
         (when (and (<= cl 2) (> cl 0) empty-line)
           (save-excursion
             (goto-char empty-line)
@@ -62,7 +62,7 @@ Don't remove empty lines that have more than two lines in a row before
 
 (defun oai-optional-remove-distant-empty-lines-hook-function (&optional type content before-pos stream)
   "Remove empty lines when there is too many of them.
-Arguments TYPE_CONTENT BEFORE-POS BUF parameters described in
+Arguments TYPE CONTENT BEFORE-POS STREAM parameters described in
 `oai-block-after-chat-insertion-hook' hook."
   (ignore content stream)
   (save-excursion
