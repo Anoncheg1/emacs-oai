@@ -1,5 +1,6 @@
-[[https://github.com/Anoncheg1/emacs-oai/workflows/melpazoid/badge.svg]]
+[[https://github.com/Anoncheg1/emacs-oai/workflows/melpazoid/badge.svg?event=push]]
 [[http://melpa.org/#/oai][file:https://melpa.org/packages/oai-badge.svg]]
+[[https://github.com/Anoncheg1/emacs-oai/workflows/melpazoid/badge.svg?event=release]]
 [[https://stable.melpa.org/#/oai][file:https://stable.melpa.org/packages/oai-badge.svg]]
 
 * OAI - chat interface to LLMs and AI agents in Org blocks.
@@ -15,14 +16,16 @@ O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organ
 
 * Features:
 - *Tags* expansion of tags, Org links and noweb references
-- *Parallel request* in the same or different buffer without waiting
-- *Highlighting* markdown big blocks, tags and links, headers, bold text, Org tables, LaTeX
-- *Transparency* inspect raw data request
-- *Customization* Autofilling, hooks, powerful debugger
+- *Parallel requests* in the same or different buffer without blocking
+- *Highlighting* of markdown big blocks, tags and links, headers, bold text, Org tables, LaTeX
+- *Transparency* for inspecting raw data of request
+- *Customization* in autofilling, hooks, powerful debugger
 - *Prompt engineering* tools, there is ~:chain~ of calls out-of-the-box
 
 * Screenshot
-At left - main window with AI answer. At right - help window with expanded link.
+- At left - optional debugging window
+- At center - main window with AI answer.
+- At right - optional help window with expanded link.
 [[https://raw.githubusercontent.com/Anoncheg1/public-share/main/oai.png]]
 
 * Prerequisites
@@ -93,7 +96,7 @@ oai-restapi-con-service [[./oai-restapi.el]]
 Redefine:
 - ~oai-restapi--get-headers~ - If you need some special HTTP headers.
 - ~oai-restapi--get-single-response-text~ and ~oai-restapi--normalize-response~ - if HTTP responses is not standard for ~"stream":false~ and ~"stream":true~ respectively.
-** Fintification configuration
+** Fontification configuration
 To enable all Org fintifications in ai blocks:
 : (setq org-protecting-blocks (delete "ai" org-protecting-blocks))
 : (org-restart-font-lock)
@@ -219,7 +222,8 @@ For incoming RestAPI conversion to prefixes ~oai-block-roles-restapi~ variable u
 - org-babel-mark-block = oai-block-mark-at-point
 - org-babel-find-named-block = oai-find-named-block
 - org-src--contents-area = oai-block--area, oai-block--contents-area
-
+- org-babel--normalize-body = oai-block--area, oai-block--contents-area
+- org-babel-insert-header-arg - TODO!!
 * How this works?
 We add “ai” as a type of special block to variables ~org-protecting-blocks~ and ~org-structure-template-alist~.
 
