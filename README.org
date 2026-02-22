@@ -1,6 +1,6 @@
-[[https://github.com/Anoncheg1/emacs-oai/workflows/melpazoid/badge.svg?event=push]]
+[[https://github.com/Anoncheg1/emacs-oai/workflows/melpazoid/badge.svg]]
 [[http://melpa.org/#/oai][file:https://melpa.org/packages/oai-badge.svg]]
-[[https://github.com/Anoncheg1/emacs-oai/workflows/melpazoid/badge.svg?event=release]]
+[[https://github.com/Anoncheg1/emacs-oai/workflows/melpazoid-release/badge.svg]]
 [[https://stable.melpa.org/#/oai][file:https://stable.melpa.org/packages/oai-badge.svg]]
 
 * OAI - chat interface to LLMs and AI agents in Org blocks.
