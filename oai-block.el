@@ -23,7 +23,7 @@
 
 ;;; Commentary:
 
-;; Defines functions for dealing with #+begin_ai..#+end_ai special blocks
+;; Defines functions for dealing with ai block as Org special-block
 
 ;; None Org babel: We choose not to fake as babel source block and use
 ;; functionality because it require too much advices.
@@ -35,21 +35,17 @@
 ;;   bold word, a link). (TYPE PROPS) (org-element-context)
 ;; - org-dblock-start-re
 ;;
-;; Content begin-end
-;; (org-element-property :contents-begin  (oai-block-p)) return next line after #+begin
-;; (org-element-property :contents-end  (oai-block-p)) return #+end line position
-;; may be fixed with org-element-put-property, but it is not KISS.
-
 ;;; TODO:
 ;; - replace all cl-lib with built-in Elisp code
 ;; - simplify some functions
-;; - replace Vibe-coding with human-readable code with comments where required, without lambdas.
+;; - get rid of lambdas.
 
 ;;; Code:
 ;; -=-= includes
 (require 'org)
 (require 'org-element)
 (require 'org-macs)
+(require 'ob) ; for tangling
 (require 'cl-lib) ; for `cl-letf', cl-defun, cl-loop, cl-case
 (require 'oai-debug)
 
@@ -232,13 +228,6 @@ Or roles regex.")
 You can customize this font with `set-face-attribute'."
   :group 'oai)
 
-;; -=-= loading code: activate "ai" block in Org mode
-(when (and (boundp 'org-protecting-blocks) (listp org-protecting-blocks))
-  (add-to-list 'org-protecting-blocks "ai"))
-
-(when (boundp 'org-structure-template-alist)
-  (add-to-list 'org-structure-template-alist '("A" . "ai")))
-
 ;; -=-= fn: block-p, element-by-marker
 ;; `org-element-with-disabled-cache' is not available pre org-mode 9.6.6, i.e.
 ;; emacs 28 does not ship with it
@@ -249,7 +238,7 @@ You can customize this font with `set-face-attribute'."
      ,@body))
 
 (defun oai-block-p ()
-  "Are we inside a #+begin_ai...#+end_ai block?
+  "Are we inside ai block?
 Like `org-in-src-block-p'.  Return element."
   (oai-block--org-element-with-disabled-cache ;; with cache enabled we get weird Cached element is incorrect warnings
     (cl-loop with context = (org-element-context)
@@ -261,7 +250,7 @@ Like `org-in-src-block-p'.  Return element."
 
 ;; -=-= info fn: get-info, get-request-type, get-sys
 (defun oai-block-get-info (&optional element no-eval)
-  "Parse the header of #+begin_ai...#+end_ai block.
+  "Parse the header of ai block.
 ELEMENT is the element of the special block.
 Like `org-babel-get-src-block-info' but instead of list return only
 arguments.
@@ -276,7 +265,7 @@ Return an alist of key-value pairs."
     (or element (oai-block-p))) no-eval))
 
 (defun oai-block--get-request-type (info)
-  "Look at the header of the #+begin_ai...#+end_ai block.
+  "Look at the header of ai block.
 returns the type of request.  INFO is the alist of key-value
   pairs from `oai-block-get-info'."
   (cond
@@ -432,6 +421,7 @@ NOWEB-CONTEXT may be one of :tangle, :export or :eval, the last is by
  default, more documentation in `org-babel-noweb-p' function.
 Don't support tags and Org links expansion, for that use
  `oai-block-tags-get-content' instead.
+same as `org-babel--normalize-body'.
 Optional argument NOWEB-CONTEXT is :eval by default, ."
   (when-let ((reg (oai-block--contents-area element)))
     (let ((con-beg (car reg))
@@ -509,7 +499,6 @@ Variable `oai-block-roles-prefixes' is used to format role to text."
         ;; set mark (point) to allow user "C-u C-SPC" command to easily select the generated text
         (push-mark end-marker t)
         ;; - go  to the end of previous line and open new one
-        ;; (goto-char pos)
         (goto-char (1- pos)) ; to use insert before end-marker to preserve it at the end of block
 
         (when (and text (not (string-empty-p text)))
@@ -1225,7 +1214,7 @@ A positive ARG = N means move backward N sections."
 ;;                 (end (cdr region)))
 ;;       (kill-region end start))))
 
-(defun oai-block-mark-at-point (&optional arg)
+(defun oai-block-mark-at-point-by-steps ()
   "Progressively mark a larger region in AI block at point.
 Steps:
   0. Org element
@@ -1238,99 +1227,140 @@ If ARG optional universal argument is non-nil, then we select message of
  chat strictly.
 Return number of marked content."
   (interactive)
-  (if arg
-      (progn (deactivate-mark)
-             (oai-block-mark-chat-message-at-point)
-             (message "Chat message"))
+  (let ((pos (point))
+        (expanded nil)
+        (cur-size (if (use-region-p) (- (region-end) (region-beginning)) 0))
+        (inx 0)
+        (prev-inx 0)
+        found-beg found-end
+        step)
+    (save-mark-and-excursion
+      (when-let ((block-region (save-excursion (oai-block--area))))
+        (let* ((block-beg (car block-region))
+               (block-end (cdr block-region))
+               (mark-markdown
+                (lambda ()
+                  (message "MBlock")
+                  (cadr (oai-block--markdown-area (point) block-beg block-end)))) ; beg-cont end-cont
+               (steps
+                (list
+                 ;; Step 0: Org element
+                 (lambda ()
+                   ;; Additionally check if point is in markdown block
+                   ;; that element is less than block.
+                   (let* ((reg (funcall mark-markdown))
+                          (block-size (when reg (- (cadr reg) (car reg)))))
+                     (deactivate-mark)
+                     (goto-char pos)
+                     (ignore-errors                    ;; Guard in case not on element
+                       (message "Org Element")
+                       (org-mark-element)
+                       (if (and block-size (> (- (region-end) (region-beginning)) block-size))
+                           nil
+                         ;; else
+                         (list (region-beginning) (region-end))))))
+                 ;; Step 1: Markdown block
+                 mark-markdown
+
+                 ;; Step 2: Markdown block with header and footer
+                 (lambda ()
+                   (message "MBlock with header")
+                   (when-let ((m-reg (oai-block--markdown-area (point) block-beg block-end)))
+                     (car m-reg)))
+                 ;; Step 3: Chat message
+                 (lambda ()
+                   (message "Chat message")
+                   (oai-block-mark-chat-message-at-point)
+                   (list (region-beginning) (region-end)))
+                 ;; Step 4: Block content
+                 (lambda ()
+                   (message "AI Block content")
+                   (let ((reg (oai-block--contents-area)))
+                     (when reg
+                       (list (car reg) (cdr reg)))))
+                 ;; Step 5: Block whole
+                 (lambda () (message "Block whole") (list block-beg block-end)))))
+
+          ;; Step sequentially
+          (when (region-active-p) (setq inx 1)) ; skip org element if region active.
+          (while (and (< inx 6)
+                      (not expanded))
+            (setq step (nth inx steps))
+            (setq inx (1+ inx))
+
+
+            (deactivate-mark)
+            (goto-char pos)
+            (when-let* ((reg (funcall step))
+                        (beg (car reg))
+                        (end (cadr reg))
+                        (new-size (- end beg)))
+              (when (<= new-size cur-size)
+                (setq prev-inx (1- inx)))
+              ;; Compare new region size
+              (oai--debug "oai-block-mark-at-point %s %s %s %s" inx reg (when beg (- end beg)) cur-size)
+              (when (and beg end
+                         (> new-size cur-size))
+                (goto-char beg)
+                (set-mark end)
+                (setq expanded t
+                      cur-size (- end beg)
+                      found-beg beg
+                      found-end end)))))))
+    ;; If nothing expanded, just mark whole block
+    (when expanded
+      (deactivate-mark)
+      (goto-char found-beg)
+      (set-mark found-end)
+      ;; (activate-mark)
+      )
+    (list prev-inx inx)))
+
+(defun oai-block-mark-at-point (&optional arg)
+  "Should be called at ai block.
+If region is not active, check if point at message or at ai block header
+ and mark it.
+If universal argument ARG is non-nil, mark content of ai block."
+  (interactive "P")
+  (if (region-active-p)
+      (oai-block-mark-at-point-by-steps)
     ;; else
-    (let ((pos (point))
-          (expanded nil)
-          (cur-size (if (use-region-p) (- (region-end) (region-beginning)) 0))
-          (inx 0)
-          (prev-inx 0)
-          found-beg found-end
-          step)
-      (save-mark-and-excursion
-        (when-let ((block-region (save-excursion (oai-block--area))))
-          (let* ((block-beg (car block-region))
-                 (block-end (cdr block-region))
-                 (mark-markdown
-                  (lambda ()
-                    (message "MBlock")
-                    (cadr (oai-block--markdown-area (point) block-beg block-end)))) ; beg-cont end-cont
-                 (steps
-                  (list
-                   ;; Step 0: Org element
-                   (lambda ()
-                     ;; Additionally check if point is in markdown block
-                     ;; that element is less than block.
-                     (let* ((reg (funcall mark-markdown))
-                            (block-size (when reg (- (cadr reg) (car reg)))))
-                       (deactivate-mark)
-                       (goto-char pos)
-                       (ignore-errors                    ;; Guard in case not on element
-                         (message "Org Element")
-                         (org-mark-element)
-                         (if (and block-size (> (- (region-end) (region-beginning)) block-size))
-                             nil
-                           ;; else
-                           (list (region-beginning) (region-end))))))
-                   ;; Step 1: Markdown block
-                   mark-markdown
+    (if (not arg)
+        (cond
+         ; at header
+         ((save-excursion
+            (move-beginning-of-line 1)
+            (looking-at oai-block--ai-block-begin-re))
+          (let* ((reg (save-excursion (oai-block--area)))
+                 (beg (car reg))
+                 (end (cdr reg)))
+            (goto-char beg)
+            (set-mark end)
+            (message "Block whole")))
+         ; at message
+         ((save-excursion
+            (move-beginning-of-line 1)
+            (looking-at oai-block--chat-prefixes-re))
+          (message "Chat message")
+          (oai-block-mark-chat-message-at-point))
+         (t
+          (oai-block-mark-at-point-by-steps))) ; without arg
+      ;; else - with arg
+      (let* ((reg (oai-block--contents-area))
+            (beg (car reg))
+            (end (cdr reg)))
+        (goto-char beg)
+        (set-mark end)))))
 
-                   ;; Step 2: Markdown block with header and footer
-                   (lambda ()
-                     (message "MBlock with header")
-                     (when-let ((m-reg (oai-block--markdown-area (point) block-beg block-end)))
-                       (car m-reg)))
-                   ;; Step 3: Chat message
-                   (lambda ()
-                     (message "Chat message")
-                     (oai-block-mark-chat-message-at-point)
-                     (list (region-beginning) (region-end)))
-                   ;; Step 4: Block content
-                   (lambda ()
-                     (message "AI Block content")
-                     (let ((reg (oai-block--contents-area)))
-                       (when reg
-                         (list (car reg) (cdr reg)))))
-                   ;; Step 5: Block whole
-                   (lambda () (message "Block whole") (list block-beg block-end)))))
+  ;; (if (and (not arg)
+  ;;          (region-active-p))
 
-            ;; Step sequentially
-            (when (region-active-p) (setq inx 1)) ; skip org element if region active.
-            (while (and (< inx 6)
-                        (not expanded))
-              (setq step (nth inx steps))
-              (setq inx (1+ inx))
-
-
-              (deactivate-mark)
-              (goto-char pos)
-              (when-let* ((reg (funcall step))
-                          (beg (car reg))
-                          (end (cadr reg))
-                          (new-size (- end beg)))
-                (when (<= new-size cur-size)
-                  (setq prev-inx (1- inx)))
-                ;; Compare new region size
-                (oai--debug "oai-block-mark-at-point %s %s %s %s" inx reg (when beg (- end beg)) cur-size)
-                (when (and beg end
-                           (> new-size cur-size))
-                  (goto-char beg)
-                  (set-mark end)
-                  (setq expanded t
-                        cur-size (- end beg)
-                        found-beg beg
-                        found-end end)))))))
-      ;; If nothing expanded, just mark whole block
-      (when expanded
-        (deactivate-mark)
-        (goto-char found-beg)
-        (set-mark found-end)
-        ;; (activate-mark)
-        )
-      (list prev-inx inx))))
+  ;;     ;; else
+  ;;     (if arg
+  ;;         (progn (deactivate-mark)
+  ;;                (oai-block-mark-chat-message-at-point)
+  ;;                (message "Chat message"))
+        ;; else
 
 ;; (defun oai-block-next-element (&optional arg)
 ;;   "Select next element of ai block or just jump.
@@ -2084,5 +2114,58 @@ to begin of paragraph."
 ;;           (forward-line)))))
 
 
+
+
+;; -=-= Tangling: advices
+(defun oai-block--org-babel-get-src-block-info (&optional no-eval datum)
+  "Used for Tangling in advice.
+Info about arguments NO-EVAL DATUM in `org-babel-get-src-block-info'."
+  (when-let* ((datum (or datum (oai-block-p))))
+    (let* ((lang "ai")
+           (lang-headers (intern
+			  (concat "org-babel-default-header-args:ai" lang)))
+	   (name (org-element-property :name datum))
+           ;;
+           (info
+	    (list
+	     lang ; "elisp"
+	     (oai-block-get-content datum) ; content
+                                        ; org-babel-default-header-args + default "lang" parameters
+             (apply #'org-babel-merge-params
+		    org-babel-default-header-args
+		    ;; org-babel-default-header-args:ai ; (eval org-babel-default-header-args:ai t)
+		    (append
+		     ;; If DATUM is provided, make sure we get node
+		     ;; properties applicable to its location within
+		     ;; the document.
+		     (org-with-point-at (org-element-begin datum)
+		       (org-babel-params-from-properties lang no-eval))
+		     (mapcar (lambda (h)
+			       (org-babel-parse-header-arguments h no-eval))
+			     (cons (org-element-property :parameters datum)
+				   (org-element-property :header datum)))))
+	     (or (org-element-property :switches datum) "")
+	     name
+	     (org-element-property :post-affiliated datum)
+	     (org-src-coderef-format datum))))
+      (unless no-eval
+	(setf (nth 2 info) (org-babel-process-params (nth 2 info))))
+      (setf (nth 2 info) (org-babel-generate-file-param name (nth 2 info)))
+      info)))
+
+
+(defun oai-block--org-babel-where-is-src-block-head (&optional src-block)
+  "`org-babel-where-is-src-block-head'."
+  )
+
+
+(defun oai-block--org-babel-get-src-block-info-advice (orig-fun &rest args)
+  (if (not (oai-block-p))
+      (apply orig-fun args)
+    ;; else
+    (apply #'oai-block--org-babel-get-src-block-info args)))
+
+
+;;;; provide
 (provide 'oai-block)
 ;;; oai-block.el ends here

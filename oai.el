@@ -31,6 +31,7 @@
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
 ;;; Commentary:
+
 ;; Inspired by Robert Krahn's org-ai package <https://github.com/rksm/org-ai>
 ;;
 ;; OAI extend Org mode with "ai block" that allows you to interact
@@ -50,7 +51,8 @@
 ;; See see https://github.com/Anoncheg1/emacs-oai for the full set
 ;; of features and setup instructions.
 ;;
-;; Configuration:
+;;; Configuration:
+
 ;; (add-to-list 'load-path "path/to/oai") ; (optional)
 ;; (require 'oai)
 ;; (add-hook 'org-mode-hook #'oai-mode) ; oai.el
@@ -83,7 +85,8 @@
 ;; - in buffer with oai-mode enabled:
 ;;     - C-g - to stop all requsts.
 
-;; Customization:
+;;;; Customization:
+
 ;; M-x customize-group RET oai
 ;; M-x customize-group RET oai-faces
 
@@ -92,7 +95,8 @@
 ;; - parts or messages - major parts of chat with prefixes of roles
 
 
-;; Other packages:
+;;;; Other packages:
+
 ;; - Modern navigation in major modes https://github.com/Anoncheg1/firstly-search
 ;; - Search with Chinese	https://github.com/Anoncheg1/pinyin-isearch
 ;; - Ediff no 3-th window	https://github.com/Anoncheg1/ediffnw
@@ -103,12 +107,14 @@
 ;; - Restore buffer state	https://github.com/Anoncheg1/emacs-unmodified-buffer1
 ;; - outline.el usage		https://github.com/Anoncheg1/emacs-outline-it
 
-;; Donate:
+;;;; Donate:
+
 ;; - BTC (Bitcoin) address: 1CcDWSQ2vgqv5LxZuWaHGW52B9fkT5io25
 ;; - USDT (Tether) address: TVoXfYMkVYLnQZV3mGZ6GvmumuBfGsZzsN
 ;; - TON (Telegram) address: UQC8rjJFCHQkfdp7KmCkTZCb5dGzLFYe2TzsiZpfsnyTFt9D
 
-;;; TODO:
+;;;; TODO:
+
 ;; - make oai-variable.el and pass them to -api.el functions as parameters.
 ;; - provide ability to replace url-http with plz or oai-restapi with llm(plz)
 ;; - implement "#+PROPERTY: var foo=1" and "#+begin_ai :var
@@ -147,7 +153,10 @@
 ;; - function to replace "^[\s+]- **word1 [word2]:**" to "^^[\s+]- word1 [word2] :: " and highligh it.
 ;; - fix highlight to highlight when there is only "#+end_ai"
 ;; - create function that insert :max-token for given int
+;; - Check that C-c C-n respect markdown blocks
+;; - make key to remove all messages and left only the last
 ;;; Code:
+
 ;; Touch: Pain, water and warm.
 
 ;; -=-= includes
@@ -176,9 +185,9 @@
                                         :completion	#'oai-restapi-request-prepare
                                         :chain		#'oai-prompt-request-chain) ; at oai-prompt.el
   "Custom variants to execute request.
-If you specify :chain at #+begin_ai line, associated function will be
-called.  See `oai-call-block' and `oai-restapi-request-prepare' for
-parameters."
+If you specify :chain at block parameters line, associated function will
+ be called.  See `oai-call-block' and `oai-restapi-request-prepare' for
+ parameters."
   :type '(plist :key-type symbol
                 :value-type function
                 :tag "Property list (symbol => funcion)")
@@ -221,7 +230,6 @@ ARGS is `oai-parse-org-header' result."
 Return list of arguments args."
   (let* ((element (oai-block-p)) ; oai-block.el
          (info (oai-block-get-info element)) ; ((:max-tokens . 150) (:service . "together") (:model . "xxx")) ; oai-block.el
-         ;; (req-type (oai-block--get-request-type info)) ; oai-block.el
          (sys-prompt-for-all-messages (or (not (eql 'x (alist-get :sys-everywhere info 'x)))
                                           (org-entry-get-with-inheritance "SYS-EVERYWHERE") ; org
                                           oai-restapi-default-inject-sys-prompt-for-all-messages)) ; oai-restapi.el
@@ -426,12 +434,7 @@ SEEN is a list of commands already called, used to prevent recursion."
 If optional argument ARG is non-nil, mark current message of chat."
   (interactive "P")
   (if (oai-block-p)
-      (if arg
-          (progn (deactivate-mark)
-                 (oai-block-mark-chat-message-at-point)
-                 (message "Chat message"))
-        ;; else
-        (call-interactively #'oai-block-mark-at-point))
+      (oai-block-mark-at-point arg)
     ;; else
     (oai--call-next-remap-protected #'org-mark-element)))
 
@@ -459,7 +462,7 @@ If optional argument ARG is non-nil, mark current message of chat."
 ;;         ;; Determine the boundaries of the content
 ;;         (let ( ;; ai block range
 ;;               (beg (org-element-property :contents-begin element)) ; first line of content
-;;               (end (org-element-property :contents-end element))) ; #+end_ai
+;;               (end (org-element-property :contents-end element))) ; end line of ai block
 ;;           ;; Content exist?
 ;;           (when (or (not beg)
 ;;                     (not end))
@@ -519,14 +522,25 @@ If optional argument ARG is non-nil, mark current message of chat."
         (when oai-fontification-flag
           (add-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords nil 'local)
           (org-set-font-lock-defaults)
-          (font-lock-refresh-defaults)))
+          (font-lock-refresh-defaults))
+        ;; - activate "ai" block in Org mode
+        (when (and (boundp 'org-protecting-blocks) (listp org-protecting-blocks))
+          (add-to-list 'org-protecting-blocks "ai"))
+        (when (boundp 'org-structure-template-alist)
+          (add-to-list 'org-structure-template-alist '("A" . "ai")))
+        ;; - Tangle: advice
+        (advice-add 'org-babel-get-src-block-info :around #'oai-block--org-babel-get-src-block-info-advice)
+        (add-to-list 'org-babel-tangle-lang-exts '("ai" . "ai")) ; language . ext
+        )
     ;; else - off
     (remove-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c 'local)
     (advice-remove 'keyboard-quit #'oai-keyboard-quit)
     ;; font lock refrash
     (remove-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords)
     (org-set-font-lock-defaults)
-    (font-lock-refresh-defaults)))
+    (font-lock-refresh-defaults)
+    ;; tangle
+    (advice-remove 'org-babel-get-src-block-info #'oai-block--org-babel-get-src-block-info-advice)))
 
 
 (defun oai-open-request-buffer ()

@@ -109,6 +109,6 @@ Should be added the last to be executed first."
           (insert " ") ; this effectively quote standard headers
           (end-of-line))))))
 
-;;; provide
+;;;; provide
 (provide 'oai-optional)
 ;;; oai-optional.el ends here

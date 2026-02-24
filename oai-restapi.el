@@ -607,7 +607,7 @@ Called from `oai-call-block' in main file.
 ELEMENT org-element - is ai block, should be converted to market at
 once.
 REQ-TYPE symbol - is completion or chat mostly.  Set
-  `oai-block--get-request-type'.
+  `oai-req-type-functions'.
 noweb-control - if non-nill, noweb links should be expanded.
 SYS-PROMPT string - first system instruction as a string.
 SYS-PROMPT-FOR-ALL-MESSAGES from
