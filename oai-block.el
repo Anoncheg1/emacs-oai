@@ -2122,8 +2122,8 @@ to begin of paragraph."
 Info about arguments NO-EVAL DATUM in `org-babel-get-src-block-info'."
   (when-let* ((datum (or datum (oai-block-p))))
     (let* ((lang "ai")
-           (lang-headers (intern
-			  (concat "org-babel-default-header-args:ai" lang)))
+           ;; (lang-headers (intern
+	   ;;      	  (concat "org-babel-default-header-args:ai" lang)))
 	   (name (org-element-property :name datum))
            ;;
            (info
@@ -2138,7 +2138,7 @@ Info about arguments NO-EVAL DATUM in `org-babel-get-src-block-info'."
 		     ;; If DATUM is provided, make sure we get node
 		     ;; properties applicable to its location within
 		     ;; the document.
-		     (org-with-point-at (org-element-begin datum)
+		     (org-with-point-at (org-element-property :begin datum)
 		       (org-babel-params-from-properties lang no-eval))
 		     (mapcar (lambda (h)
 			       (org-babel-parse-header-arguments h no-eval))
@@ -2154,16 +2154,18 @@ Info about arguments NO-EVAL DATUM in `org-babel-get-src-block-info'."
       info)))
 
 
-(defun oai-block--org-babel-where-is-src-block-head (&optional src-block)
-  "`org-babel-where-is-src-block-head'."
-  )
+;; (defun oai-block--org-babel-where-is-src-block-head (&optional src-block)
+;;   "`org-babel-where-is-src-block-head'."
+;;   )
 
 
 (defun oai-block--org-babel-get-src-block-info-advice (orig-fun &rest args)
+  "Advice for `org-babel-tangle' function and some.
+ORIG-FUN is `oai-block--org-babel-get-src-block-info' and its ARGS."
   (if (not (oai-block-p))
       (apply orig-fun args)
     ;; else
-    (apply #'oai-block--org-babel-get-src-block-info args)))
+    (apply orig-fun args)))
 
 
 ;;;; provide
