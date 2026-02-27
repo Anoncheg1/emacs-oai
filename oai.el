@@ -490,7 +490,7 @@ TODO: if cursor at 1) begining of markdown block go to next markdown block.
 2) at header of ai block, go to end of ai block."
   (interactive "p")
   (if (oai-block-p)
-      (oai-block-next-message arg)
+      (oai-block-next-item arg)
     ;; else
     (oai--call-next-remap-protected #'org-next-visible-heading)))
 
@@ -501,7 +501,7 @@ Works if cursor in ai block.
 Move to the next visible heading line."
   (interactive "p")
   (if (oai-block-p)
-      (oai-block-previous-message arg)
+      (oai-block-previous-item arg)
     ;; else
     (oai--call-next-remap-protected #'org-previous-visible-heading)))
 

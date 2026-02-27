@@ -541,3 +541,76 @@ Argument STREAM not used."
 ;;                (member cat1 '("L" "N")) ; letters and numbers
 ;;                (member ch '(?\t ?\n ?\r ?\x20))))) ; whitespace
 ;;           (string-to-list str))))
+
+;; (defun oai-block-kill-message-at-point (&optional arg)
+;;   "Kill the prompt at point.
+;; The numeric ARG can be used for killing the last n."
+;;   (interactive "P")
+;;   (if arg
+;;       (when-let* ((region (oai-block--area))
+;;                   (start (car region))
+;;                   (end (cdr region)))
+;;         (kill-region end start))
+;;     (when-let* ((region (oai-block-mark-chat-message-at-point))
+;;                 (start (car region))
+;;                 (end (cdr region)))
+;;       (kill-region end start))))
+
+
+  ;; (if (and (not arg)
+  ;;          (region-active-p))
+
+  ;;     ;; else
+  ;;     (if arg
+  ;;         (progn (deactivate-mark)
+  ;;                (oai-block-mark-chat-message-at-point)
+  ;;                (message "Chat message"))
+        ;; else
+
+;; (defun oai-block-next-element (&optional arg)
+;;   "Select next element of ai block or just jump.
+;; If optional argument ARG is non-nil, use default behavior to just jump.
+;; Used with conjunction of `oai-block-mark-at-point' function.
+;; If region is active and no ARG we select next element by selecting it as
+;; current."
+;;   (interactive "P")
+;;   (steps (list 'org-forward-element ;0
+;;                '
+;;                (if (region-active-p)
+;;       (let (
+;;                          )
+;;             (mark-num (save-mark-and-excursion
+;;                         (oai-block-mark-at-point)))) ;
+;;         ;; (deactivate-mark)
+;;         (print mark-num)
+;;          ))
+;;         ;; (cond
+;;         ;;  (eq mark-num
+;;         ;; oai-block-next-message
+;;     ;; else
+;;     (cond
+;;      ((org-in-regexp oai-block--chat-prefixes-re)
+;;       (re-search-forward oai-block--chat-prefixes-re nil t)) ; todo limit current block
+;;     ))
+
+;; -=-= interactive: next-ai-block
+(defvar oai-block-ai-block-regexp
+  (concat
+   "^#\\+begin_ai[^\n]*\n"
+   ;; (1) body
+   "\\(\\(?:.\\|\n\\)*?\\)??[ \t\n]*#\\+end_ai")
+  "Regexp used to ai blocks or its body.
+Modified `org-babel-src-block-regexp' for `oai-block-next-ai-block'.")
+
+(defun oai-block-next-ai-block (&optional arg)
+  "Jump to the next ai block.
+Like `org-babel-next-src-block'.
+With optional prefix argument ARG, jump forward ARG many source blocks."
+  (interactive "p")
+  (org-next-block arg nil oai-block-ai-block-regexp))
+
+(defun oai-block-previous-ai-block (&optional arg)
+  "Jump to the previous ai block.
+With optional prefix argument ARG, jump backward ARG many source blocks."
+  (interactive "p")
+  (org-previous-block arg oai-block-ai-block-regexp))
