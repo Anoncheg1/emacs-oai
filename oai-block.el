@@ -1198,7 +1198,7 @@ A positive ARG = N means move backward N sections."
 
 (defun oai-block-next-item (&optional arg)
   "Jump forward/backward by items, item type detected by cursor position.
-Optional Arg may be positive or negative to indicate direction and
+Optional ARG may be positive or negative to indicate direction and
  steps."
   (interactive "^p")
   (or arg (setq arg 1))
@@ -2088,14 +2088,14 @@ Return t if point at ai block, nil otherwise."
                       ((save-excursion
                          (move-beginning-of-line 1)
                          (looking-at oai-block--ai-block-begin-end-re))
-                       (when (called-interactively-p)
+                       (when (called-interactively-p 'any)
                          (message "Block content"))
                        (cons beg end))
                       ;; at message
                       ((save-excursion
                          (move-beginning-of-line 1)
                          (looking-at oai-block--chat-prefixes-re))
-                       (when (called-interactively-p)
+                       (when (called-interactively-p 'any)
                          (message "Chat message"))
                        (oai-block-mark-chat-message-at-point t))))
                     (beg (car reg))

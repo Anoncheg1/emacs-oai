@@ -87,7 +87,8 @@ Always return string."
     (concat (prin1-to-string args) "\n")))
 
 (defun oai-debug--safe-format (fmt &rest args)
-  "Formats by removing all '%s' from FMT and appending ' %s' for each ARG."
+  "Format with fixing count of '%s' in FMT according to lenght of ARGS.
+Formats by removing all '%s' from FMT and appending ' %s' for each ARGS."
   ;; Remove all "%s" from fmt
   (let* ((fmt (replace-regexp-in-string " ?%s" "" fmt))
          (num-args (length args))
