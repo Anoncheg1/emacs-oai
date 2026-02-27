@@ -16,11 +16,13 @@ O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organ
 
 * Features:
 - *Tags* expansion of tags, Org links and noweb references
+- *Noweb and tangling*
 - *Parallel requests* in the same or different buffer without blocking
 - *Highlighting* of markdown big blocks, tags and links, headers, bold text, Org tables, LaTeX
-- *Transparency* for inspecting raw data of request
-- *Customization* in autofilling, hooks, powerful debugger
+- *Transparency* for inspecting raw data of request, powerful debugger
+- *Customization and autofilling*, hooks
 - *Prompt engineering* tools, there is ~:chain~ of calls out-of-the-box
+
 
 * Screenshot
 - At left - optional debugging window

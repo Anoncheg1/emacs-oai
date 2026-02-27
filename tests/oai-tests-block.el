@@ -761,7 +761,7 @@ as
 
 
 (defun oai-tests-block-insert-block ()
-  (mark-whole-buffer)
+  (mark-whole-buffer) ; output Mark set
   (call-interactively #'kill-region)
   (insert "#+begin_ai\n")
   (let ((p1 (point)))
@@ -783,7 +783,7 @@ as
             (fill-column 3)
             p1)
         ;; - Test 1
-        (oai-tests-block-insert-block)
+        (oai-tests-block-insert-block) ; output "Mark set"
 
         (oai-block--insert-single-response
          (oai-block--get-content-end-marker (oai-block-p))

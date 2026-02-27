@@ -107,11 +107,9 @@ and
 ;;   (when (string-match oai-block-tags--regexes-path s)
 ;;     (substring s (match-beginning 0) (match-end 0))))
 
-(defvar oai-block-tags--markdown-prefixes '(:backtrace "elisp-backtrace"
-                                            :path-directory "ls-output")
-  "Right after ``` markdown block begining.")
-(defvar oai-block-tags--markdown-postfix "\n```\n")
-
+;; (defvar oai-block-tags--markdown-prefixes '(:backtrace "elisp-backtrace"
+;;                                             :path-directory "ls-output")
+;;   "Right after ``` markdown block begining.")
 
 
 (defvar oai-block-tags-org-blocks-types '(comment-block center-block dynamic-block example-block
@@ -207,6 +205,8 @@ mode line."
              mode-string)
         "auto")))
 
+;; (oai-block-tags--filepath-to-language "ai")
+
 (cl-defun oai-block-tags--compose-m-block (content &optional &key lang header)
   "Return markdown block for LLM with CONTENT.
 Markdown block marked as auto language If optional argument LANG is
@@ -231,7 +231,7 @@ For provided PATH-STRING and CONTENT string, return string that will be
    ;; content:
    content
    :lang (if (file-directory-p path-string)
-             (plist-get oai-block-tags--markdown-prefixes :path-directory)
+             "ls-output"
            ;; else file
            (oai-block-tags--filepath-to-language path-string))
    :header (concat "Here " (file-name-nondirectory (directory-file-name path-string)) (if (file-directory-p path-string) " folder:" ":"))))
@@ -1047,9 +1047,12 @@ Return modified string with text properties or the same string."
       (if-let* ((bt (or (oai-block-tags--get-backtrace-buffer-string)
                         (user-error "No backtrace buffer for @Backtrace tag"))) ; *Backtrace* buffer exist
                 (bt (oai-block-tags--take-n-lines bt oai-block-tags-backtrace-max-lines))
-                (bt (concat "\n```" (plist-get oai-block-tags--markdown-prefixes :backtrace) "\n"
-                            bt
-                            oai-block-tags--markdown-postfix)) ; prepare string
+                (bt (oai-block-tags--compose-m-block bt
+                                                     :lang "elisp-backtrace"
+                 ;; (concat "\n```" (plist-get oai-block-tags--markdown-prefixes :backtrace) "\n"
+                 ;;            bt
+                 ;;            oai-block-tags--markdown-postfix)
+                 )) ; prepare string
                 (new-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--regexes-backtrace bt))) ; insert backtrace
           (setq string new-string))))
 

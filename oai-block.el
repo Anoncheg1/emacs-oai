@@ -128,7 +128,7 @@ parts."
   :type 'boolean
   :group 'oai)
 
-(defcustom oai-block-fill-function #'oai-block--fill-region
+(defcustom oai-block-fill-function #'oai-block-fill-insert
   "If non-nil this function will be called after insertion of text.
 Current buffer is buffer with ai block with position of pointer right
 after insertion of text.
@@ -213,6 +213,8 @@ In `oai-block-roles-prefixes'.")
 
 (defconst oai-block--ai-block-begin-re "^#\\+begin_ai.*$")
 (defconst oai-block--ai-block-end-re "^#\\+end_ai.*$")
+(defconst oai-block--ai-block-begin-end-re "^#\\+\\(begin\\|end\\)_ai.*$")
+
 
 (defvar oai-block--markdown-begin-re "^\\s-*```\\([^\s\t\n[{]+\\)[\s\t]?$")
 (defvar oai-block--markdown-end-re "^[\s\t]**```\\s-*$")
@@ -237,16 +239,24 @@ You can customize this font with `set-face-attribute'."
   `(cl-letf (((symbol-function #'org-element--cache-active-p) (lambda (&rest _) nil)))
      ,@body))
 
-(defun oai-block-p ()
-  "Are we inside ai block?
+(defun oai-block-p (&optional element)
+  "Check if point at ai block or ELEMENT is ai block if provided.
+Optional argument ELEMENT is returned by `org-element-at-point', when
+ non-nil, checked if it is ai block, if not nil is retuned.
+If ELEMENT is not provider, current position in buffer used to get ai
+ block.
 Like `org-in-src-block-p'.  Return element."
-  (oai-block--org-element-with-disabled-cache ;; with cache enabled we get weird Cached element is incorrect warnings
-    (cl-loop with context = (org-element-context)
-             while (and context
-                        (not (equal 'special-block (org-element-type context)))
-                        (not (string-equal "ai" (org-element-property :type context))))
-             do (setq context (org-element-property :parent context))
-             finally return context)))
+  (if (and element
+           (string-equal "ai" (org-element-property :type element)))
+      element
+    ;; else
+    (oai-block--org-element-with-disabled-cache ;; with cache enabled we get weird Cached element is incorrect warnings
+      (cl-loop with context = (org-element-at-point)
+               while (and context
+                          (not (equal 'special-block (org-element-type context)))
+                          (not (string-equal "ai" (org-element-property :type context))))
+               do (setq context (org-element-property :parent context))
+               finally return context))))
 
 ;; -=-= info fn: get-info, get-request-type, get-sys
 (defun oai-block-get-info (&optional element no-eval)
@@ -541,7 +551,8 @@ Variable `oai-block-roles-prefixes' is used to format role to text."
           (insert "[" (car (rassoc 'user oai-block-roles-prefixes)) "]: \n")
           (forward-char -1)
           (setq pos (point))
-          (set-marker end-marker pos)))
+          (set-marker end-marker pos)
+          ))
 
       (when (or insert-me (and text (not (string-empty-p text))))
         (when oai-block-jump-to-end-of-block
@@ -835,6 +846,7 @@ block, may be retrieved with :contents-begin and :contents-end
 properties of ai block Org element.
 MAX-TOKEN-RECOMMENDATION is string to add to first system message.
 Return vector with plist with :role and :content."
+  (oai--debug "oai-block--collect-chat-messages" content-start content-end default-system-prompt persistant-sys-prompts max-token-recommendation separator)
   (let* ((separator (or separator "\n"))
          ;; 1) Positions: for prefixes [ME:], [AI:] in current buffer
          (positions (oai-block--get-chat-messages-positions content-start content-end oai-block--chat-prefixes-re))
@@ -1143,8 +1155,9 @@ With optional prefix argument ARG, jump backward ARG many source blocks."
         (goto-char last-region-end)
         (push-mark last-region-start t t)))
 
-(defun oai-block-mark-chat-message-at-point ()
-  "Mark the prompt at point: [ME:], [AI:]."
+(defun oai-block-mark-chat-message-at-point (&optional not-mark)
+  "Mark the prompt at point: [ME:], [AI:].
+If optional argument NOT-MARK is non-nil dont activate transient-mode."
   (interactive)
   (oai--debug "oai-block-mark-chat-message-at-point1 %s" (point))
   (when-let* ((regions (oai-block--chat-role-regions))
@@ -1160,13 +1173,18 @@ With optional prefix argument ARG, jump backward ARG many source blocks."
       ;; (goto-char end)
       ;; (while (bolp)
       ;;       (backward-char))
-      (goto-char start)
-      (unless (region-active-p) (push-mark end t t))
+      (unless (or not-mark (region-active-p))
+        (goto-char start)
+        (push-mark end t t))
       (cons start end))))
 
 (defun oai-block-next-message (&optional arg)
-  "Move to next message or to the end of current in current ai block.
-A negative argument ARG = -N means move backward."
+  "Call `org-next-visible-heading' or jump to next ai message.
+Work if cursor in ai block.
+If at the last message, jump to the end of current ai block.
+Optional ARG if non-nil, and
+positive = N means move forward N chat messages.
+negative = -N means move backward N chat messages."
   (interactive "^p")
   ;;   TODO:
   ;; With argument ARG, do it ARG times;
@@ -1192,13 +1210,23 @@ A negative argument ARG = -N means move backward."
             (goto-char (cl-find-if (lambda (x) (>= (1- start) x)) (reverse regions)))))))))
 
 (defun oai-block-previous-message (&optional arg)
-  "Move to previous message or to the begining of current in current ai block.
+  "Call `org-previous-visible-heading' or jump to previous ai message.
+Work if cursor in ai block.
+If at the first message, jump to the begining of current ai block.
 A positive ARG = N means move backward N sections."
   (interactive "^p")
   (oai-block-next-message (- (or arg 1))))
 
 
- ;; (defun oai-block-next-element (&optional arg)
+(defun oai-block-next-item (&optional arg)
+  (cond
+   ; header of footer
+   (save-excursion
+     (move-beginning-of-line 1)
+     (looking-at oai-block--ai-block-begin-end-re))
+   (when (interactive-p)
+     (message "Block content"))
+   )
 
 ;; (defun oai-block-kill-message-at-point (&optional arg)
 ;;   "Kill the prompt at point.
@@ -1327,17 +1355,17 @@ If universal argument ARG is non-nil, mark content of ai block."
     ;; else
     (if (not arg)
         (cond
-         ; at header
+         ;; at header
          ((save-excursion
             (move-beginning-of-line 1)
-            (looking-at oai-block--ai-block-begin-re))
+            (looking-at oai-block--ai-block-begin-end-re))
           (let* ((reg (save-excursion (oai-block--area)))
                  (beg (car reg))
                  (end (cdr reg)))
             (goto-char beg)
             (set-mark end)
             (message "Block whole")))
-         ; at message
+         ;; at message
          ((save-excursion
             (move-beginning-of-line 1)
             (looking-at oai-block--chat-prefixes-re))
@@ -1985,78 +2013,117 @@ fill-region-as-paragraph."
     (unless (bolp)
       (forward-line))))
 
+
+(defun oai-block-fill-region (beg end &optional justify)
+  "Ignore code blocks that start with '```sometext' and end with '```'.
+TODO: use `forward-paragraph' instead of `forward-line'."
+  (let ((modified-flag (buffer-chars-modified-tick))
+        ;; markdown block range
+        block-start block-end)
+    ;; Content exist?
+    (when (or (not beg)
+              (not end))
+      (error "Empty block"))
+    ;; Ignore code blocks that start with "```sometext" and end with "```"
+    (save-excursion
+      (while (< beg end)
+        (goto-char beg)
+        ;; - search forward for markdkown begining from ai block begining
+        (if (re-search-forward "^[ \t\f]*```\\w" end t) ; ex. "    ```elisp"
+            (progn
+              ;; (setq block-start (copy-marker (line-beginning-position))) ; save markdown block begining
+              (setq block-start (line-beginning-position)) ; save markdown block begining
+              ;; - search forward from current for markdown ending
+              (if (re-search-forward "^[ \t\f]*```[ \t\f]*$" end t) ; ex. "    ```      "
+                  (progn
+                    (setq block-end (copy-marker (line-beginning-position)))
+                    ;; from begining of ai block to begin to markdown block
+                    ;; FILL
+                    (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg block-start justify)
+                    ;; go to the end of markdown block
+                    (goto-char (marker-position block-end))
+                    (set-marker block-end nil)
+                    (forward-line 1)
+                    (setq beg (point)))
+                ;; else - not found end of block
+                ;; FILL
+                (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg block-start justify)
+                ;; (set-marker block-start nil)
+                (setq beg end)))
+          ;; else - no markdown block begining - apply to whole block
+          ;; FILL
+          (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg end justify)
+          (setq beg end)))
+      (/= (buffer-chars-modified-tick) modified-flag))))
+
 (defun oai-block-fill-paragraph (&optional justify region)
   "Fill every line as paragraph in the current AI block.
-Ignore code blocks that start with '```sometext' and end with '```'.
+
 Optional argument JUSTIFY is parameter of `fill-paragraph'.
-Optional argument REGION todo.
-TODO: use `forward-paragraph' instead of `forward-line'.
-Was causing freezing."
+
+The REGION argument is non-nil if called interactively; in that
+case, if Transient Mark mode is enabled and the mark is active,
+fill each of the elements in the active region, instead of just
+filling the current element.
+Return t if point at ai block, nil otherwise."
   (interactive (progn
                  (barf-if-buffer-read-only)
-                 (list (when current-prefix-arg 'full) t)))
-  (ignore region)
+                 (list (when current-prefix-arg 'full)
+                       (and (region-active-p)
+                            (not (= (region-beginning) (region-end)))))))
   ;; inspired by `org-fill-element'
-  (oai--debug "oai-block-fill-paragraph %s %s" (point) (current-buffer))
+  (oai--debug "oai-block-fill-paragraph1 %s %s %s %s" justify region (point) (current-buffer) (region-active-p))
 
   (with-syntax-table org-mode-transpose-word-syntax-table
-    (let ((element (oai-block-p))) ; TODO: replace with last replay only
-      (when element
-        ;; Determine the boundaries of the content
-        (let ( ;; ai block range
-              (beg (org-element-property :contents-begin element)) ; first line of content
-              (end (org-element-property :contents-end element)) ; begining of #+end_ai
-              ;; markdown block range
-              block-start block-end)
-          ;; Content exist?
-          (when (or (not beg)
-                  (not end))
-              (error "Empty block"))
-          ;; Ignore code blocks that start with "```sometext" and end with "```"
-          (save-excursion
-            (while (< beg end)
-              (goto-char beg)
-              ;; - search forward for markdkown begining from ai block begining
-              (if (re-search-forward "^[ \t\f]*```\\w" end t) ; ex. "    ```elisp"
-                  (progn
-                    ;; (setq block-start (copy-marker (line-beginning-position))) ; save markdown block begining
-                    (setq block-start (line-beginning-position)) ; save markdown block begining
-                    ;; - search forward from current for markdown ending
-                    (if (re-search-forward "^[ \t\f]*```[ \t\f]*$" end t) ; ex. "    ```      "
-                        (progn
-                          (setq block-end (copy-marker (line-beginning-position)))
-                          ;; from begining of ai block to begin to markdown block
-                          ;; FILL
-                          (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg block-start justify)
-                          ;; go to the end of markdown block
-                          (goto-char (marker-position block-end))
-                          (set-marker block-end nil)
-                          (forward-line 1)
-                          (setq beg (point)))
-                      ;; else - not found end of block
-                      ;; FILL
-                      (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg block-start justify)
-                      ;; (set-marker block-start nil)
-                      (setq beg end)))
-                ;; else - no markdown block begining - apply to whole block
-                ;; FILL
-                (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg end justify)
-                (setq beg end)))
-            t))))))
+    ;; Determine the boundaries of the content
+    (when-let* ((element (oai-block-p))
+                (reg (oai-block--contents-area element))
+                (beg (car reg))
+                (end (cdr reg)))
+
+      (unless (= beg end)
+        (oai--debug "oai-block-fill-paragraph11 %s %s %s %s" region (region-active-p))
+        (when-let* ((reg
+                     (cond
+                      ;; region
+                      (region
+                       (oai--debug "oai-block-fill-paragraph12 %s %s %s %s" region (region-active-p))
+                       (let ((rbeg (region-beginning))
+                             (rend (region-end)))
+                         (oai--debug "oai-block-fill-paragraph13 %s %s %s %s" rbeg rend beg end)
+                         (cons rbeg rend)))
+                      ;; (oai-block-fill-region rbeg rend)))
+                      ;; at header
+                      ((save-excursion
+                         (move-beginning-of-line 1)
+                         (looking-at oai-block--ai-block-begin-end-re))
+                       (when (interactive-p)
+                         (message "Block content"))
+                       (cons beg end))
+                      ;; at message
+                      ((save-excursion
+                         (move-beginning-of-line 1)
+                         (looking-at oai-block--chat-prefixes-re))
+                       (when (interactive-p)
+                         (message "Chat message"))
+                       (oai-block-mark-chat-message-at-point t))))
+                    (beg (car reg))
+                    (end (cdr reg)))
+          (oai--debug "oai-block-fill-paragraph2 %s" beg end)
+          (oai-block-fill-region beg end)) ; return t
+        ))))
 
 
-(defun oai-block--fill-region (&optional pos stream)
+(defun oai-block-fill-insert (&optional pos stream)
   "Fill ai block for not streaming and for streaming.
-If STREAM is non-nil this function  called after insertion of a chink of
-text, otherwise after insertion of full response.
 Ignore markdown blocks, quoted text and Org tables.
-Optional argument POS position before insertion not used, TODO: set to
-to begin of paragraph."
-
+If STREAM is non-nil this function called after insertion of a chink of
+ text, use current cursor position and fill current line.
+If STREAM is nil, then region from pos to current position is filled.
+POS is position before insertion."
   (interactive)
-  (ignore pos)
   ;; (setq _pos _pos) ; for melpazoid
-  (oai--debug "oai-block--fill-region %s %s" stream (point))
+  (oai--debug "oai-block--fill-insert %s %s" stream (point) (region-active-p))
   (save-excursion
     (if stream
         ;; if at current line ``` or we are at begining of markdown block in ai block.
@@ -2081,8 +2148,8 @@ to begin of paragraph."
             (goto-char p)
             (fill-region-as-paragraph (line-beginning-position) (line-end-position))))
       ;; else not stream, single response. We add hack to skip markdown blocks.
-      (oai-block-fill-paragraph) ; fill per line. wrapped in save-excursion inside.
-      )))
+      (let ((p (or pos (line-beginning-position))))
+        (oai-block-fill-region p (point))))))
 
 ;; (defun my/org-fill-element-advice (orig-fun &optional justify)
 ;;   "Advice around `org-fill-element`.
@@ -2154,18 +2221,24 @@ Info about arguments NO-EVAL DATUM in `org-babel-get-src-block-info'."
       info)))
 
 
-;; (defun oai-block--org-babel-where-is-src-block-head (&optional src-block)
-;;   "`org-babel-where-is-src-block-head'."
-;;   )
+(defun oai-block--org-babel-where-is-src-block-head-advice (orig-fun &rest args)
+  "Advice for `org-babel-tangle' function and some.
+ORIG-FUN is `org-babel-where-is-src-block-head' and its ARGS."
+  (if-let ((element (or (and args (oai-block-p (car args)))
+                      (oai-block-p))))
+      (org-element-property :begin element)
+    ;; else
+  (apply orig-fun args)))
 
 
 (defun oai-block--org-babel-get-src-block-info-advice (orig-fun &rest args)
   "Advice for `org-babel-tangle' function and some.
 ORIG-FUN is `oai-block--org-babel-get-src-block-info' and its ARGS."
-  (if (not (oai-block-p))
-      (apply orig-fun args)
-    ;; else
-    (apply orig-fun args)))
+  (seq-let (no-eval datum) args
+    (if-let ((datum (or (oai-block-p datum) (oai-block-p))))
+      (oai-block--org-babel-get-src-block-info no-eval datum)
+      ;; else
+      (apply orig-fun args))))
 
 
 ;;;; provide

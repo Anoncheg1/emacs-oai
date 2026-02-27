@@ -548,15 +548,20 @@ Useful for small max-tokens.
 - paragraph - 6 sentences, 500-750 characters,
               150-300 words = 150 words = 200 tokens
 - page - around 3-4 paragraphs, 500 words = 600 tokens."
-  (when max-tokens
-    (cond ((< max-tokens 75)
-           (format "Answer very short with %d words or less." (* max-tokens 0.75)))
-          ((and (>= max-tokens 75)
-                (< max-tokens 500))
-           (format "Answer very short with in %d sentences or %d lines or less." (/ max-tokens 29) (* (/ max-tokens 29) 3) ))
-          ((and (>= max-tokens 500)
-                (< max-tokens 900))
-           (format "Answer short in %d paragraphs or %d pages or less." (/ max-tokens 200) (ceiling (/ max-tokens 600.0)))))))
+  (when (and max-tokens
+             (< max-tokens 900))
+    (if (< max-tokens 100)
+        (format "Output this before answer: My answer is should be in %d-tokens." (- max-tokens 10))
+        (format "Output this line before answer: My output have limit of %d-tokens." (* 1.5 max-tokens)))))
+      ;; (cond ((< max-tokens 75)
+    ;;        (format "Answer very short with %d words or less." (* max-tokens 0.75)))
+    ;;       ((and (>= max-tokens 75)
+    ;;             (< max-tokens 500))
+    ;;        (format "Answer very short with in %d sentences or %d lines or less." (/ max-tokens 29) (* (/ max-tokens 29) 3) ))
+    ;;       ((and (>= max-tokens 500)
+    ;;             (< max-tokens 900))
+    ;;        (format "Answer short in %d paragraphs or %d pages or less." (/ max-tokens 200) (ceiling (/ max-tokens 600.0)))))
+    ;; )
 
 ;; -=-= Prepare content
 
@@ -577,7 +582,7 @@ If MAX-TOKENS is not-nil, and
 REQ-TYPE is completion, return string, otherwise prcess body for chat.
 Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
 `oai-restapi-request-prepare', used only if non-nil."
-  (oai--debug "oai-restapi-prepare-content %s" sys-prompt-for-all-messages)
+  (oai--debug "oai-restapi-prepare-content" noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens oai-restapi-add-max-tokens-recommendation)
   ;; (let ((content (oai-block-get-content element))) ; string - is block content
   (if (eql req-type 'completion)
       ;; - *Completion*

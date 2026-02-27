@@ -108,6 +108,23 @@ asd2
 ```")]) (stream . t)))))))
     )
 
+;; -=-= Test: oai-debug--safe-format
+(ert-deftest test-oai-debug--safe-format ()
+  "Tests for `oai-debug--safe-format` with streamlined scenarios."
+  (let ((cases '(
+                 ("Hello %s!" ("World") "Hello! World\n")
+                 ("%s %s" ("One" "Two") " One Two\n")
+                 ("%s" ("Extra1" "Extra2") " Extra1 Extra2\n")
+                 ("%s %s" ("First") " First\n")
+                 ("No args here" () "No args here \n")
+                 ("Empty %s" ("") "Empty \n")
+                 )))
+    (dolist (case cases)
+      (let* ((fmt (nth 0 case))
+             (args (nth 1 case))
+             (expected (nth 2 case))
+             (result (apply 'oai-debug--safe-format fmt args)))
+        (should (equal result expected))))))
 ;; -=-= provide
 (provide 'oai-tests-oai)
 

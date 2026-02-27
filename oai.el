@@ -43,6 +43,7 @@
 ;; - Use tags `@Backtrace` @Bt and Org links to insert target in query.
 ;; - Highlighting for major elements.
 ;; - Autofilling, hooks, powerful debugging
+;; - Noweb and tangling
 ;; - Customization for engineering, there is :chain for sequence of
 ;;   calls out-of-the-box.
 ;;
@@ -84,6 +85,11 @@
 ;;     - C-c C-t - set :max-tokens
 ;; - in buffer with oai-mode enabled:
 ;;     - C-g - to stop all requsts.
+
+;;;; Notes
+
+;; For expanding links to file, if link have extension .ai it will not
+;;  included directly without wrapping in markdown block.
 
 ;;;; Customization:
 
@@ -130,7 +136,8 @@
 ;; [[file:/usr/share/emacs/30.2/lisp/textmodes/tex-mode.el::1277::(setq-local font-lock-defaults]]
 ;; - small markdown mode on highlighting
 ;; - simple Elisp function to ask LLM
-;; - add guide to use `oai-restapi-request' and with retries for simple ELisp LLM call and get result for TAB key and some place in buffer.
+;; - add guide to use `oai-restapi-request' and with retries for simple
+;;   ELisp LLM call and get result for TAB key and some place in buffer.
 ;; - add option for tag to expand only the last user prompt or in all.
 ;; - C-c C-k should jump to current begining of message, not next
 ;; - add buttons: 1) generate button based on LLM answer 2) handle clicking.
@@ -145,14 +152,16 @@
 ;; - make `oai-expand-block' executed with `org-babel-expand-src-block'.
 ;; - provide place or hook to add custom expansion of link to one line for user defined mode
 ;; - support vars as tags    https://orgmode.org/manual/Environment-of-a-Code-Block.html
-;; - write test for `oai-block-tags-get-content' and `oai-block-tags--get-content-at-point-org' and noweb parameter usage
+;; - write test for `oai-block-tags-get-content' and `oai-block-tags--get-content-at-point-org'
+;;   and noweb parameter usage
 ;; - add advanced forward section that check what type of region is
-;; active and do appropriate forward with preserving region
+;;   active and do appropriate forward with preserving region
 ;; - noweb evaluation with support of variables with some text. like <<call("as")>>
 ;; - rebind keys to C-x C-a
 ;; - function to replace "^[\s+]- **word1 [word2]:**" to "^^[\s+]- word1 [word2] :: " and highligh it.
 ;; - fix highlight to highlight when there is only "#+end_ai"
-;; - create function that insert :max-token for given int
+;; - create function that insert :max-token and any for given int or value, like
+;;   `org-babel-insert-header-arg'
 ;; - Check that C-c C-n respect markdown blocks
 ;; - make key to remove all messages and left only the last
 ;;; Code:
@@ -428,16 +437,7 @@ SEEN is a list of commands already called, used to prevent recursion."
        (t
         (message "Binding for %s is not a command" key))))))
 
-;; -=-= interactive fns: Org keys remapings
-(defun oai-mark-at-point-org (&optional arg)
-  "Mark element of ai block, large we every next execution.
-If optional argument ARG is non-nil, mark current message of chat."
-  (interactive "P")
-  (if (oai-block-p)
-      (oai-block-mark-at-point arg)
-    ;; else
-    (oai--call-next-remap-protected #'org-mark-element)))
-
+;; -=-= interactive fns: Org keys
 (defun oai-expand-block-org ()
   "Show a temp buffer with what the ai block expands to."
   (interactive)
@@ -452,6 +452,58 @@ If optional argument ARG is non-nil, mark current message of chat."
       (oai-block-set-block-parameter ":max-tokens" oai-restapi-default-max-tokens)
     ;; else
     (oai--call-next-key-remap-protected "C-c C-t")))
+
+;; -=-= interactive fns: Org keys remapings
+(defun oai-mark-at-point-org (&optional arg)
+  "Call `org-mark-element' if cant mark element of ai block.
+Works if cursor in ai block.
+Increase region at next execution.
+If optional argument ARG is non-nil, mark current message of chat."
+  (interactive "P")
+  (if (oai-block-p)
+      (oai-block-mark-at-point arg)
+    ;; else
+    (oai--call-next-remap-protected #'org-mark-element)))
+
+(defun oai-fill-paragraph ()
+  "Call `org-fill-paragraph' to selected item in ai block.
+Works if cursor in ai block.
+If optional argument ARG is non-nil, mark current message of chat."
+  (interactive)
+  (oai--debug "oai-fill-paragraph")
+  (if-let ((element (oai-block-p)))
+      (or (call-interactively #'oai-block-fill-paragraph)
+          (when (oai-block-fill-region (point)
+                                       (save-excursion (forward-paragraph)
+                                                       (point)))
+                 (message "Line")))
+    ;; else
+    (oai--call-next-remap-protected #'org-fill-paragraph)))
+
+(defun oai-next-item (arg)
+  "Call `org-next-visible-heading' or move to next ai item.
+Works if cursor in ai block.
+
+Move to the next visible heading line.
+With ARG, repeats or can move backward if negative.
+TODO: if cursor at 1) begining of markdown block go to next markdown block.
+2) at header of ai block, go to end of ai block."
+  (interactive "p")
+  (if (oai-block-p)
+      (oai-block-next-message arg)
+    ;; else
+    (oai--call-next-remap-protected #'org-next-visible-heading)))
+
+(defun oai-previous-item (arg)
+  "Call `org-previous-visible-heading' or move to next ai item.
+Works if cursor in ai block.
+
+Move to the next visible heading line."
+  (interactive "p")
+  (if (oai-block-p)
+      (oai-block-previous-message arg)
+    ;; else
+    (oai--call-next-remap-protected #'org-previous-visible-heading)))
 
 ;; -=-= interactive fn: Summarize *TODO:*
 ;; (defun oai-summarize ()
@@ -476,9 +528,10 @@ If optional argument ARG is non-nil, mark current message of chat."
 (defvar-keymap oai-mode-map
   :repeat nil
   :parent nil
-  "<remap> <org-next-visible-heading>" #'oai-block-next-message ; C-c C-n todo make org
-  "<remap> <org-previous-visible-heading>" #'oai-block-previous-message ; C-c C-p todo make org
+  "<remap> <outline-next-visible-heading>" #'oai-next-item ; C-c C-n todo make org
+  "<remap> <outline-previous-visible-heading>" #'oai-previous-item ; C-c C-p todo make org
   "<remap> <org-mark-element>" #'oai-mark-at-point-org ; M-h
+  "<remap> <fill-paragraph>" #'oai-fill-paragraph ; M-q
   "C-c ." #'oai-expand-block-org
   "C-c C-." #'oai-open-request-buffer
   "C-c C-t" #'oai-set-max-tokens-org)
@@ -530,6 +583,7 @@ If optional argument ARG is non-nil, mark current message of chat."
           (add-to-list 'org-structure-template-alist '("A" . "ai")))
         ;; - Tangle: advice
         (advice-add 'org-babel-get-src-block-info :around #'oai-block--org-babel-get-src-block-info-advice)
+        (advice-add 'org-babel-where-is-src-block-head :around #'oai-block--org-babel-where-is-src-block-head-advice)
         (add-to-list 'org-babel-tangle-lang-exts '("ai" . "ai")) ; language . ext
         )
     ;; else - off
@@ -540,7 +594,9 @@ If optional argument ARG is non-nil, mark current message of chat."
     (org-set-font-lock-defaults)
     (font-lock-refresh-defaults)
     ;; tangle
-    (advice-remove 'org-babel-get-src-block-info #'oai-block--org-babel-get-src-block-info-advice)))
+    (advice-remove 'org-babel-get-src-block-info #'oai-block--org-babel-get-src-block-info-advice)
+    (advice-remove 'org-babel-where-is-src-block-head #'oai-block--org-babel-where-is-src-block-head-advice)
+    ))
 
 
 (defun oai-open-request-buffer ()

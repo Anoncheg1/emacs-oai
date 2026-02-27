@@ -31,8 +31,6 @@ Main function to get content of block:
   - (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
   - (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
 
-
-
 * Hooks - messages preparation for sending or content reading
 cases:
 - blend all messages to a one text at `oai-block-get-content' step
@@ -243,8 +241,15 @@ We use
 #+end_src
 
 * Function for ``` markdown blocks
-- oai-block--markdown-area - any ``` block at separate lines.
-- oai-block--markdown-lang-area - ``` with language
+
+Prepare markdown block
+- `oai-block-tags--compose-m-block' -
+- `oai-block-tags--compose-block-for-path' -
+- `oai-block-tags--compose-block-for-path-full' -
+
+Find markdown positions in ai block
+- `oai-block--markdown-area' - any ``` block at separate lines.
+
 * Org noweb
 ** how:
 Expand links on  evaluating, tangling, or exporting.

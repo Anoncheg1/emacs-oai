@@ -86,6 +86,19 @@ Always return string."
       (format "%s\n" args)
     (concat (prin1-to-string args) "\n")))
 
+(defun oai-debug--safe-format (fmt &rest args)
+  "Formats by removing all '%s' from FMT and appending ' %s' for each ARG."
+  ;; Remove all "%s" from fmt
+  (let* ((fmt (replace-regexp-in-string " ?%s" "" fmt))
+         (num-args (length args))
+         (fmt (concat fmt " "
+                   ;; (apply #'concat (make-list num-args " %s"))
+                   ;; (mapconcat #'identity (make-list num-args " %s") "")
+                   (string-join (make-list num-args "%s") " ")
+                   "\n")))
+    (apply 'format fmt args)))
+
+
 ;; -=-= Main
 (defun oai--debug (&rest args)
   "If firt argument of ARGS is a stringwith %s than behave like format.
@@ -145,7 +158,9 @@ Return last argument, but should not be used for return value."
             ;; if first line is a string with %s we output all at one line
             (if (and (equal (type-of (car args)) 'string)
                      (string-match "%s" (car args)))
-                (setq result-string (concat (apply #'format (car args) (cdr args)) "\n"))
+                ;; format %s
+                ;; (setq result-string (concat (apply #'format (car args) (cdr args)) "\n"))
+                (setq result-string (apply #'oai-debug--safe-format args)) ; (concat (apply #'format (car args) (cdr args)) "\n"))
 
               ;; else - output arguments line by line
               (setq result-string (concat (oai-debug--format-argument (car args))
