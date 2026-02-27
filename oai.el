@@ -483,11 +483,9 @@ If optional argument ARG is non-nil, mark current message of chat."
 (defun oai-next-item (arg)
   "Call `org-next-visible-heading' or move to next ai item.
 Works if cursor in ai block.
-
-Move to the next visible heading line.
-With ARG, repeats or can move backward if negative.
-TODO: if cursor at 1) begining of markdown block go to next markdown block.
-2) at header of ai block, go to end of ai block."
+Item may be header of ai block, markdown
+ ### header, markodown subblock, otherwise chat messages used as items.
+With ARG, repeats or can move backward if negative."
   (interactive "p")
   (if (oai-block-p)
       (oai-block-next-item arg)
@@ -495,10 +493,11 @@ TODO: if cursor at 1) begining of markdown block go to next markdown block.
     (oai--call-next-remap-protected #'org-next-visible-heading)))
 
 (defun oai-previous-item (arg)
-  "Call `org-previous-visible-heading' or move to next ai item.
+  "Call `org-previous-visible-heading' or move to previous ai item.
 Works if cursor in ai block.
-
-Move to the next visible heading line."
+Item may be header of ai block, markdown
+ ### header, markodown subblock, otherwise chat messages used as items.
+ARG may be positive or nil."
   (interactive "p")
   (if (oai-block-p)
       (oai-block-previous-item arg)
@@ -595,8 +594,7 @@ Move to the next visible heading line."
     (font-lock-refresh-defaults)
     ;; tangle
     (advice-remove 'org-babel-get-src-block-info #'oai-block--org-babel-get-src-block-info-advice)
-    (advice-remove 'org-babel-where-is-src-block-head #'oai-block--org-babel-where-is-src-block-head-advice)
-    ))
+    (advice-remove 'org-babel-where-is-src-block-head #'oai-block--org-babel-where-is-src-block-head-advice)))
 
 
 (defun oai-open-request-buffer ()

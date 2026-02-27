@@ -96,7 +96,7 @@ Always return string."
                    ;; (mapconcat #'identity (make-list num-args " %s") "")
                    (string-join (make-list num-args "%s") " ")
                    "\n")))
-    (apply 'format fmt args)))
+    (apply #'format fmt args)))
 
 
 ;; -=-= Main

@@ -553,8 +553,7 @@ Variable `oai-block-roles-prefixes' is used to format role to text."
           (insert "[" (car (rassoc 'user oai-block-roles-prefixes)) "]: \n")
           (forward-char -1)
           (setq pos (point))
-          (set-marker end-marker pos)
-          ))
+          (set-marker end-marker pos)))
 
       (when (or insert-me (and text (not (string-empty-p text))))
         (when oai-block-jump-to-end-of-block
@@ -1162,18 +1161,21 @@ If optional argument NOT-MARK is non-nil dont activate transient-mode."
 
 (defun oai-block--find-next-prev-region (direction current-point regions)
   "Helper to find the next or previous region boundary.
-DIRECTION is the movement direction: negative for previous, positive for next.
-CURRENT-POINT is the current cursor position. REGIONS is the list of all region boundaries.
-
+DIRECTION is the movement direction: negative for previous, positive for
+ next.
+CURRENT-POINT is the current cursor position. REGIONS is the list of all
+ region boundaries.
 Returns the position of the region boundary or nil if not found."
   (if (> direction 0)
       (seq-find (lambda (r) (> r current-point)) regions) ;; Next region
     (seq-find (lambda (r) (< r current-point)) (reverse regions)))) ;; Previous region
 
 (defun oai-block-next-message (&optional arg)
-  "Navigate AI block messages based on ARG.
-Moves forward or backward between roles in a chat block using ARG."
+  "Navigate between AI block messages based on ARG.
+ARG may be nil, forward if positive or backward if negative between
+ roles in ai block."
   (interactive "^p")
+  (or arg (setq arg 1))
   (when (and arg (< arg 0))
     (forward-line -1))
   (let* ((regions (oai-block--chat-role-regions))
@@ -1259,7 +1261,8 @@ Optional Arg may be positive or negative to indicate direction and
       (oai-block-next-message arg))))))
 
 (defun oai-block-previous-item (&optional arg)
-  "Jump backward by items, item type detected by cursor position."
+  "Jump backward by items, item type detected by cursor position.
+ARG should be positive number or nil."
   (interactive "^p")
   (oai-block-next-item (- (or arg 1))))
 
@@ -2003,6 +2006,7 @@ fill-region-as-paragraph."
 
 (defun oai-block-fill-region (beg end &optional justify)
   "Ignore code blocks that start with '```sometext' and end with '```'.
+BEG END and JUSTIFY have same as in `fill-region-as-paragraph'.
 TODO: use `forward-paragraph' instead of `forward-line'."
   (let ((modified-flag (buffer-chars-modified-tick))
         ;; markdown block range
@@ -2084,14 +2088,14 @@ Return t if point at ai block, nil otherwise."
                       ((save-excursion
                          (move-beginning-of-line 1)
                          (looking-at oai-block--ai-block-begin-end-re))
-                       (when (interactive-p)
+                       (when (called-interactively-p)
                          (message "Block content"))
                        (cons beg end))
                       ;; at message
                       ((save-excursion
                          (move-beginning-of-line 1)
                          (looking-at oai-block--chat-prefixes-re))
-                       (when (interactive-p)
+                       (when (called-interactively-p)
                          (message "Chat message"))
                        (oai-block-mark-chat-message-at-point t))))
                     (beg (car reg))
