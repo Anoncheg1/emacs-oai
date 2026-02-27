@@ -15,8 +15,8 @@ Protocol: “OpenAI like” HTTP REST API. (url.el)
 O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organization, Open Archives Initiative, Object-action interface, Shorthand for OpenAI.
 
 * Features:
-- *Tags* expansion of tags, Org links and noweb references
-- *Noweb and tangling*
+- *Tags and links* expansion of @ tags, Org [] links
+- *Noweb and tangling* support as if it is src block of Org mode
 - *Parallel requests* in the same or different buffer without blocking
 - *Highlighting* of markdown big blocks, tags and links, headers, bold text, Org tables, LaTeX
 - *Transparency* for inspecting raw data of request, powerful debugger
