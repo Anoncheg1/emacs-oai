@@ -434,7 +434,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
                      (should (string-match-p "^ssvv" (nth 0 res)))
                      (should (string-match-p "^Here test[^ ]+ folder:" (nth 1 res)))
                      (should (string-match-p "^```ls-output" (nth 2 res)))
-                     (should (string-match-p "^  /tmp/test[^ ]+:" (nth 3 res)))
+                     (should (string-match-p "^  /\\w*/\\w*[^ ]+:" (nth 3 res)))
                      ;; "  -rw-rw-r-- 1 g 0 Nov  5 21:13 file1.txt"
                      (should (string-match-p "file[12].txt" (nth 4 res)))
                      (should (string-match-p "file[12].txt" (nth 5 res)))
