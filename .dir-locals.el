@@ -12,6 +12,5 @@
                       (keymap-local-set "C-c C-e" #'outline-it-hide-other))
                     (keymap-local-set "<backtab>" #'outline-cycle-buffer)
                     (keymap-local-set "C-<tab>" #'outline-toggle-children)
-                    (outline-hide-body)
-                    ))
+                    (outline-hide-body)))
      )))
