@@ -115,8 +115,7 @@ Return last argument, but should not be used for return value."
                      (and (bound-and-true-p ert-enabled) (current-buffer))
                      (get-buffer-create oai-debug-buffer)))
              (current-window (selected-window))
-             (bu-window (or (get-buffer-window bu)
-                            (when (not (eq last-input-event 7)) ; not C-g exit - too much verbose
+             (bu-window (or (get-buffer-window bu)                            (when (not (eq last-input-event 7)) ; not C-g exit - too much verbose
                               (if (>= (count-windows) 2)
                                   (display-buffer-in-direction ; exist but hidden
                                    bu
@@ -130,6 +129,8 @@ Return last argument, but should not be used for return value."
                                    (window . new)))))
                             (when (not (eq last-input-event 7)) ; not C-g exit - too much verbose
                               (select-window current-window))))
+             (timestamp (when oai-debug-timestamp-flag
+                          (format-time-string "%M:%S.%3N " (current-time))))
              result-string)
 
         (with-current-buffer bu
@@ -174,18 +175,25 @@ Return last argument, but should not be used for return value."
                        (not (string-match-p (regexp-quote oai-debug-filter) result-string)))
                     (setq result-string nil))
             (when result-string
-              ;; - add timestamp
-              (when oai-debug-timestamp-flag
-                (let* ((time (current-time))
-                       (time-mili (format "%s.%03d"
-                                          (format-time-string "%M:%S" time)
-                                          (/ (nth 2 time) 1000))))
-                  (setq result-string (concat time-mili " " result-string))))
               ;; - two ways to output: for ert.el and to debug buffer.
               (if (bound-and-true-p ert-enabled)
-                  (princ (concat result-string "\n"))
+                  (princ (concat timestamp result-string "\n"))
                 ;; else
-                (insert result-string))))))))
+                ;; (insert-text-button "eval-expression"
+                ;;                     'type 'help-function-def
+                ;;                     'help-args '(eval-expression nil))
+                ;; first word insert as a link
+                (when timestamp (insert timestamp))
+                (if (string-match "[\s\n]+" result-string)
+                    (let ((first-part (substring result-string 0 (match-beginning 0)))
+                          (second-part (substring result-string (match-beginning 0))))
+                        (insert-text-button first-part
+                                            'type 'help-function-def
+                                            'help-args (list (intern first-part) nil))
+                        (insert second-part))
+                    ;; else - as one
+                    (insert result-string))
+                )))))))
   (car (reverse args)))
 
 ;; -=-= Helping function

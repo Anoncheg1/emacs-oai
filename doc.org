@@ -8,22 +8,29 @@ Replacing links trigger noweb links in target blocks and replacing links in them
 For sending request we replace links in all user messages, for expansion of links and tags we replace links in the last user message only. Also expand noweb in ~oai-block-get-content~ and in ~oai-block-tags-get-content~.
 
 Arguments not implemented: https://orgmode.org/manual/Environment-of-a-Code-Block.html
+* behavior conventions
+if optional ELEMENT is not provided and current buffer is org-mode, we use ~oai-block-p~ to get block at current positiion.
+* functions naming conventions
+all functions that return range or ranges of positions of string or buffer should ends with “-region” or “-regions”.
+- not “area” or “range”
 * preparation steps of block content for LLM
 Main function to get content of block:
 - oai-block-get-content - works without links and tags expansion
 - oai-restapi-prepare-content - works for all user messages
 - oai-block-tags-get-content - replace links aonly in last user message, works for all oai-block-tags-org-blocks-types
 
+# Old:
 *oai-restapi-request-prepare chain* that call `oai-restapi-prepare-content'
-1) oai-restapi--collect-chat-messages-at-point
-  + oai-block-get-content - string
+1) ~oai-block--collect-chat-messages-at-point~ old: ~oai-restapi--collect-chat-messages-at-point~
+  + oai-block--collect-chat-messages - vector
   + oai-block-tags-replace - string
-  + oai-restapi--collect-chat-messages - vector
   + oai-block--collect-chat-messages-from-string
     - oai-block--collect-chat-messages
 2) (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
 3) (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
 
+*oai-restapi-request-prepare chain* that call ~oai-restapi-prepare-content~
+oai-restapi-prepare-content
 
 *oai-prompt.el chain* for `oai-prompt-request-chain' function
 1) oai-restapi--collect-chat-messages-at-point - vector
@@ -48,7 +55,7 @@ Solution:
 - after all - vector level: as `oai-restapi-after-prepare-messages-hook' in `oai-restapi-request-llm-retries' and in `oai-restapi-prepare-content'
 * Hook - HTTP headers before sending
 [[file:~/sources/emacs-oai/oai-restapi.el::680::(defun oai-restapi--get-headers (service)]]
-* Main path of JSON decoding
+* RESTAPI: JSON decoding path
 For not stream
 - `oai-restapi--url-request-on-change-function' ->
 - `oai-restapi--get-single-response-text' ->
@@ -240,18 +247,27 @@ We use
       oai-block-roles-prefixes-unknown)) ; => assistant
 #+end_src
 
-* Function for ``` markdown blocks
+* Tangling and Noweb: in Org
+** Tangling
+Uses:
+- ~:tangle FILENAME~ or ~:tangle yes~ ( ~:tangle~ is not valid)
+- If your Org file is project.org and the code block is in python, the tangled file will be project.py
+- C-c C-v C-t = M-x org-babel-tangle
 
-Prepare markdown block
-- `oai-block-tags--compose-m-block' -
-- `oai-block-tags--compose-block-for-path' -
-- `oai-block-tags--compose-block-for-path-full' -
 
-Find markdown positions in ai block
-- `oai-block--markdown-area' - any ``` block at separate lines.
+We
+- add :around advice `org-babel-get-src-block-info' to get content of ia block
+- add :around advice `org-babel-where-is-src-block-head', that used for checking that it is src block by tangling system.
+- add file extension “ai” to `org-babel-tangle-lang-exts' variable
 
-* Org noweb
-** how:
+Main difficulty is pereventing loop by extension of noweb and links.
+
+If file extension of link in body is “ai”, we don't wrap code in markdown block at extension. see [[*Markdown: ```blocks]]
+
+
+see [[file:~/docsmy_short/modified/emacsh::*tangling <<tangle>>][tangling <<tangle>>]]
+** Noweb
+*** usage
 Expand links on  evaluating, tangling, or exporting.
 - Doc https://orgmode.org/manual/Noweb-Reference-Syntax.html
 
@@ -274,7 +290,30 @@ Expanded to:
 ,#+END_SRC
 
 #+end_src
-** test
+*** chain of calls
+
+
+
+- (org-babel-expand-noweb-references ‘("markdown" "<<ini>>"))
+-f for
+
+- For every <<>> string above,
+  - org-babel-ref-goto-headline-id("ini") - we found block with “ini” name
+  - org-babel-named-src-block-regexp-for-name("ini")
+
+
+  - (org-babel-ref-resolve id) - resolve, whe id is “ini”
+
+  - apply “expand-body” macros use ( 1 of info to get body)
+    - In most Org Babel code, the second element is the body
+    - most of code handle cache `org-babel-expand-noweb-references--cache`
+
+- `expand-body` receives `info`, which is produced by `org-babel-get-src-block-info`.
+- `info` is a list: `(language body params)` where:
+  - `body` is the actual content of the block.
+  - `params` include block metadata.
+
+*** test
 #+NAME: initialization
 #+BEGIN_SRC emacs-lisp
   (setq sentence "Never a foot too far, even.")
@@ -305,7 +344,7 @@ Expanded to:
 #+end_src
 
 (org-babel--expand-body (org-babel-get-src-block-info))
-** main function
+*** main function (old)
 #+begin_src elisp :lexical t :results none :exports code :eval no
 (defun my/org-babel-noweb-p (params context)
   "Check if PARAMS require expansion in CONTEXT.
@@ -320,8 +359,99 @@ CONTEXT may be one of :tangle, :export or :eval."
 (let ((info '((:noweb . "no") (:stream . "nil") (:max-tokens . 1200) (:sys . "Be helpful.") (:service . "github") (:model . "openai/gpt-4.1"))))
   (my/org-babel-noweb-p info :eval))
 #+end_src
-** implementation
+*** test
+#+NAME: ina
+#+begin_ai
+test
+#+end_ai
+
+
+#+begin_ai
+<<ina()>>
+#+end_ai
+
+test:
+: (org-babel-expand-noweb-references (list "text" "<<ina()>>"))
+
+*** TODO implementation
+`oai-block-tags-get-content' call:
+(oai-block-tags--apply-noweb) - that call `org-babel-expand-noweb-references', call oai--org-babel-get-src-block-info, but inly if reference is <<inf()>> with “()”
+- referenced ai blocks evalueated by oai-block-tags-get-content with :tangle contenxt, so subcalls is possible
+
+or (old):
+- oai-block-get-content - call `org-babel-expand-noweb-references' directly, but referenced subbocks evaluated with new `oai-block-tags-get-content'
+*** calling for string of context with noweb
 : (org-babel-expand-noweb-references (list "markdown" unexpanded-content))
+
+* Tangling and Noweb: control
+Controlled in
+- oai-block-tags-get-content-ai-messages
+- oai-block-get-content
+
+Expansion of noweb controled by noweb parameter ~noweb-control~ in oai-block-tags functions.
+
+How to handle noweb in subblocks? pass context or control?
+- For now, we *dont activate noweb in subsequent block* at links expansion.
+
+Tags and links expanded always in :tangle and :eval context and in subsequent sub-blocks by links.
+
+Noweb contrelled by :noweb ai block parameter and readed according to context - tangling, evaluating or exporting.
+- `org-babel-noweb-p' function accept context and read :noweb according to context provided. If there is no :noweb, retunr nil.
+
+* Tangling: loop prevention
+If loop detected, we disable ~tangle-control~ and ~noweb-control~.
+
+How? We keep trace of all ai blocks that was pros a list of header markers. Do it in functions:
+-`oai-block-tags-get-content-ai-messages'
+
+* Tags and Links: get content
+Main: ~oai-block-tags--get-content-at-point~
+
+get ai block in Org
+- ai block in Org - wrapped in ~oai-block-tags--get-content-org-block-at-point~
+
+in ai file
+- [[file:~/sources/emacs-oai/oai-block-tags.el::706::((string-equal "ai" (oai-block-tags--filepath-to-language (buffer-file-name)))]]
+
+in ai block at point
+- markdown subblock - wrapped in markdown block ~oai-block-tags--get-m-block-at-point~
+- message - without markdown block wrapping [[file:~/sources/emacs-oai/oai-block-tags.el::785::(if (and (looking-at oai-block--chat-prefixes-re)]]
+
+Other modes at point ~oai-block-tags--get-content-at-point-not-org~.
+
+file path:
+- oai-block-tags--compose-block-for-path-full
+
+* Markdown: ```blocks
+
+Prepare markdown block  `oai-block-tags--compose-m-block' - used by:
+- `oai-block-tags--compose-block-for-path-full'
+- `oai-block-tags--get-content-at-point-not-org'
+- `oai-block-tags--get-content-at-point-org'
+  - `oai-block-tags--get-content-org-block-at-point'
+- `oai-block-tags--get-org-links-content' - for links NUM-NUM
+- `oai-block-tags-replace' - for backtrace
+
+Find markdown positions in ai block
+- `oai-block--pos-in-markdown-block-p' - any ``` block at separate lines.
+
+To detect language for compose-m-block:
+- in `oai-block-tags--get-content-org-block-at-point' - for Org element - src or ai block
+- oai-block-tags--filepath-to-language
+
+
+add ai block suport:
+oai-block-tags--get-content-at-point-org
+- oai-block-tags--get-m-block-at-point
+
+oai-block-tags--get-content-at-point-not-org called from:
+- oai-block-tags--get-content-at-point - used in:
+  - oai-block-tags--get-org-links-content - num1
+  - oai-block-tags--get-replacement-for-org-link -
+* global Emacs variables that keep infor about file extensions and modes
+- auto-mode-alist - (file-extension . major-mode) - used in `oai-block-tags--filepath-to-language'
+- org-src-lang-modes - used by `oai-block-tags--filepath-to-language'. In Org, used by org-src-get-lang-mode in org-src-font-lock-fontify-block.
+- org-babel-tangle-lang-exts - used by Org function `org-babel-tangle-single-block' which called from `org-babel-tangle'.
 * Tests: Not covered staff
 - font-locks
 - fill paragraph

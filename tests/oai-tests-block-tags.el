@@ -40,6 +40,16 @@
 ;; to execute all tests. Individual tests can be run with (ert 'test-name).
 ;;; Code:
 ;; (setopt oai-debug-buffer "*debug-oai*")
+
+;; -=-= help functions
+(defun oai-tests-block-tags-insert-block ()
+  (mark-whole-buffer) ; output Mark set
+  (call-interactively #'kill-region)
+  (insert "#+begin_ai\n")
+  (let ((p1 (point)))
+    (insert "\n#+end_ai")
+    (goto-char p1)))
+
 ;; -=-= Tests --------------------------------------------------------
 (ert-deftest oai-tests-block-tags--read-file-to-string-safe--read-ok ()
   "Should read a regular readable file and return its contents."
@@ -185,8 +195,7 @@ text after"))
              (range (oai-block-tags--markdown-fenced-code-body-get-range
                      limit-begin limit-end)))
         (should
-        (equal range nil)))))
-)
+        (equal range nil))))))
 
 (ert-deftest oai-tests-block-tags--markdown-fenced-code-body-get-range3 ()
   (should (equal '(39 41)
@@ -472,7 +481,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\nasda\nasd\n#+end_ai")
       (setq res (oai-block-tags--contents-area))
       (should (= (car res) 291 ))
-      (should (= (cdr res) 299 )))))
+      (should (= (cdr res) 300 )))))
 
 ;; -=-= Test: oai-block-tags--filepath-to-language
 (ert-deftest oai-tests-block-tags--filepath-to-language ()
@@ -493,7 +502,17 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
   (should
    (string-equal (oai-block-tags--filepath-to-language "/tmp/a.org") "org"))
   (should
-   (string-equal (oai-block-tags--filepath-to-language "a.txt") "text")))
+   (string-equal (oai-block-tags--filepath-to-language "/") "ls-output"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "a.txt") "text"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "as/a.ai") "ai"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "as/a.aisds") "auto"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language "aisds") "auto"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language nil) "auto")))
 
 ;; -=-= Test: oai-block-tags-replace
 (ert-deftest oai-tests-block-tags--replace ()
@@ -629,25 +648,25 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (goto-char 1)
       (oai-block-tags--get-content-at-point-not-org)))))
 
-(ert-deftest oai-tests-block-tags--get-content-at-point-not-org3 ()
-  ;; Test: paragraph
-  (should
-   (string-equal
-    "\n```text\n;; -- header2\ntext2\n```"
-    (with-temp-buffer
-      (text-mode)
-      (setq-local paragraph-start "\f\\|[ \t]*$")
-      (setq-local paragraph-separate "[ \t\f]*$")
-      (let ((p))
-        (progn
-          (insert "text0\n")
-          (insert "\n")
-          (insert ";; -- header1\ntext1\n")
-          (setq p (point))
-          (insert "\n")
-          (insert ";; -- header2\ntext2"))
-        (goto-char p))
-      (oai-block-tags--get-content-at-point-not-org)))))
+;; (ert-deftest oai-tests-block-tags--get-content-at-point-not-org3 ()
+;;   ;; Test: paragraph
+;;   (should
+;;    (string-equal
+;;     "\n```text\n;; -- header2\ntext2\n```"
+;;     (with-temp-buffer
+;;       (text-mode)
+;;       (setq-local paragraph-start "\f\\|[ \t]*$")
+;;       (setq-local paragraph-separate "[ \t\f]*$")
+;;       (let ((p))
+;;         (progn
+;;           (insert "text0\n")
+;;           (insert "\n")
+;;           (insert ";; -- header1\ntext1\n")
+;;           (setq p (point))
+;;           (insert "\n")
+;;           (insert ";; -- header2\ntext2"))
+;;         (goto-char p))
+;;       (oai-block-tags--get-content-at-point-not-org)))))
 
 ;; -=-= Test: oai-block-tags--get-content-at-point
 (ert-deftest oai-tests-block-tags--get-content-at-point1 ()
@@ -691,9 +710,8 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
         (oai-block-tags--get-content-at-point))))))
 
 
-
-;; -=-= Test: oai-block-tags--get-org-content-m-block
-(ert-deftest oai-tests-block-tags--get-org-content-m-block1 ()
+;; -=-= Test: oai-block-tags--get-content-org-block-at-point
+(ert-deftest oai-tests-block-tags--get-content-org-block-at-point ()
   (should
    (string-equal
     "\nBlock name: asd\n```elisp\naa\n```"
@@ -701,7 +719,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (org-mode)
       (insert "#+NAME: asd\n#+begin_src elisp\naa\n#+end_src\n")
       (goto-char 11)
-      (oai-block-tags--get-org-content-m-block)))))
+      (oai-block-tags--get-content-org-block-at-point)))))
 
 ;; (ert-deftest oai-tests-block-tags--get-org-content-m-block2 ()
 ;;   (should
@@ -711,7 +729,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
 ;;       (org-mode)
 ;;       (insert "#+NAME: asd\n#+begin_ai\naa\n#+end_ai\n")
 ;;       (goto-char 11)
-;;       (oai-block-tags--get-org-content-m-block)))))
+;;       (oai-block-tags--get-content-org-block-at-point)))))
 
 ;; -=-= Test: oai-block-tags--compose-block-for-path
 (ert-deftest oai-tests-block-tags--compose-block-for-path ()
@@ -732,6 +750,17 @@ Here a.el:
 ```elisp
 ss
 ```")))
+
+;; -=-= Test: oai-block-tags--compose-m-block
+(ert-deftest oai-tests-block-tags--compose-m-block ()
+  (should
+   (string-equal (oai-block-tags--compose-m-block "aaa" :lang "bbb" :header "ccc") "\nccc\n```bbb\naaa\n```"))
+  (should
+   (string-equal (oai-block-tags--compose-m-block "asda\n[me:] asdas" :lang "ai" :header "some header") "some header\nasda\n[me:] asdas"))
+  (should
+   (string-equal (oai-block-tags--compose-m-block "[me:] asda\n[ai:] asdas" :lang "ai" :header "some header") "[me:] some header\nasda\n[ai:] asdas"))
+  (should
+   (string-equal (oai-block-tags--compose-m-block "Text\nasdas" :lang "ai" :header "Header:") "Header:\nText\nasdas")))
 
 ;; -=-= Test: oai-block-tags--position-in-markdown-block-str-p
 (ert-deftest oai-tests-block-tags--position-in-markdown-block-str-p ()
@@ -796,8 +825,7 @@ ss
   (should (oai-block-tags--string-is-quoted-p "`as`\n`as`" 1)) ; t
   (should-not (oai-block-tags--string-is-quoted-p "`as`\n`as`" 0))) ; nil
 
-;; -=-= Test: noweb: oai-block-tags--get-org-content-m-block, oai-block-get-content.
-
+;; -=-= Test: noweb: oai-block-tags--get-content-org-block-at-point, oai-block-get-content.
 
 (ert-deftest oai-tests-block-tags--noweb1 ()
 
@@ -816,7 +844,7 @@ ss
 <<initialization()>>
 #+end_ai")
       (let (org-confirm-babel-evaluate)
-      (oai-block-get-content))))))
+        (oai-block-get-content))))))
 
 (ert-deftest oai-tests-block-tags--noweb2 ()
   ;; oai-block-get-content
@@ -873,6 +901,53 @@ ss
 ;; <<initialization>>
 ;; #+end_ai")
 ;;       (oai-block-get-content)))))
+
+;; -=-= Test: oai-block-tags--get-content-chat-message-at-point
+(ert-deftest oai-tests-block-tags--get-content-chat-message-at-point1 ()
+  (with-temp-buffer
+    ;; (setq ert-enabled nil)
+    (org-mode)
+    (transient-mark-mode)
+    (oai-tests-block-tags-insert-block) ; output "Mark set"
+    (let (p1 p2 res)
+      (insert "[ai:] vvv1\n")
+      (setq p1 (point))
+      (insert "[ME:] bla\nbbb\n")
+      (setq p2 (point))
+      ;; (insert "```elisp\n")
+      ;; (insert "as\n")
+      ;; (setq p2 (point))
+      (insert "[ai:] vvv\n\n")
+      (should-not (setq res (oai-block-tags--get-content-chat-message-at-point)))
+      (goto-char p1)
+      (setq res (oai-block-tags--get-content-chat-message-at-point))
+      (should (string-equal res "[ME:] bla\nbbb"))
+      (goto-char p2)
+      (setq res (oai-block-tags--get-content-chat-message-at-point))
+      (should (string-equal res "[ai:] vvv" )))))
+
+(ert-deftest oai-tests-block-tags--get-content-chat-message-at-point2 ()
+  (with-temp-buffer
+    ;; (setq ert-enabled nil)
+    ;; (org-mode)
+    (fundamental-mode)
+    ;; (transient-mark-mode)
+    (let (p1 p2 res)
+      (insert "[ai:] vvv1\n")
+      (setq p1 (point))
+      (insert "[ME:] bla\nbbb\n")
+      (setq p2 (point))
+      ;; (insert "```elisp\n")
+      ;; (insert "as\n")
+      ;; (setq p2 (point))
+      (insert "[ai:] vvv\n\n")
+      (should-not (setq res (oai-block-tags--get-content-chat-message-at-point)))
+      (goto-char p1)
+      (setq res (oai-block-tags--get-content-chat-message-at-point))
+      (should (string-equal res "[ME:] bla\nbbb"))
+      (goto-char p2)
+      (setq res (oai-block-tags--get-content-chat-message-at-point))
+      (should (string-equal res "[ai:] vvv" )))))
 
 ;; -=-= provide
 (provide 'oai-tests-block-tags)

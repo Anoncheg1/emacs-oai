@@ -5,7 +5,7 @@
 
 * OAI - chat interface to LLMs and AI agents in Org blocks.
 
-*Version 0.2*
+*Version 0.3*
 Emacs package, provide block ~#+begin_ai~ in Org mode for communication with LLMs APIs. Inspired by Robert Krahn's [[https://github.com/rksm/org-ai][org-ai package]]
 
 Protocol: “OpenAI like” HTTP REST API. (url.el)
@@ -22,7 +22,6 @@ O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organ
 - *Transparency* for inspecting raw data of request, powerful debugger
 - *Customization and autofilling*, hooks
 - *Prompt engineering* tools, there is ~:chain~ of calls out-of-the-box
-
 
 * Screenshot
 - At left - optional debugging window
@@ -223,9 +222,26 @@ For incoming RestAPI conversion to prefixes ~oai-block-roles-restapi~ variable u
 - org-fill-paragraph = oai-block-fill-paragraph
 - org-babel-mark-block = oai-block-mark-at-point
 - org-babel-find-named-block = oai-find-named-block
-- org-src--contents-area = oai-block--area, oai-block--contents-area
-- org-babel--normalize-body = oai-block--area, oai-block--contents-area
+- org-src--contents-area = oai-block--region, oai-block--contents-region
+- org-babel--normalize-body = oai-block--region, oai-block--contents-region
 - org-babel-insert-header-arg - TODO!!
+* Tangling and noweb notes
+We dont activate noweb in subsequent block at expansion of links and tags.
+
+“oai-noweb” (Org property for the entry at point-or-marker) is used to control noweb (~org-entry-get~) if :noweb block parameter is not set.
+
+Example:
+
+#+NAME: ina
+#+begin_ai
+test
+#+end_ai
+
+#+begin_ai
+<<ina()>>
+#+end_ai
+
+Chain of noweb references is possible, referenced ai blocks evaluated with :tangle context.
 * How this works?
 We add “ai” as a type of special block to variables ~org-protecting-blocks~ and ~org-structure-template-alist~.
 
