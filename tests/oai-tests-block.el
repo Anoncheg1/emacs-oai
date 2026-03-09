@@ -45,6 +45,15 @@
 (require 'ert)             ; Testing framework
 (defvar ert-enabled nil)
 ;; -=-= Helper function to set up a temporary Org buffer for testing.
+
+(defun oai-tests-block-insert-block ()
+  (mark-whole-buffer) ; output Mark set
+  (call-interactively #'kill-region)
+  (insert "#+begin_ai\n")
+  (let ((p1 (point)))
+    (insert "test\n#+end_ai")
+    (goto-char p1)))
+
 ;; It inserts content and optional Org properties, then returns the
 ;; parsed Oai block element and its parameters alist.
 ;; (defun oai-test-setup-buffer (block-content &optional properties-alist)
@@ -379,6 +388,34 @@ as
       (setq res (oai-block--collect-chat-messages-from-string payload))
       (should (equal correct-merged res)))))
 
+;; -=-= Test: `oai-block--find-region-with-position'
+(ert-deftest oai-tests-block--find-region-with-position ()
+  ;;  Basic inside region
+  (should (equal (oai-block--find-region-with-position '(10 20 30) 15) '((10 . 20) . 0))) ; => (10 . 20)
+
+  (should (equal (oai-block--find-region-with-position '(10 20) 20) '((10 . 20) . 0)))
+
+  (should (equal (oai-block--find-region-with-position '(10 20 30) 5) nil))
+  ;; (should (equal (oai-block--find-region-with-position '(10 20 30 40) 30) nil))
+                                        ;
+  ;;  Exact boundary at start
+  (should (equal (oai-block--find-region-with-position '(10 20 30) 10) '((10 . 20) . 0))) ; => (10 . 20)
+
+  ;;  Exact boundary at end
+  (should (equal (oai-block--find-region-with-position '(10 20 30) 20) '((20 . 30) . 1))) ; => (20 . 30)
+
+  ;;  Before first region
+  (should (equal (oai-block--find-region-with-position '(10 20 30) 5) nil)) ; => nil
+
+  ;;  After last region
+  (should (equal (oai-block--find-region-with-position '(10 20 30) 40) nil)) ; => nil
+
+  ;;  Single region (should return nil, lacking 'end')
+  (should (equal (oai-block--find-region-with-position '(10) 10) nil)) ; => nil
+
+  ;;  Multiple regions, gaps between, check middle gap
+  (should (equal (oai-block--find-region-with-position '(10 20 40 60) 45) '((40 . 60) . 2))) ; => (40 . 60)
+  )
 ;; -=-= Test: `oai-block--merge-by-role'
 (ert-deftest oai-tests-block--oai-block--merge-consecutive-messages-by-role1()
   (should (equal (let ((parts
@@ -654,52 +691,6 @@ as
 (ert-deftest oai-block--in-markdown-any-quotes-p-mixed-outside2 ()
   (should-not (oai-tests-block--test--with-temp-buffer-at-pos "ss`foo` and ```bar```" 0 #'oai-block--in-markdown-any-quotes-p)))
 
-;; -=-= Test: oai-block--markdown-area
-(ert-deftest oai-tests-block--markdown-area ()
-  (let (kill-buffer-query-functions
-        org-execute-file-search-functions
-        points
-        res)
-    (with-temp-buffer
-      (org-mode)
-      (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
-      (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n#+end_ai")
-      (setq res (oai-block--markdown-area (point-min) (point-min) (point-max)))
-      ;; (oai-block-tags--markdown-mark-fenced-code-body))))
-      (should-not res))
-    (with-temp-buffer
-      (goto-char (point-min))
-      (let(points)
-        (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"")
-        (push (point) points)
-        (insert "\n")
-        (push (point) points)
-        (insert "```elisp")
-        (push (point) points)
-        (insert "\n\n\n")
-        ;; (print (point))
-        (push (point) points)
-        (insert "```")
-        (push (point) points)
-        (insert "\n")
-        (push (point) points)
-        (insert "#+end_ai")
-        (insert "\n")
-      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
-      (should-not res)
-      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
-      ;; (should-not res
-      (should (equal res '((91 105) (100 99))))
-      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
-      (should (equal res '((91 105) (100 99))))
-
-      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
-      (should (equal res '((91 105) (100 99))))
-      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
-      (should (equal res '((91 105) (100 99))))
-      (setq res (oai-block--markdown-area (pop points) (point-min) (point-max)))
-      (should-not res)))))
-
 
 ;; -=-= Test: `oai-block-mark-at-point'
 (ert-deftest oai-tests-block--mark-at-point ()
@@ -730,7 +721,7 @@ as
         (should (equal res '(91 106)))
         (call-interactively #'oai-block-mark-at-point)
         (setq res (list (region-beginning) (region-end)))
-        (should (equal (list (region-beginning) (region-end)) '(91 107)))
+        (should (equal (list (region-beginning) (region-end)) '(1 115)))
         (call-interactively #'oai-block-mark-at-point)
         (setq res (list (region-beginning) (region-end)))
         (should (equal (list (region-beginning) (region-end)) '(1 115)))
@@ -760,15 +751,7 @@ as
 ;; (my/diff-strings "hello" "hxlpo")
 
 
-(defun oai-tests-block-insert-block ()
-  (mark-whole-buffer) ; output Mark set
-  (call-interactively #'kill-region)
-  (insert "#+begin_ai\n")
-  (let ((p1 (point)))
-    (insert "test\n#+end_ai")
-    (goto-char p1)))
-
-(ert-deftest oai-tests-block-insert-single-response ()
+(ert-deftest oai-tests-block--insert-single-response ()
   (with-temp-buffer
     ;; (setq ert-enabled nil)
     (org-mode)
@@ -863,6 +846,166 @@ as
         ;; (print (point)))))
         (should (eq 12 (point)))
         (should-not fill-called)))))
+;; -=-= Test: `oai-block--chat-role-regions'
+(ert-deftest oai-tests-block--chat-role-regions-in-org ()
+  (with-temp-buffer
+    ;; (setq ert-enabled nil)
+    (org-mode)
+    ;; (oai-mode)
+    (transient-mark-mode)
+    (oai-tests-block-insert-block)
+    (insert "Test\n[AI]: bla\n[ME]: aaa\nvvv")
+    (should (equal (oai-block--chat-role-regions) '(12 17 27 45))))
+
+  (with-temp-buffer
+    ;; (setq ert-enabled nil)
+    (org-mode)
+    ;; (oai-mode)
+    (transient-mark-mode)
+    (oai-tests-block-insert-block)
+    (insert "[ME]: Test\n[AI]: bla\n[ME]: aaa\nvvv")
+    (let (res)
+      (setq res (oai-block--chat-role-regions))
+    (should (equal res '(12 23 33 51))))))
+
+(ert-deftest oai-tests-block--chat-role-regions-in-fundamental ()
+  (with-temp-buffer
+    (insert "Test\n[AI]: bla\n[ME]: aaa\nvvv")
+    (let (res)
+      (setq res (oai-block--chat-role-regions))
+    (should (equal res '(1 6 16 29)))))
+  (with-temp-buffer
+    (insert "[ME]: Test\n[AI]: bla\n[ME]: aaa\nvvv")
+    (let (res)
+      (setq res (oai-block--chat-role-regions))
+    (should (equal res '(1 12 22 35))))))
+
+;; -=-= Test: `oai-block--pos-in-markdown-block-p'
+(ert-deftest oai-tests-block--pos-in-markdown-block-p-org ()
+  (with-temp-buffer
+    ;; (setq ert-enabled nil)
+    (org-mode)
+    ;; (oai-mode)
+    (transient-mark-mode)
+    (oai-tests-block-insert-block)
+    (let (p1 p2 p3 p4 p5 res)
+      (insert "Test")
+      (setq p1 (point))
+      (insert "\n[AI]: \n```elisp\n")
+      (setq p2 (point))
+      (insert "asd1\n```\n")
+      (setq p3 (point))
+      (insert "[ME]: aaa\n```elisp\na")
+      (setq p4 (point))
+      (insert "sd1\n```\nvvv\n")
+      (setq p5 (point))
+      (insert "sd1\n```\nvvv")
+      (goto-char (point-min))
+      (should (equal (oai-block--pos-in-markdown-block-p) nil))
+      (goto-char p1)
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res nil))
+      (goto-char p2)
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res '(24 . 38)))
+      (goto-char p3)
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res nil))
+      (goto-char p4)
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res '(52 . 66)))
+      (goto-char p5)
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res nil))
+      (goto-char (point-max))
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res nil)))))
+
+(ert-deftest oai-tests-block--pos-in-markdown-block-p-not-org ()
+  (with-temp-buffer
+    ;; (setq ert-enabled nil)
+    ;; (oai-mode)
+    (fundamental-mode)
+    ;; (transient-mark-mode)
+    ;; (oai-tests-block-insert-block)
+    (let (p1 p2 p3 p4 p5 res)
+      (insert "Test")
+      (setq p1 (point))
+      (insert "\n[AI]: \n```elisp\n")
+      (setq p2 (point))
+      (insert "asd1\n```\n")
+      (setq p3 (point))
+      (insert "[ME]: aaa\n```elisp\na")
+      (setq p4 (point))
+      (insert "sd1\n```\nvvv\n")
+      (setq p5 (point))
+      (insert "sd1\n```\nvvv")
+      (goto-char (point-min))
+      (should (equal (oai-block--pos-in-markdown-block-p) nil))
+      (goto-char p1)
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res nil))
+      (goto-char p2)
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res '(13 . 27)))
+      (goto-char p3)
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res nil))
+      (goto-char p4)
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res '(41 . 55)))
+      (goto-char p5)
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res nil))
+      (goto-char (point-max))
+      (setq res (oai-block--pos-in-markdown-block-p))
+      (should (equal res nil)))))
+
+(ert-deftest oai-tests-block--pos-in-markdown-block-p3 ()
+  (let (kill-buffer-query-functions
+        org-execute-file-search-functions
+        points
+        res)
+    (with-temp-buffer
+      (org-mode)
+      (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
+      (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n#+end_ai")
+      (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-min) (point-max)))
+      ;; (oai-block-tags--markdown-mark-fenced-code-body))))
+      (should-not res))
+    (with-temp-buffer
+
+      (let(p1 p2 p3 p4 p5 p6)
+        (goto-char (point-min))
+        (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"")
+        (setq p1 (point))
+        (insert "\n")
+        (setq p2 (point))
+        (insert "```elisp")
+        (setq p3 (point))
+        (insert "\n\n\n")
+        ;; (print (point))
+        (setq p4 (point))
+        (insert "```")
+        ;; (setq p5 (point))
+        (insert "\n")
+        (setq p6 (point))
+        (insert "#+end_ai")
+        (insert "\n")
+      (setq res (oai-block--pos-in-markdown-block-p p1 (point-min) (point-max)))
+      (should-not res)
+      (setq res (oai-block--pos-in-markdown-block-p p2 (point-min) (point-max)))
+      ;; (should-not res
+      (should (equal res '(91 . 102)))
+      (setq res (oai-block--pos-in-markdown-block-p p3 (point-min) (point-max)))
+      (should (equal res '(91 . 102)))
+
+      (setq res (oai-block--pos-in-markdown-block-p p4 (point-min) (point-max)))
+      (should (equal res '(91 . 102)))
+      ;; (setq res (oai-block--pos-in-markdown-block-p p5 (point-min) (point-max))))))
+      ;; (should (equal res '((91 105) (100 99))))
+      (setq res (oai-block--pos-in-markdown-block-p p6 (point-min) (point-max)))
+      (should-not res)))))
 
 ;; -=-= provide
 (provide 'oai-tests-block)

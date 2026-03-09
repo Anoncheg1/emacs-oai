@@ -66,7 +66,7 @@ Arguments TYPE CONTENT BEFORE-POS STREAM parameters described in
 `oai-block-after-chat-insertion-hook' hook."
   (ignore content stream)
   (save-excursion
-    (oai--debug "IN A HOOK oai-optional-remove-distant-empty-lines-hook-function: %s %s %s %s"
+    (oai--debug "oai-optional-remove-distant-empty-lines-hook-function HOOK: %s %s %s %s"
                 before-pos
                 (point)
                 type
@@ -95,7 +95,7 @@ Remove Org headers between BEFORE-POS and current position in current
 TYPE _CONTENT BEFORE-POS BUF parameters described in
 `oai-block-after-chat-insertion-hook' hook.
 Should be added the last to be executed first."
-  (oai--debug "IN A HOOK oai-optional-remove-headers-for-hook: %s %s %s %s"
+  (oai--debug "oai-optional-remove-headers-hook-function HOOK: %s %s %s %s"
               before-pos
               (point)
               type

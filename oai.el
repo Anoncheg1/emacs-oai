@@ -4,7 +4,7 @@
 ;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
 ;; Keywords: org, comm, url, link
 ;; URL: https://github.com/Anoncheg1/emacs-oai
-;; Version: 0.2
+;; Version: 0.3
 ;; Created: 27 dec 2025
 ;; Package-Requires: ((emacs "29.1"))
 ;; Optional dependency: ((org-links "0.2"))
@@ -161,9 +161,17 @@
 ;; - function to replace "^[\s+]- **word1 [word2]:**" to "^^[\s+]- word1 [word2] :: " and highligh it.
 ;; - fix highlight to highlight when there is only "#+end_ai"
 ;; - create function that insert :max-token and any for given int or value, like
-;;   `org-babel-insert-header-arg'
+;;  `org-babel-insert-header-arg'
 ;; - Check that C-c C-n respect markdown blocks
 ;; - make key to remove all messages and left only the last
+;; - write tests for `oai-block-tags--compose-m-block'
+
+;; - remove bound to Org mode from oai-block-tags for more support for
+;;  .ai file extension without ai block
+;; - (org-mark-element) replace with implementation that respect markdown code blocks as one element
+;; - pre-call: and post-call: for preparation and postprocessing and
+;;  pre-/post-service and model. or guide for hooks
+;; - implement
 ;;; Code:
 
 ;; Touch: Pain, water and warm.
@@ -296,7 +304,7 @@ Return list of strings to print."
       (list
        (oai-restapi--get-endpoint messages service)
        (oai-restapi--get-headers service)
-       (oai-restapi--payload :prompt (when req-type-completion (oai-block-get-content element)) ; block content string
+       (oai-restapi--payload :prompt (when req-type-completion (oai-block-get-content element t)) ; block content string
 			     :messages messages
 			     :model model
 			     :max-tokens max-tokens
@@ -323,25 +331,11 @@ block was found, otherwise nil."
   (when-let* ((element (oai-block-p)) ; (oai-block-tags--block-at-point))) ; oai-block.el
               (res-str (if arg
                            (pp-to-string (oai-expand-block-deep))
-                         ;; else
-                         ;; (let* (
-                         ;;        ;; get block
-
-                         ;;        (expanded (string-trim
-                         ;;                   (oai-block-get-content element))) ; oai-block.el
-                         ;;        ;; (expanded (oai-block-tags-replace expanded))
-                         ;;        ;; vector
-                         ;;        (expanded (oai-block--collect-chat-messages-from-string expanded))
-                         ;;        (expanded (oai-restapi--modify-vector-content expanded #'oai-block-tags-replace 'user))
-                         ;;        ;; one string
-                         ;;        (expanded (oai-block--stringify-chat-messages expanded)))
-                         ;;   expanded))))
+                         ;; - just content with expanded links:
                          (oai-block-tags-get-content element
-                                                     t ; tags-control
                                                      t  ; noweb-control
-                                                     :eval ; noweb-context
-                                                      t ; links-only-last
-                                                      t ; not-clear-properties
+                                                     nil ; links-only-last
+                                                     t ; not-clear-properties
                                                      ))))
     (if (called-interactively-p 'any)
         (let ((buf (get-buffer-create "*OAI Preview*")))
@@ -465,12 +459,23 @@ If optional argument ARG is non-nil, mark current message of chat."
     ;; else
     (oai--call-next-remap-protected #'org-mark-element)))
 
+;; (defun oai-mark-at-point-not-org (&optional arg)
+;;   "Call `org-mark-element' if cant mark element of ai block.
+;; Works if cursor in ai block.
+;; Increase region at next execution.
+;; If optional argument ARG is non-nil, mark current message of chat."
+;;   (interactive "P")
+;;   (if (oai-block-p)
+;;       (oai-block-mark-at-point arg)
+;;     ;; else
+;;     (oai--call-next-remap-protected #'mark-paragraph)))
+
 (defun oai-fill-paragraph ()
   "Call `org-fill-paragraph' to selected item in ai block.
 Works if cursor in ai block.
 If optional argument ARG is non-nil, mark current message of chat."
   (interactive)
-  (oai--debug "oai-fill-paragraph")
+  ;; (oai--debug "oai-fill-paragraph")
   (if-let ((element (oai-block-p)))
       (or (call-interactively #'oai-block-fill-paragraph)
           (when (oai-block-fill-region (point)
@@ -487,10 +492,13 @@ Item may be header of ai block, markdown
  ### header, markodown subblock, otherwise chat messages used as items.
 With ARG, repeats or can move backward if negative."
   (interactive "p")
-  (if (oai-block-p)
-      (oai-block-next-item arg)
-    ;; else
-    (oai--call-next-remap-protected #'org-next-visible-heading)))
+  (if (derived-mode-p 'org-mode)
+    (if (oai-block-p)
+        (oai-block-next-item arg)
+      ;; else
+      (oai--call-next-remap-protected #'org-next-visible-heading))
+    ;; else - not org mode
+    (oai-block-next-item arg)))
 
 (defun oai-previous-item (arg)
   "Call `org-previous-visible-heading' or move to previous ai item.
@@ -499,10 +507,13 @@ Item may be header of ai block, markdown
  ### header, markodown subblock, otherwise chat messages used as items.
 ARG may be positive or nil."
   (interactive "p")
-  (if (oai-block-p)
-      (oai-block-previous-item arg)
-    ;; else
-    (oai--call-next-remap-protected #'org-previous-visible-heading)))
+  (if (derived-mode-p 'org-mode)
+      (if (oai-block-p)
+          (oai-block-previous-item arg)
+        ;; else
+        (oai--call-next-remap-protected #'org-previous-visible-heading))
+    ;; else - not org mode
+    (oai-block-previous-item arg)))
 
 ;; -=-= interactive fn: Summarize *TODO:*
 ;; (defun oai-summarize ()
@@ -527,9 +538,12 @@ ARG may be positive or nil."
 (defvar-keymap oai-mode-map
   :repeat nil
   :parent nil
-  "<remap> <outline-next-visible-heading>" #'oai-next-item ; C-c C-n todo make org
-  "<remap> <outline-previous-visible-heading>" #'oai-previous-item ; C-c C-p todo make org
+  ;; "<remap> <outline-next-visible-heading>" #'oai-next-item ; C-c C-n todo make org
+  ;; "<remap> <outline-previous-visible-heading>" #'oai-previous-item ; C-c C-p todo make org
+  "C-c C-p" #'oai-previous-item
+  "C-c C-n" #'oai-next-item
   "<remap> <org-mark-element>" #'oai-mark-at-point-org ; M-h
+  "<remap> <mark-paragraph>" #'oai-block-mark-at-point ; M-h
   "<remap> <fill-paragraph>" #'oai-fill-paragraph ; M-q
   "C-c ." #'oai-expand-block-org
   "C-c C-." #'oai-open-request-buffer
@@ -558,6 +572,70 @@ ARG may be positive or nil."
                                         (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
                                         '(oai-block--font-lock-fontify-markdown-and-org)))))
 
+;; -=-= Tangling advices
+(defun oai--org-babel-get-src-block-info (&optional no-eval datum)
+  "Used for Tangling as advice for `org-babel-get-src-block-info'.
+Return caontent with help of `oai-block-get-content', oai-block-tags-get-content
+If optional NO-EVAL is non-nil, do not evaluate Lisp in parameters."
+  (when-let* ((datum (or datum (oai-block-p))))
+    (oai--debug "oai--org-babel-get-src-block-info" no-eval datum)
+    (let* ((lang "ai")
+           ;; (lang-headers (intern
+	   ;;      	  (concat "org-babel-default-header-args:ai" lang)))
+	   (name (org-element-property :name datum))
+           ;;
+           (info
+	    (list
+	     lang ; "elisp"
+             ;; 1) content:
+             (oai-block-tags-get-content
+              ;; element
+              datum
+              ;; noweb-and-tags:
+              (or (org-babel-noweb-p (oai-block-get-info datum) :tangle)
+                  (org-entry-get (point) "oai-noweb" t)))
+             ;; 2) org-babel-default-header-args + default "lang" parameters:
+             (apply #'org-babel-merge-params
+		    org-babel-default-header-args
+		    ;; org-babel-default-header-args:ai ; (eval org-babel-default-header-args:ai t)
+		    (append
+		     ;; If DATUM is provided, make sure we get node
+		     ;; properties applicable to its location within
+		     ;; the document.
+		     (org-with-point-at (org-element-property :begin datum)
+		       (org-babel-params-from-properties lang no-eval))
+		     (mapcar (lambda (h)
+			       (org-babel-parse-header-arguments h no-eval))
+			     (cons (org-element-property :parameters datum)
+				   (org-element-property :header datum)))))
+             ;; 3,4,5,6)
+	     (or (org-element-property :switches datum) "")
+             name
+	     (org-element-property :post-affiliated datum)
+	     (org-src-coderef-format datum))))
+      (unless no-eval
+	(setf (nth 2 info) (org-babel-process-params (nth 2 info))))
+      (setf (nth 2 info) (org-babel-generate-file-param name (nth 2 info)))
+      info)))
+
+(defun oai--org-babel-where-is-src-block-head-advice (orig-fun &rest args)
+  "Advice for `org-babel-tangle' related function.
+ORIG-FUN is `org-babel-where-is-src-block-head' and its ARGS."
+  (if-let ((element (or (and args (oai-block-p (car args)))
+                      (oai-block-p))))
+      (org-element-property :begin element)
+    ;; else
+  (apply orig-fun args)))
+
+
+(defun oai--org-babel-get-src-block-info-advice (orig-fun &rest args)
+  "Advice for `org-babel-tangle' related function.
+ORIG-FUN is `oai--org-babel-get-src-block-info-advice' and its ARGS."
+  (seq-let (no-eval datum) args
+    (if-let ((datum (or (oai-block-p datum) (oai-block-p))))
+      (oai--org-babel-get-src-block-info no-eval datum)
+      ;; else
+      (apply orig-fun args))))
 ;; -=-= Minor mode
 
 ;;;###autoload
@@ -567,34 +645,35 @@ ARG may be positive or nil."
   :lighter oai-mode-line-string ; " oai" string
   :keymap oai-mode-map
   :group 'oai
-  (if oai-mode
-      (progn
-        (add-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c nil 'local)
-        (advice-add 'keyboard-quit :before #'oai-keyboard-quit)
-        (when oai-fontification-flag
-          (add-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords nil 'local)
-          (org-set-font-lock-defaults)
-          (font-lock-refresh-defaults))
-        ;; - activate "ai" block in Org mode
-        (when (and (boundp 'org-protecting-blocks) (listp org-protecting-blocks))
-          (add-to-list 'org-protecting-blocks "ai"))
-        (when (boundp 'org-structure-template-alist)
-          (add-to-list 'org-structure-template-alist '("A" . "ai")))
-        ;; - Tangle: advice
-        (advice-add 'org-babel-get-src-block-info :around #'oai-block--org-babel-get-src-block-info-advice)
-        (advice-add 'org-babel-where-is-src-block-head :around #'oai-block--org-babel-where-is-src-block-head-advice)
-        (add-to-list 'org-babel-tangle-lang-exts '("ai" . "ai")) ; language . ext
-        )
-    ;; else - off
-    (remove-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c 'local)
-    (advice-remove 'keyboard-quit #'oai-keyboard-quit)
-    ;; font lock refrash
-    (remove-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords)
-    (org-set-font-lock-defaults)
-    (font-lock-refresh-defaults)
-    ;; tangle
-    (advice-remove 'org-babel-get-src-block-info #'oai-block--org-babel-get-src-block-info-advice)
-    (advice-remove 'org-babel-where-is-src-block-head #'oai-block--org-babel-where-is-src-block-head-advice)))
+  (when (derived-mode-p 'org-mode)
+    (if oai-mode
+        (progn
+          (add-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c nil 'local)
+          (advice-add 'keyboard-quit :before #'oai-keyboard-quit)
+          (when oai-fontification-flag
+            (add-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords nil 'local)
+            (org-set-font-lock-defaults)
+            (font-lock-refresh-defaults))
+          ;; - activate "ai" block in Org mode
+          (when (and (boundp 'org-protecting-blocks) (listp org-protecting-blocks))
+            (add-to-list 'org-protecting-blocks "ai"))
+          (when (boundp 'org-structure-template-alist)
+            (add-to-list 'org-structure-template-alist '("A" . "ai")))
+          ;; - Tangle: advice
+          (advice-add 'org-babel-get-src-block-info :around #'oai--org-babel-get-src-block-info-advice)
+          (advice-add 'org-babel-where-is-src-block-head :around #'oai--org-babel-where-is-src-block-head-advice)
+          (add-to-list 'org-babel-tangle-lang-exts '("ai" . "ai")) ; language . ext
+          )
+      ;; else - off
+      (remove-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c 'local)
+      (advice-remove 'keyboard-quit #'oai-keyboard-quit)
+      ;; font lock refrash
+      (remove-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords)
+      (org-set-font-lock-defaults)
+      (font-lock-refresh-defaults)
+      ;; tangle
+      (advice-remove 'org-babel-get-src-block-info #'oai--org-babel-get-src-block-info-advice)
+      (advice-remove 'org-babel-where-is-src-block-head #'oai--org-babel-where-is-src-block-head-advice))))
 
 
 (defun oai-open-request-buffer ()
@@ -634,6 +713,8 @@ ARG may be positive or nil."
     (setq oai-mode-line-string " oai"))
   (force-mode-line-update))
 
+;; -=-= aliases
+(defalias 'oai-tangle #'org-babel-tangle)
 ;; -=-= provide
 (provide 'oai)
 ;;; oai.el ends here

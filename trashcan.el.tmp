@@ -354,7 +354,7 @@ Argument STREAM not used."
                 type
                 (type-of type))
     (when (equal type 'end)
-      (let* ((area (oai-block--contents-area))
+      (let* ((area (oai-block--contents-region))
              (con-beg (car area))
              (con-end (cdr area)))
         (oai-optional-remove-distant-empty-lines con-beg con-end)))))
@@ -547,7 +547,7 @@ Argument STREAM not used."
 ;; The numeric ARG can be used for killing the last n."
 ;;   (interactive "P")
 ;;   (if arg
-;;       (when-let* ((region (oai-block--area))
+;;       (when-let* ((region (oai-block--region))
 ;;                   (start (car region))
 ;;                   (end (cdr region)))
 ;;         (kill-region end start))
@@ -614,3 +614,116 @@ With optional prefix argument ARG, jump forward ARG many source blocks."
 With optional prefix argument ARG, jump backward ARG many source blocks."
   (interactive "p")
   (org-previous-block arg oai-block-ai-block-regexp))
+
+  ;; replaced by oai-block--pos-in-markdown-block-p
+;; (defun oai-block--markdown-area (pos limit-begin limit-end)
+;;   "Return list with position of markdown multiline blocks.
+;; List is ((begin end) (begining-of-content end-of-content))
+;; If POS position is inside markdown block without specified language or
+;; specified.  Used in `oai-block-mark-at-point'.
+;; If there is two markdown begining with language we treat second as
+;; inside of first.
+;; Argument LIMIT-BEGIN LIMIT-END are positions ai block header and footer."
+;;   (oai--debug "oai-block--markdown-area %s %s %s" pos limit-begin limit-end)
+;;   ;; fix limits
+;;   (when (and limit-begin (< pos limit-begin))
+;;     (setq limit-begin pos))
+;;   (when (and limit-end (> pos limit-end))
+;;     (setq limit-end pos))
+;;   ;; (oai--debug "oai-block--markdown-area0 %s %s %s" pos limit-begin limit-end)
+;;   (let (beg
+;;         end
+;;         beg-cont
+;;         end-cont
+;;         found)
+;;     (goto-char limit-begin)
+;;     ;; 1) find begining with or without language
+;;     ;; (oai--debug "oai-block--markdown-area11 %s %s %s %s" (point) limit-begin limit-end found)
+;;     ;; [[file:~/tmp/emacs-file2026-01-31.org::(while (and context]]
+;;     (while (and (< (point) limit-end)
+;;                 (re-search-forward oai-block--markdown-beg-end-re limit-end t) ; point is at end of line now
+;;                 (not found))
+;;       (unless (string-match-p "```" (match-string 1)) ; should not be flat quoted list
+;;         (setq beg (line-beginning-position)) ; begin of head line
+;;         (forward-line)
+;;         (setq beg-cont (line-beginning-position))
+;;         ;; 2) find end
+;;         (when (and (re-search-forward oai-block--markdown-end-re limit-end t)
+;;                    (not found)) ; pos at next line
+;;           ;; save
+;;           (goto-char (match-beginning 0))
+;;           (setq end (line-end-position))
+;;           (while (bolp)
+;;             (backward-char))
+;;           (setq end-cont (point))
+;;           (goto-char end) ; to skip current block
+
+;;           ;; (oai--debug "oai-block--markdown-area1 %s %s %s" pos beg end)
+;;           (when (and (>= pos beg) (<= pos end))
+;;             (setq found (list (list beg end) (list beg-cont end-cont)))))))
+;;     (oai--debug "oai-block--markdown-area1 %s " found)
+;;     found))
+
+
+;; (defun oai-block--markdown-lang-area (pos limit-beg limit-end)
+;;   "Return (begin end) of markdown language block.
+;; If POS in it.
+;; Optional argument LIM-BEG is ai block begining position.
+;; Return t if pos in markdown block, table or quote.
+;; Side-effect: set pointer position to POS."
+;;   (goto-char pos)
+;;   ;; fix limits
+;;   (when (and limit-begin (< point-pos limit-begin))
+;;     (setq limit-begin point-pos))
+;;   (when (and limit-end (> point-pos limit-end))
+;;     (setq limit-end point-pos))
+;;   (prog1 (let ((beg end))
+;;            ;; not markdown blocks
+;;            ;; backward for markdown block "begin"
+;;            (when (re-search-backward oai-block--markdown-begin-re limit-beg t)
+;;              ;; save
+;;              (forward-line)
+;;              (setq beg (line-end-position))
+;;              ;; restore
+;;              (goto-char pos)
+;;              ;; backward for markdown block "end" after "begin"
+;;              (unless (re-search-backward oai-block--markdown-end-re (match-end 0) t)
+;;                (when (re-search-forward oai-block--markdown-end-re limit-end t)
+;;                  (unless (re-search-backward oai-block--markdown-begin-re pos t)
+;;                    (list beg (match-beginning 0)))))))
+;;     (goto-char pos)))
+
+;; (defun oai-block-tags--in-markdown-quotes-at-line-p (pos)
+;;   "Return t if POS is inside a markdown single backquote.
+;; Region (`...`) on the current line.
+;; Return t at first and last quote too."
+;;   (goto-char pos)
+;;   (prog1 (let ((bol (line-beginning-position))
+;;                (eol (line-end-position))
+;;                (pos (point))
+;;                found)
+;;            (goto-char bol)
+;;            ;; Search for paired backquotes (`...`)
+;;            (while (and (re-search-forward "`" eol t) (not found))
+;;              (let ((start (match-beginning 0)))
+;;                (when (re-search-forward "`" eol t)
+;;                  (let ((end (match-end 0)))
+;;                    (when (and (>= pos start)
+;;                               (< pos end)) ; strictly between the two backquotes
+;;                      (setq found t))))))
+;;            found)
+;;     (goto-char pos)))
+
+;; replaced by `oai-block--collect-chat-messages-at-point'
+;; (defun oai-restapi--collect-chat-messages-at-point (&optional element default-system-prompt persistant-sys-prompts max-token-recommendation separator)
+;;   "Get messsages for ai block at point or element in current buffer.
+;; Replacement Links, remove text properties, split to messages.
+;; ELEMENT is the element of the special block.
+;; Description for DEFAULT-SYSTEM-PROMPT PERSISTANT-SYS-PROMPTS
+;; MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
+;;   (oai-block--collect-chat-messages-from-string
+;;    (oai-block-tags--clear-properties
+;;     (oai-block-tags-replace
+;;      (string-trim
+;;       (oai-block-get-content element))))
+;;    default-system-prompt persistant-sys-prompts max-token-recommendation separator))

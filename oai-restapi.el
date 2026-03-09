@@ -1524,20 +1524,6 @@ over."
 
 
 ;; -=-= chat-messages: collect/stringify
-
-(defun oai-restapi--collect-chat-messages-at-point (&optional element default-system-prompt persistant-sys-prompts max-token-recommendation separator)
-  "Get messsages for ai block at point or element in current buffer.
-Replacement Links, remove text properties, split to messages.
-ELEMENT is the element of the special block.
-Description for DEFAULT-SYSTEM-PROMPT PERSISTANT-SYS-PROMPTS
-MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
-  (oai-block--collect-chat-messages-from-string
-   (oai-block-tags--clear-properties
-    (oai-block-tags-replace
-     (string-trim
-      (oai-block-get-content element))))
-   default-system-prompt persistant-sys-prompts max-token-recommendation separator))
-
 ;; (oai-restapi--normalize-response '(id "o3fA4D4-62bZhn-9617f44f6d399d91" object "chat.completion" created 1752904364 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 819567834314233700 logprobs nil index 0 message (role "assistant" content "It works: `(2 3 1)` is returned." tool_calls []))] usage (prompt_tokens 131 completion_tokens 14 total_tokens 145 cached_tokens 0)))
 ;; (#s(oai-block--response role "assistant") #s(oai-block--response text "It works: `(2 3 1)` is returned.") #s(oai-block--response stop "stop"))
 ;; (oai-restapi--normalize-response '(id "o3f9cZv-4Yz4kd-9617f234fd6f9d91" object "chat.completion" created 1752904277 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 589067420664432000 logprobs nil index 0 message (role "assistant" content "`(mapcar 'cdr '((a . 2) (x . 3) (2 . 1)))` returns `(2 3 1)`." tool_calls []))] usage (prompt_tokens 84 completion_tokens 34 total_tokens 118 cached_tokens 0)))
