@@ -192,8 +192,7 @@ Return last argument, but should not be used for return value."
                                             'help-args (list (intern first-part) nil))
                         (insert second-part))
                     ;; else - as one
-                    (insert result-string))
-                )))))))
+                    (insert result-string)))))))))
   (car (reverse args)))
 
 ;; -=-= Helping function

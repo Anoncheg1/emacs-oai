@@ -573,50 +573,51 @@ ARG may be positive or nil."
                                         '(oai-block--font-lock-fontify-markdown-and-org)))))
 
 ;; -=-= Tangling advices
-(defun oai--org-babel-get-src-block-info (&optional no-eval datum)
+(defun oai--org-babel-get-src-block-info (no-eval datum)
   "Used for Tangling as advice for `org-babel-get-src-block-info'.
-Return caontent with help of `oai-block-get-content', oai-block-tags-get-content
-If optional NO-EVAL is non-nil, do not evaluate Lisp in parameters."
-  (when-let* ((datum (or datum (oai-block-p))))
-    (oai--debug "oai--org-babel-get-src-block-info" no-eval datum)
-    (let* ((lang "ai")
-           ;; (lang-headers (intern
-	   ;;      	  (concat "org-babel-default-header-args:ai" lang)))
-	   (name (org-element-property :name datum))
-           ;;
-           (info
-	    (list
-	     lang ; "elisp"
-             ;; 1) content:
-             (oai-block-tags-get-content
-              ;; element
-              datum
-              ;; noweb-and-tags:
-              (or (org-babel-noweb-p (oai-block-get-info datum) :tangle)
-                  (org-entry-get (point) "oai-noweb" t)))
-             ;; 2) org-babel-default-header-args + default "lang" parameters:
-             (apply #'org-babel-merge-params
-		    org-babel-default-header-args
-		    ;; org-babel-default-header-args:ai ; (eval org-babel-default-header-args:ai t)
-		    (append
-		     ;; If DATUM is provided, make sure we get node
-		     ;; properties applicable to its location within
-		     ;; the document.
-		     (org-with-point-at (org-element-property :begin datum)
-		       (org-babel-params-from-properties lang no-eval))
-		     (mapcar (lambda (h)
-			       (org-babel-parse-header-arguments h no-eval))
-			     (cons (org-element-property :parameters datum)
-				   (org-element-property :header datum)))))
-             ;; 3,4,5,6)
-	     (or (org-element-property :switches datum) "")
-             name
-	     (org-element-property :post-affiliated datum)
-	     (org-src-coderef-format datum))))
-      (unless no-eval
-	(setf (nth 2 info) (org-babel-process-params (nth 2 info))))
-      (setf (nth 2 info) (org-babel-generate-file-param name (nth 2 info)))
-      info)))
+Return caontent with help of `oai-block-get-content',
+ `oai-block-tags-get-content' DATUM is not optional here.
+If NO-EVAL is non-nil, do not evaluate Lisp in parameters."
+  ;; (when-let* ((datum (or datum (oai-block-p))))
+  (oai--debug "oai--org-babel-get-src-block-info" no-eval datum)
+  (let* ((lang "ai")
+         ;; (lang-headers (intern
+	 ;;      	  (concat "org-babel-default-header-args:ai" lang)))
+	 (name (org-element-property :name datum))
+         ;;
+         (info
+	  (list
+	   lang ; "elisp"
+           ;; 1) content:
+           (oai-block-tags-get-content
+            ;; element
+            datum
+            ;; noweb-and-tags:
+            (or (org-babel-noweb-p (oai-block-get-info datum) :tangle)
+                (org-entry-get (point) "oai-noweb" t)))
+           ;; 2) org-babel-default-header-args + default "lang" parameters:
+           (apply #'org-babel-merge-params
+		  org-babel-default-header-args
+		  ;; org-babel-default-header-args:ai ; (eval org-babel-default-header-args:ai t)
+		  (append
+		   ;; If DATUM is provided, make sure we get node
+		   ;; properties applicable to its location within
+		   ;; the document.
+		   (org-with-point-at (org-element-property :begin datum)
+		     (org-babel-params-from-properties lang no-eval))
+		   (mapcar (lambda (h)
+			     (org-babel-parse-header-arguments h no-eval))
+			   (cons (org-element-property :parameters datum)
+				 (org-element-property :header datum)))))
+           ;; 3,4,5,6)
+	   (or (org-element-property :switches datum) "")
+           name
+	   (org-element-property :post-affiliated datum)
+	   (org-src-coderef-format datum))))
+    (unless no-eval
+      (setf (nth 2 info) (org-babel-process-params (nth 2 info))))
+    (setf (nth 2 info) (org-babel-generate-file-param name (nth 2 info)))
+    info))
 
 (defun oai--org-babel-where-is-src-block-head-advice (orig-fun &rest args)
   "Advice for `org-babel-tangle' related function.
