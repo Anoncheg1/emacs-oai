@@ -50,7 +50,8 @@
 ;; - [[PATH::NUM]] creating
 ;;
 ;; To check links use "C-c ?" key, or M-x oai-expand-block.
-;; `oai-block-tags--get-content-at-point' - extract target from current position
+;; `oai-block-tags--get-content-at-point' - extract target from
+;;   current position
 
 ;; *Position and line number*
 ;; - `line-number-at-pos'
@@ -185,12 +186,15 @@ Nil if buffer does not exist."
 PATH-OR-MODE-STRING may be, and we check in this order:
 - a symbol, like value of '`major-mode' variable.
 - path of file.
-- string with name of mode like `emacs-lisp-mode', for which elisp returned according to org-src-lang-modes
+- string with name of mode like \"emacs-lisp-mode\" - \"elisp\" will be
+ returned
 - directory
 - .ai file-path
-Return Org babel source block language name.
+Uses Org babel source block `org-src-lang-modes' names, return left for
+ right.
 First we check `auto-mode-alist' and then just try to interpret as major
-mode line."
+ mode line.
+Return  name of language."
   ;; symbol - get "emacs-lisp-mode" or "nil"
   (let* ((symb (symbolp path-or-mode-string))
          (mode-symbol-string (if symb
@@ -406,7 +410,8 @@ Return vector with messages for ai block, or string if REQ-TYPE is
 ;; functions and pass it through the chain to compare target of link
 ;; with `ai-block-markers' before calling
 ;; `oai-block-tags-get-content' `oai-block-tags-replace'.
-(defun oai-block-tags-get-content (&optional element noweb-control links-only-last not-clear-properties ai-block-markers disable-tangle req-type sys-prompt sys-prompt-for-all-messages max-tokens info no-eval)
+;; info no-eval
+(defun oai-block-tags-get-content (&optional element noweb-control links-only-last not-clear-properties ai-block-markers disable-tangle req-type sys-prompt sys-prompt-for-all-messages max-tokens)
   "Get content of supported blocks in current position in current buffer.
 With properly expansion of tags, links and noweb references.
 For evaluation, tangling, or exporting.
@@ -425,7 +430,7 @@ If NOT-CLEAR-PROPERTIES is not-nil, don't clear region highlighting for
 If LINKS-ONLY-LAST is not-nil, links expansion will be made for last
  user message only, otherwise for all user message.
 Called from `oai-expand-block', goint to use it everywhere.
-REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES MAX-TOKENS INFO
+REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES MAX-TOKENS
  arguments documented in `oai-restapi-request-prepare'.
 Return string with expanded content."
   (oai--debug "oai-block-tags-get-content")
@@ -668,7 +673,7 @@ Handles symlinks, remote files (TRAMP), and buffers without files."
 
 ;; (print major-mode)
 ;; (oai-block-tags--filepath-to-language)
-(defun oai-block-tags--get-content-at-point-not-org ()
+(defun oai-block-tags--get-content-at-point-not-org (&optional ai-block-markers)
   "Return prepared block at current POS position.
 Works with outline, programming, text buffers.
 1) Use `beginning-of-defun' for programming mode
@@ -714,8 +719,9 @@ POS should be at begining of the line."
 
    ;; 3) ai file
    ((and (string-equal "ai" (oai-block-tags--filepath-to-language (buffer-file-name)))
+
          (or (oai-block-tags--get-m-block-at-point)
-             (oai-block-tags--get-content-chat-message-at-point))))
+             (oai-block-tags--get-content-chat-message-at-point ai-block-markers))))
 
    ;; 4) paragraph
    ;; ((and paragraph-separate
@@ -827,7 +833,8 @@ Supported: blocks and headers.
 Move pointer to the end of block."
   (oai--debug "oai-block-tags--get-content-at-point")
   (if (not (derived-mode-p 'org-mode))
-      (oai-block-tags--get-content-at-point-not-org)
+
+      (oai-block-tags--get-content-at-point-not-org ai-block-markers)
     ;; else - Org mode
     (oai-block-tags--get-content-at-point-org ai-block-markers)))
 

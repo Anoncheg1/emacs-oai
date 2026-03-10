@@ -240,7 +240,7 @@ You can customize this font with `set-face-attribute'."
   :group 'oai)
 
 ;; -=-= fn: block-p, element-by-marker
-;; `org-element-with-disabled-cache' is not available pre org-mode 9.6.6, i.e.
+;; `org-element-with-disabled-cache' is not available pre `org-mode' 9.6.6, i.e.
 ;; emacs 28 does not ship with it
 (defmacro oai-block--org-element-with-disabled-cache (&rest body)
   "Run BODY without active org-element-cache."
@@ -254,8 +254,10 @@ Optional argument ELEMENT is returned by `org-element-at-point', when
  non-nil, checked if it is ai block, if not nil is retuned.
 If ELEMENT is not provider, current position in buffer used to get ai
  block.
-Raise error if no ELEMENT provided and current mode is not org-mode.
-Like `org-in-src-block-p'.  Return element."
+Raise error if ELEMENT is not ai block or there is no ai block at
+ current position.
+Like `org-in-src-block-p'.
+Return element or nil."
   (if (and element
            (string-equal "ai" (org-element-property :type element)))
       element
@@ -286,9 +288,9 @@ Return an alist of key-value pairs."
 
 ;; (defun oai-block-noweb-p (noweb-context &optional info element no-eval)
 ;;     "Check if noweb is enabled .
-;; Execution in not org-mode is supported.
+;; Execution in not `org-mode' is supported.
 ;; If NOWEB-CONTEXT is not provided, it is :eval.
-;; When INFO is not provided and it is not org-mode, return nil.
+;; When INFO is not provided and it is not `org-mode', return nil.
 ;; Also check oai-noweb Org property for the entry at point-or-marker.
 ;; If not in org-mode, return nil without error."
 ;;     (let* ((element (or element (when (derived-mode-p 'org-mode)
@@ -305,6 +307,7 @@ Return an alist of key-value pairs."
   "Look at the header of ai block.
 returns the type of request.  INFO is the alist of key-value
   pairs from `oai-block-get-info'."
+  ; (alist-get :chat info 'x) - return x if  there is no :chat, if present return string or number value or nil if no value
   (cond
    ((not (eql 'x (alist-get :chat info 'x))) 'chat)
    ((not (eql 'x (alist-get :completion info 'x))) 'completion)
@@ -439,7 +442,8 @@ Optional argument ELEMENT should be ai block if specified."
 
 (defun oai-block--region (&optional element)
   "Return whole ai block cons start and end positions.
-In not org-mode return whole buffer min max position.
+Execution in not `org-mode' is supported.
+In not `org-mode' return whole buffer min max position.
 Start at header begining of line, end at footer end of line.
 Optional argument ELEMENT is ai block."
   (if-let ((element (or element (when (derived-mode-p 'org-mode)
@@ -475,7 +479,8 @@ Return string without properties or nil."
                                       (error "Empty block")
                                     ;; else
                                     (string-trim (buffer-substring-no-properties con-beg con-end))))
-              (noweb-control (or (org-babel-noweb-p (oai-block-get-info element)
+              (noweb-control (or noweb-control
+                                 (org-babel-noweb-p (oai-block-get-info element)
                                                     (or noweb-context :eval))
                                  (org-entry-get (point) "oai-noweb" t)))
               (content (if noweb-control
@@ -545,7 +550,7 @@ Return ((START . END) . N) [the region boundaries and region number]
 REGION boundary points (sorted, e.g.  (10 20 30)), is positions returned
  by `oai-block--markdown-subblocks-regions' or
  `oai-block--chat-role-regions'.
-POS should be within any region, or at its left boundary. Else return
+POS should be within any region, or at its left boundary.  Else return
  nil."
   ;; Initialization: 'start' and 'end' will hold the current region's boundaries.
   ;; 'i' counts regions found so far.
@@ -596,8 +601,11 @@ POS should be within any region, or at its left boundary. Else return
 ;;     (goto-char pos)))
 
 (defun oai-block--markdown-subblocks-regions (beg end)
-  "Return position of markdown subblocks.
-Careful, move pointer."
+  "Return position of markdown subblocks begining and ending headers.
+Execution in not `org-mode' is supported.
+BEG and END is a range in which to search markdown.
+Careful, move pointer.
+Return list or nil."
   (goto-char beg)
   (let (regions)
     (while (and (< (point) end)
@@ -608,7 +616,7 @@ Careful, move pointer."
 
 (defun oai-block--pos-in-markdown-block-p (&optional pos limit-start limit-end)
   "Return (cons beg end) if pos is inside markdown block.
-Works in not org-mode buffer.
+Execution in not `org-mode' is supported.
 Caution: move pointer.
 POS should be at begining of line.
 If POS is not provided current cursor position is used.
@@ -967,7 +975,7 @@ and content end at the beginin and the end of flat list."
 
 (defun oai-block--chat-role-regions (&optional element)
   "Splits the special block by role prompt.
-Execution in not org-mode is supported.
+Execution in not `org-mode' is supported.
 Optional argument ELEMENT should be ai block
 Return line begining positions of first line of content, roles, #+end_ai
 line."
@@ -1025,7 +1033,7 @@ If content is empty string return nil otherwise plist."
             (setq role-str (match-string 1))
             (setq pre-end-pos (match-end 0))
             (when (re-search-forward oai-block--chat-prefixes-re pos-end t)
-              (error (format "Another role prefix found before POS-END %s %s "(point) pos-end)))))
+              (error "Another role prefix found before POS-END %s %s "(point) pos-end))))
 
       (unless (string= role-str "AI_REASON") ; works for nil
         ;; first - get role symbol
@@ -1140,8 +1148,8 @@ Return vector with plist with :role and :content."
 
 (defun oai-block--collect-chat-messages-at-point (&optional element default-system-prompt persistant-sys-prompts max-token-recommendation separator)
   "Collect messages for ai block at current positon.
-Execution in not org-mode is supported.
-For not org-mode, get all buffer.
+Execution in not `org-mode' is supported.
+For not `org-mode', get all buffer.
 Optional argument ELEMENT is AI block in current buffer.
 Description for DEFAULT-SYSTEM-PROMPT PERSISTANT-SYS-PROMPTS
 MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
@@ -1277,7 +1285,7 @@ Uses `oai-block-roles-prefixes' variable for mapping roles to prefixes."
 ;;            (pos (or pos (point)))
 
 
-(defun oai-block-mark-chat-message-at-point (&optional not-mark)
+(defun oai-block-mark-chat-message-at-point ()
   "Mark the prompt at point: [ME:], [AI:]."
   (interactive)
   (when (oai-block-p)
@@ -1296,7 +1304,7 @@ Uses `oai-block-roles-prefixes' variable for mapping roles to prefixes."
   "Helper to find the next or previous region boundary.
 DIRECTION is the movement direction: negative for previous, positive for
  next.
-CURRENT-POINT is the current cursor position. REGIONS is the list of all
+CURRENT-POINT is the current cursor position.  REGIONS is the list of all
  region boundaries.
 Returns the position of the region boundary or nil if not found."
   (if (> direction 0)
@@ -1611,7 +1619,7 @@ Used in `oai-call-block'"
 
 (defun oai-block-get-header-marker (&optional element)
   "Return marker for current ai block or begining of buffer.
-Execution in not org-mode is supported.
+Execution in not `org-mode' is supported.
 Pointer between # an + characters if it is `org-mode', otherwisde get
  marker from begining of current buffer.
 If optional argument ELEMENT is non-nil it is used as ai block."

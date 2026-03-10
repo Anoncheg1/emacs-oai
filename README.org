@@ -231,15 +231,17 @@ We dont activate noweb in subsequent block at expansion of links and tags.
 “oai-noweb” (Org property for the entry at point-or-marker) is used to control noweb (~org-entry-get~) if :noweb block parameter is not set.
 
 Example:
-
-#+NAME: ina
-#+begin_ai
+#+begin_src org
+,#+NAME: ina
+,#+begin_ai
 test
-#+end_ai
+,#+end_ai
 
-#+begin_ai
+,#+begin_ai
 <<ina()>>
-#+end_ai
+,#+end_ai
+
+#+end_src
 
 Chain of noweb references is possible, referenced ai blocks evaluated with :tangle context.
 * How this works?
