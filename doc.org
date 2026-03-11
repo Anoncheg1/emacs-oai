@@ -371,11 +371,13 @@ test
 #+end_ai
 
 test:
-: (org-babel-expand-noweb-references (list "text" "<<ina()>>"))
+: (org-babel-expand-noweb-references (list "text" "aa <<ina()>> bb"))
+: (org-babel-expand-noweb-references (list "text" "aa <<ina()>> bb"))
+: (oai-block--apply-noweb "<<ina()>> aa <<ina()>> bb")
 
 *** implementation
 `oai-block-tags-get-content' call:
-(oai-block-tags--apply-noweb) - that call `org-babel-expand-noweb-references', call oai--org-babel-get-src-block-info, but inly if reference is <<inf()>> with “()”
+(oai-block--apply-noweb) - that call `org-babel-expand-noweb-references', call oai--org-babel-get-src-block-info, but inly if reference is <<inf()>> with “()”
 - referenced ai blocks evalueated by oai-block-tags-get-content with :tangle contenxt, so subcalls is possible
 
 or (old):

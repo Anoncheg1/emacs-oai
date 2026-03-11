@@ -597,7 +597,7 @@ Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
            (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties))
            (messages (if noweb-control
                          (oai-restapi--modify-vector-content messages
-                                                             (lambda (string) (org-babel-expand-noweb-references (list "markdown" string)))
+                                                             #'oai-block--apply-noweb
                                                              'user)
                        messages)) ; noweb
            (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))

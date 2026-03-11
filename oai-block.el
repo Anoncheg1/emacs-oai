@@ -403,21 +403,41 @@ Parameters are sourced from:
 ;;         "nil"
 ;;       v2))
 
-;; -=-= parts fn: get-content
-;; (defun oai-block--contents-area (datum)
-;;   "As `org-src--contents-area'."
-;;   (let ((type (org-element-type datum)))
-;;     (if (eq type 'special-block)
-;;        (let
-;;          (beg (org-element-property :contents-begin element))
-;;          (end (org-element-property :contents-end element))
-;;          (list beg end (buffer-substring-no-properties beg end))
-;;         special-block
-;;   (org-with-wide-buffer
-;;    ((eq type 'latex-fragment)
+;; -=-= get-content: help fn
+(defun oai-block--replace-string-in-string (string from to replacement)
+  "Replace the substring of STRING from FROM to TO with REPLACEMENT."
+  (concat (substring string 0 from)
+          replacement
+          (substring string to)))
+
+(defun oai-block--apply-noweb (string)
+  "Expand noweb Org links in STRING.
+Add text property around replaced part to highlight it.
+Used as argument for `oai-restapi--modify-last-user-content' and
+ `oai-restapi--modify-vector-content'."
+  (oai--debug "oai-block-tags--apply-noweb"  string)
+  ;; (org-babel-expand-noweb-references (list "markdown" string))
+  (let ((pos 0) beg end replacement)
+    (while (string-match "<<\\([^\n]+?\\)>>" string pos)
+      (setq beg (match-beginning 0))
+      (setq end (match-end 0))
+
+      (setq replacement (org-babel-expand-noweb-references
+                        (list "markdown" (substring (substring
+                                                     string
+                                                     beg end)))))
+      (setq pos (+ beg (length replacement)))
+      (setq string (oai-block--replace-string-in-string
+                    string
+                    beg end
+                    replacement
+                    ))
+      (add-text-properties beg (+ beg (length replacement)) '(face region) string)))
+  string)
+
 
 (defun oai-block--contents-region (&optional element)
-  "Return cons with start and end position of content.
+  "Return cons with start and end position of ai block content.
 Start and first line after header, end at of line of the first not empty
  line before footer.
 Same as `org-src--contents-area', but without content.
@@ -440,6 +460,10 @@ Optional argument ELEMENT should be ai block if specified."
            (goto-char (org-element-property :begin element))
            (cons (line-beginning-position 2) (line-beginning-position 2))))))))
 
+;;   (org-with-wide-buffer
+;;    ((eq type 'latex-fragment)
+
+
 (defun oai-block--region (&optional element)
   "Return whole ai block cons start and end positions.
 Execution in not `org-mode' is supported.
@@ -457,7 +481,9 @@ Optional argument ELEMENT is ai block."
     (when (not (derived-mode-p 'org-mode))
       (cons (point-min) (point-max)))))
 
-(defun oai-block-get-content (&optional element noweb-control noweb-context)
+;; -=-= get-content: fn
+
+(defun oai-block-get-content (&optional element noweb-control noweb-context not-clear-properties)
   "Extracts the text content of the #+begin_ai...#+end_ai block.
 Don't support tags and Org links expansion, for that use
  `oai-block-tags-get-content' instead.
@@ -469,7 +495,10 @@ If NOWEB-CONTEXT  is non-nil,  NOWEB-CONTROL is  not used,  Org property
 NOWEB-CONTEXT may be one of :tangle, :export or :eval, the last is by
  default, more documentation in `org-babel-noweb-p' function.
 same as `org-babel--normalize-body'.
-Return string without properties or nil."
+Return string without properties or nil.
+Optional argument NOT-CLEAR-PROPERTIES, prevent cleaning of properties,
+ we add properties to highlight expanded noweb references for
+ previewing."
   (when-let ((reg (oai-block--contents-region element)))
     (let ((con-beg (car reg))
           (con-end (cdr reg)))
@@ -485,7 +514,10 @@ Return string without properties or nil."
                                  (org-entry-get (point) "oai-noweb" t)))
               (content (if noweb-control
                            ;; pass info
-                           (org-babel-expand-noweb-references (list "markdown" unexpanded-content)) ; main
+                           (if not-clear-properties
+                               (oai-block--apply-noweb string)
+                             ;; else
+                             (org-babel-expand-noweb-references (list "markdown" unexpanded-content))) ; main
                          unexpanded-content)))
          (string-trim content))))))
 
@@ -1475,7 +1507,7 @@ Return number of marked content."
                    (list (region-beginning) (region-end)))
                  ;; Step 4: Block content
                  (lambda ()
-                   (message "AI Block content")
+                   (message "Block content")
                    (let ((reg (oai-block--contents-region)))
                      (when reg
                        (list (car reg) (cdr reg)))))
@@ -1553,7 +1585,10 @@ If universal argument ARG is non-nil, mark content of ai block."
             (beg (car reg))
             (end (cdr reg)))
         (goto-char beg)
-        (set-mark end)))))
+        (unless (eq beg end)
+          (setq end (1- end)))
+        (set-mark end))
+      (message "Block content"))))
 
 
 ;; -=-= fn: set-block-parameter
