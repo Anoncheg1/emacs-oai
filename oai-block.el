@@ -430,8 +430,7 @@ Used as argument for `oai-restapi--modify-last-user-content' and
       (setq string (oai-block--replace-string-in-string
                     string
                     beg end
-                    replacement
-                    ))
+                    replacement))
       (add-text-properties beg (+ beg (length replacement)) '(face region) string)))
   string)
 
@@ -515,7 +514,7 @@ Optional argument NOT-CLEAR-PROPERTIES, prevent cleaning of properties,
               (content (if noweb-control
                            ;; pass info
                            (if not-clear-properties
-                               (oai-block--apply-noweb string)
+                               (oai-block--apply-noweb unexpanded-content)
                              ;; else
                              (org-babel-expand-noweb-references (list "markdown" unexpanded-content))) ; main
                          unexpanded-content)))
