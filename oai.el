@@ -171,7 +171,11 @@
 ;; - (org-mark-element) replace with implementation that respect markdown code blocks as one element
 ;; - pre-call: and post-call: for preparation and postprocessing and
 ;;  pre-/post-service and model. or guide for hooks
-;; - implement
+;; - implement my/org-execute-in-source-block for markdown that use
+;;  `org-src--edit-element', for that `org-babel-do-in-edit-buffer'
+;;  should be rewrited, in which org-edit-src-code should be executed
+;;  with content, not current block
+
 ;;; Code:
 
 ;; Touch: Pain, water and warm.
@@ -450,9 +454,9 @@ SEEN is a list of commands already called, used to prevent recursion."
 ;; -=-= interactive fns: Org keys remapings
 (defun oai-mark-at-point-org (&optional arg)
   "Call `org-mark-element' if cant mark element of ai block.
-Works if cursor in ai block.
+Works if cursor in ai block, otherwise call original function.
 Increase region at next execution.
-If optional argument ARG is non-nil, mark current message of chat."
+If optional argument ARG is non-nil, mark whole content of ai block."
   (interactive "P")
   (if (oai-block-p)
       (oai-block-mark-at-point arg)

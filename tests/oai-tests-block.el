@@ -1007,6 +1007,29 @@ as
       (setq res (oai-block--pos-in-markdown-block-p p6 (point-min) (point-max)))
       (should-not res)))))
 
+;; -=-= Test: `oai-block--apply-noweb'
+(ert-deftest oai-tests-block--apply-noweb ()
+  (let (kill-buffer-query-functions
+        org-execute-file-search-functions
+        points
+        res)
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+NAME: ina
+#+begin_ai
+test
+#+end_ai
+
+
+#+begin_ai
+<<ina()>>
+#+end_ai")
+      (setq res (oai-block--apply-noweb "<<ina()>> aa <<ina()>> bb"))
+      (should (equal res #("test
+ aa test
+ bb" 0 5 (face region) 9 14 (face region)))
+      ))))
+
 ;; -=-= provide
 (provide 'oai-tests-block)
 
