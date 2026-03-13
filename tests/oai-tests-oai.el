@@ -89,10 +89,26 @@ asd2
     (should
          (equal res
 
-'("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json")
-                                                ("Authorization" . "Bearer test-token-openai"))
-  ((messages . [(:role system :content "Be helpful.")
-                (:role user :content "```text
+;; '("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json")
+;;                                                 ("Authorization" . "Bearer test-token-openai"))
+;;   ((messages . [(:role system :content "Be helpful.")
+;;                 (:role user :content "```text
+;; # tt1
+;; asd
+
+
+;; ```
+
+
+
+
+;; ```text
+;; # tt2
+;; asd2
+;; ```")]) (stream . t)))
+
+'("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json") ("Authorization" . "Bearer test-token-openai")) ((messages . [(:role system :content "Be helpful.") (:role user :content #("
+```text
 # tt1
 asd
 
@@ -105,8 +121,9 @@ asd
 ```text
 # tt2
 asd2
-```")]) (stream . t)))))))
-    )
+```
+
+" 0 26 (face region) 28 53 (face region)))]) (stream . t))))))))
 
 ;; -=-= Test: oai-debug--safe-format
 (ert-deftest test-oai-debug--safe-format ()

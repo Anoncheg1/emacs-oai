@@ -542,10 +542,10 @@
 ;;                                           :assistant-prefix "Assistant: ")
 ;;     "You: user\n\nAssistant: assistant")))
 
-;; -=-= For: `oai-restapi--modify-last-user-content'
+;; -=-= For: `oai-restapi--modify-vector-last-user-content'
 (ert-deftest oai-tests-restapi--modify-last-user-content ()
   (should
-   (equal (oai-restapi--modify-last-user-content
+   (equal (oai-restapi--modify-vector-last-user-content
            (vector (list :role 'system :content "foo")
                    (list :role 'user :content "How to make coffe1?")
                    (list :role 'assistant :content "IDK.")
@@ -593,7 +593,7 @@
 
 (provide 'oai-tests-restapi)
 
-;; -=-= For: `oai-restapi-prepare-content'
+;; -=-= For: `oai-restapi-prepare-content' TODO: move to `oai-block-tags-get-content-ai-messages'
 (ert-deftest oai-tests-restapi--prepare-content1 ()
   (with-temp-buffer
     (org-mode)

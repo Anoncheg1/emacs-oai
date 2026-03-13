@@ -175,6 +175,7 @@
 ;;  `org-src--edit-element', for that `org-babel-do-in-edit-buffer'
 ;;  should be rewrited, in which org-edit-src-code should be executed
 ;;  with content, not current block
+;; - unbind dependency to each other of `oai-restapi' and `oai-block-tags'
 
 ;;; Code:
 
@@ -294,11 +295,20 @@ Return list of arguments args."
   "Output almost RAW information about request with headers and messages.
 Return list of strings to print."
   (seq-let (element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream info) (oai-parse-org-header)
-    (let* ((req-type-completion (not (eq 'x (alist-get :completion info 'x))))
-           ;; (req-type
-           (messages (unless req-type-completion
+    (let* ((req-type (oai-block--get-request-type info))
+           ;; (req-type-completion (not (eq 'x (alist-get :completion info 'x))))
+           disable-tags ai-block-markers links-only-last ; nil
+           (not-clear-properties t)
+           (max-tokens-string
+            (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
+              (oai-restapi--get-lenght-recommendation max-tokens)))
+           (messages (unless (eql req-type 'completion)
                        ;; - split content to messages
-                       (oai-restapi-prepare-content element noweb-control 'chat sys-prompt sys-prompt-for-all-messages max-tokens)
+                       (oai-block-tags-get-content-ai-messages
+                        element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)
+                       ; old
+                       ;; (oai-restapi-prepare-content
+                       ;;  element noweb-control 'chat sys-prompt sys-prompt-for-all-messages max-tokens)
                        ;; (oai-restapi--collect-chat-messages-at-point element
                        ;;                                              sys-prompt
                        ;;                                              sys-prompt-for-all-messages
@@ -308,8 +318,8 @@ Return list of strings to print."
       (list
        (oai-restapi--get-endpoint messages service)
        (oai-restapi--get-headers service)
-       (oai-restapi--payload :prompt (when req-type-completion (oai-block-get-content element t)) ; block content string
-			     :messages messages
+       (oai-restapi--payload :prompt (when (eql req-type 'completion) (oai-block-get-content element t)) ; legacy
+                             :messages messages
 			     :model model
 			     :max-tokens max-tokens
 			     :temperature temperature

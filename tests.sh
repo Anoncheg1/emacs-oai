@@ -6,6 +6,7 @@ emacs -Q --batch -l ert.el -l oai-timers.el \
 emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el \
       -l ./tests/oai-tests-block.el -f ert-run-tests-batch-and-exit || exit 1
 emacs -Q --batch -l ert.el -l oai-debug.el -l ../emacs-org-links/org-links.el -l oai-block.el -l oai-block-tags.el \
+      -l oai-async1.el -l oai-timers.el -l oai-restapi.el \
       -l ./tests/oai-tests-block-tags.el -f ert-run-tests-batch-and-exit || exit 1
 emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l oai-block-tags.el -l oai-timers.el -l oai-async1.el -l oai-restapi.el \
       -l ./tests/oai-tests-restapi.el -f ert-run-tests-batch-and-exit || exit 1
