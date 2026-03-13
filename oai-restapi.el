@@ -41,7 +41,12 @@
 ;; When we receive error or final answer we stop local, recount
 ;;   requests and update global.
 ;;
-;; Chat mode (old)
+;; Chat mode
+;; - `oai-restapi-request-prepare'
+;; - -> `oai-restapi-prepare-content' (old)
+;; - -> `oai-block-tags-get-content' (new)
+;;
+;; - oai-restapi-request
 ;; - :message (oai-restapi--collect-chat-messages ...)
 ;; - (oai-restapi--normalize-response response) -> (cl-loop for response in normalized
 ;;   - (setq role (oai--response-type response))
@@ -573,7 +578,6 @@ Return:
 - string for completion REQ-TYPE.
 ELEMENT is result of `oai-block-p'.
 Optional arguments:
-
 If NOWEB-CONTROL is not-nil, activate expansion of noweb links in all
 user messages.
 If MAX-TOKENS is not-nil, and
@@ -581,7 +585,8 @@ If MAX-TOKENS is not-nil, and
  about MAX-TOKENS added to first system message.
 REQ-TYPE is completion, return string, otherwise prcess body for chat.
 Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
-`oai-restapi-request-prepare', used only if non-nil."
+`oai-restapi-request-prepare', used only if non-nil.
+Return vector or string for completion REQ-TYPE."
   (oai--debug "oai-restapi-prepare-content" noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens oai-restapi-add-max-tokens-recommendation)
   ;; (let ((content (oai-block-get-content element))) ; string - is block content
   (if (eql req-type 'completion)
@@ -631,7 +636,20 @@ SERVICE symbol or string - is the AI cloud service such as openai or
 STREAM string - as bool, indicates whether to stream the response."
   (ignore info)
   (oai--debug "oai-restapi-request-prepare %s" sys-prompt-for-all-messages)
-  (let* ((content (oai-restapi-prepare-content element noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens))
+  (let* (disable-tags ai-block-markers links-only-last not-clear-properties ; nil, for get-content call
+         (max-tokens-string
+           (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
+             (oai-restapi--get-lenght-recommendation max-tokens)))
+         (content
+          (if (eql req-type 'completion) ; old
+              (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
+            ;; chat
+            (oai-block-tags-get-content-ai-messages
+             element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)
+
+            ;; (oai-restapi-prepare-content
+            ;;  element noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens)
+            ))
          (end-marker (oai-block--get-content-end-marker element))
          (callback (if (eql req-type 'completion) ; chat - ; set to oai-restapi--current-url-request-callback
                        ;; completion mode
@@ -1581,16 +1599,16 @@ string arguments and return new content, like `oai-block-tags-replace'."
     ;; loop over messages in vec
     (while (>= i 0)
       (setq el (aref newvec i)) ; from 0 to len-1
-      (setq content (plist-get el :content))
+      (setq old-content (plist-get el :content))
       ;; replace content for role
       (when (or (and role
                      (eql role (plist-get el :role)))
                 (not role))
         (setq content (if (functionp new-content)
                           (if rest
-                              (apply #'funcall new-content content rest)
+                              (apply #'funcall new-content old-content rest)
                             ;; else
-                            (funcall new-content content))
+                            (funcall new-content old-content))
                         ;; else
                         new-content))
         (aset newvec i (plist-put (copy-sequence el) :content content)))
@@ -1598,7 +1616,7 @@ string arguments and return new content, like `oai-block-tags-replace'."
     newvec))
 
 
-(defun oai-restapi--modify-last-user-content (vec new-content &rest rest)
+(defun oai-restapi--modify-vector-last-user-content (vec new-content &rest rest)
   "Replacing last \='user :content with NEW-CONTENT in VEC.
 NEW-CONTENT is either (string or function of old content), like
 `oai-block-tags-replace'.
@@ -1612,13 +1630,14 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
     (when idx
       (let* ((elt (aref newvec idx))
              (old-content (plist-get elt :content))
-             (rep-content (if (functionp new-content)
-                              (if rest
-                                  (apply #'funcall new-content old-content rest)
-                                ;; else
-                                (funcall new-content old-content))
-                            new-content))
-             (new-elt (plist-put (copy-sequence elt) :content rep-content)))
+             (content (if (functionp new-content)
+                          (if rest
+                              (apply #'funcall new-content old-content rest)
+                            ;; else
+                            (funcall new-content old-content))
+                        ;; else
+                        new-content))
+             (new-elt (plist-put (copy-sequence elt) :content content)))
         (aset newvec idx new-elt)))
     newvec))
 

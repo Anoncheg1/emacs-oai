@@ -413,7 +413,7 @@ Parameters are sourced from:
 (defun oai-block--apply-noweb (string)
   "Expand noweb Org links in STRING.
 Add text property around replaced part to highlight it.
-Used as argument for `oai-restapi--modify-last-user-content' and
+Used as argument for `oai-restapi--modify-vector-last-user-content' and
  `oai-restapi--modify-vector-content'."
   (oai--debug "oai-block-tags--apply-noweb"  string)
   ;; (org-babel-expand-noweb-references (list "markdown" string))

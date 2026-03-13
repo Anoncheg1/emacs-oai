@@ -760,7 +760,11 @@ ss
   (should
    (string-equal (oai-block-tags--compose-m-block "[me:] asda\n[ai:] asdas" :lang "ai" :header "some header") "[me:] some header\nasda\n[ai:] asdas"))
   (should
-   (string-equal (oai-block-tags--compose-m-block "Text\nasdas" :lang "ai" :header "Header:") "Header:\nText\nasdas")))
+   (string-equal (oai-block-tags--compose-m-block "Text\nasdas" :lang "ai" :header "Header:")
+                 "Header:\nText\nasdas"))
+  (should
+   (string-equal (oai-block-tags--compose-m-block "Text\nasdas" :lang "ai" :header "Header:" :inner t)
+                 "\nHeader:\n```ai\nText\nasdas\n```")))
 
 ;; -=-= Test: oai-block-tags--position-in-markdown-block-str-p
 (ert-deftest oai-tests-block-tags--position-in-markdown-block-str-p ()
@@ -948,6 +952,46 @@ ss
       (goto-char p2)
       (setq res (oai-block-tags--get-content-chat-message-at-point))
       (should (string-equal res "[ai:] vvv" )))))
+
+;; -=-= Test: oai-block-tags-get-content-ai-messages
+(ert-deftest oai-tests-block-tags--get-content-ai-messages1 ()
+  (with-temp-buffer
+    (org-mode)
+    (let* ((element (progn (insert "#+begin_ai :stream t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\n#+end_ai\n")
+                           (goto-char 1)
+                           (oai-block-p)))
+           ;; (info (progn (goto-char (org-element-property :begin element)) (oai-block-get-info)))
+           )
+      (should-error (oai-block-tags-get-content-ai-messages element t nil nil nil nil 'chat "sys1" "sys-all2" "3") :type 'error))))
+      ;; (should-error (oai-block-tags-get-content-ai-messages nil element 'chat "sys1" "sys-all2" 3) :type 'error))))
+
+(ert-deftest oai-tests-block-tags--get-content-ai-messages2 ()
+  (with-temp-buffer
+    (org-mode)
+    (let* ((element (progn (insert "#+begin_ai :stream t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\nss\n#+end_ai\n")
+                           (goto-char 1)
+                           (oai-block-p)))
+           (res (oai-block-tags-get-content-ai-messages element t nil nil nil nil 'chat "sys1" "sys-all2" "3")))
+      (should (eq (length res) 2))
+      (should (string-match "sys1" (plist-get (aref res 0) :content)))
+      (should (eql 'system (plist-get (aref res 0) :role)))
+      (should (eql 'user (plist-get (aref res 1) :role)))
+      (should (string-match "sys-all2" (plist-get (aref res 1) :content)))
+      (should (string-match "ss" (plist-get (aref res 1) :content))))))
+
+(ert-deftest oai-tests-block-tags--get-content-ai-messages3 ()
+  (with-temp-buffer
+    (org-mode)
+    (let* ((element (progn (insert "#+begin_ai :stream t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\nss\n[AI:]vv\n[ME:]tt\n#+end_ai\n")
+                           (goto-char 1)
+                           (oai-block-p)))
+           (res (oai-block-tags-get-content-ai-messages element t nil nil nil nil 'chat "sys1" "sys-all2" "3")))
+      (should (eq (length res) 4))
+      (should (eql 'system (plist-get (aref res 0) :role)))
+      (should (eql 'user (plist-get (aref res 1) :role)))
+      (should (eql 'assistant (plist-get (aref res 2) :role)))
+      (should (eql 'user (plist-get (aref res 3) :role)))
+      (should (string-match "tt" (plist-get (aref res 3) :content))))))
 
 ;; -=-= provide
 (provide 'oai-tests-block-tags)
