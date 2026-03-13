@@ -1584,12 +1584,15 @@ over."
       (setq i (1- i)))
     idx))
 
-
 (defun oai-restapi--modify-vector-content (vec new-content &optional role &rest rest)
   "Modify every string content of messages VEC that match role.
 When ROLE is non-nil, it used to filter all such messages.
-NEW-CONTENT may be string or function that accept one
-string arguments and return new content, like `oai-block-tags-replace'."
+NEW-CONTENT may be string or function. if function, it is called if a
+ string, it replace :content of vector item.  Intened for usage with
+ `oai-block-tags-replace'.
+REST optional arguments are arguments that will be passed to call of
+ new-content if it a function.
+Return modified VEC."
   (unless (vectorp vec)
     (error "Not a vector"))
   (let ((i (1- (length vec)))
@@ -1614,7 +1617,6 @@ string arguments and return new content, like `oai-block-tags-replace'."
         (aset newvec i (plist-put (copy-sequence el) :content content)))
       (setq i (1- i)))
     newvec))
-
 
 (defun oai-restapi--modify-vector-last-user-content (vec new-content &rest rest)
   "Replacing last \='user :content with NEW-CONTENT in VEC.
