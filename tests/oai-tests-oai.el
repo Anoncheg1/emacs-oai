@@ -35,7 +35,48 @@
 (defvar ert-enabled nil)
 ; org-links - is optional dependency
 
-;; -=-= Test: oai-expand-block
+
+;; -=-= Test: oai-expand-block-1
+(defvar oai-tests-oai--expand-block-string1 "#+begin_ai :model nil
+asdas
+[[11::asds]]
+
+[me:] VV
+#+end_ai
+
+#+name: asds
+#+begin_ai :model nil
+[ME]: Please
+[ai]: My output
+#+end_ai
+")
+
+(when (require 'org-links nil 'noerror)
+  (ert-deftest oai-tests-oai--expand-block-1 ()
+    (with-temp-buffer
+      (org-mode)
+      (insert oai-tests-oai--expand-block-string1)
+      (goto-char 1)
+      ;; (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
+      ;; (oai-expand-block nil))
+      (let ((oai-restapi-con-token "token")
+            res)
+        (should (string-equal
+                 (substring-no-properties (oai-expand-block nil))
+                 "[ME]: asdas
+Please
+
+[ai]: My output
+
+[ME]: VV"))
+        ;; (print (setq res (oai-expand-block-deep)))))
+        (should (equal
+                 (oai-expand-block-deep)
+                 '("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json") ("Authorization" . "Bearer token")) ((messages . [(:role system :content "Be helpful.") (:role user :content "asdas
+Please") (:role assistant :content "My output") (:role user :content "VV")]) (stream . t)))))
+        ))))
+
+;; -=-= Test: oai-expand-block-2
 (defvar oai-tests-oai--expand-block-string "#+begin_ai :model nil
 [[* tt1]]
 
@@ -48,17 +89,8 @@ asd
 * tt2
 asd2")
 
-(ert-deftest oai-tests-oai--expand-block ()
-  (with-temp-buffer
-    (org-mode)
-    (insert oai-tests-oai--expand-block-string)
-    (goto-char 1)
-    ;; (print (list "wtf"  (oai-expand-block nil)))
-    (let (res)
-      (setq res (substring-no-properties (oai-expand-block nil)))
-      (should
-       (string-equal
-        "[ME]: \n```text
+
+(defvar oai-tests-oai--expand-block-2-shouldbe "```text
 # tt1
 asd
 
@@ -71,44 +103,32 @@ asd
 ```text
 # tt2
 asd2
-```"
-        res)))))
-
-
-(ert-deftest oai-tests-oai--expand-block-deep ()
-  (let ((oai-restapi-con-token '(:openai "test-token-openai"))
-            res)
+```")
+(when (require 'org-links nil 'noerror)
+  (ert-deftest oai-tests-oai--expand-block-2 ()
     (with-temp-buffer
-        (org-mode)
-        (insert oai-tests-oai--expand-block-string)
-        (goto-char 1)
-        ;; (print (list "wtf" (oai-expand-block-deep)))))
-        ;; (print (oai-expand-block-deep))))
-        (setq res (oai-expand-block-deep))
-        ;; (print res)))
-    (should
-         (equal res
-
-;; '("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json")
-;;                                                 ("Authorization" . "Bearer test-token-openai"))
-;;   ((messages . [(:role system :content "Be helpful.")
-;;                 (:role user :content "```text
-;; # tt1
-;; asd
-
-
-;; ```
-
-
-
-
-;; ```text
-;; # tt2
-;; asd2
-;; ```")]) (stream . t)))
-
-'("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json") ("Authorization" . "Bearer test-token-openai")) ((messages . [(:role system :content "Be helpful.") (:role user :content #("
-```text
+      (org-mode)
+      (insert oai-tests-oai--expand-block-string)
+      (goto-char 1)
+      (let ((oai-restapi-con-token "token")
+            res)
+        (setq res (substring-no-properties (oai-expand-block nil)))
+        (should
+         (string-equal
+          (concat "[ME]: " oai-tests-oai--expand-block-2-shouldbe)
+          res))
+        (let ((messages (oai-block-tags-get-content-ai-messages (oai-block-p)
+                                                                t  ; noweb-control
+                                                                nil ; links-only-last
+                                                                nil ; not-clear-properties
+                                                                )))
+          ;; messages)))
+          ;; (vconcat (list (list :role 'user :content oai-tests-oai--expand-block-2-shouldbe))))))
+          (should (equal messages
+                         (vconcat (list (list :role 'user :content oai-tests-oai--expand-block-2-shouldbe)))))
+          (should (equal
+                   (oai-expand-block-deep)
+'("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json") ("Authorization" . "Bearer token")) ((messages . [(:role system :content "Be helpful.") (:role user :content "```text
 # tt1
 asd
 
@@ -121,9 +141,9 @@ asd
 ```text
 # tt2
 asd2
-```
+```")]) (stream . t)))
+        )))))))
 
-" 0 26 (face region) 28 53 (face region)))]) (stream . t))))))))
 
 ;; -=-= Test: oai-debug--safe-format
 (ert-deftest test-oai-debug--safe-format ()

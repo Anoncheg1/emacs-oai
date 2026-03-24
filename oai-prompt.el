@@ -74,7 +74,7 @@ IND count from 0.  RESP-QUEST  is list of string  of lengh IND+1  - raw
 content of ai block or answer from  LLM.  We assume that commands and AI
 answers except of the first one are already in MESSAGES."
   (let* ((recom (if (and oai-restapi-add-max-tokens-recommendation max-tokens)
-                    (oai-restapi--get-lenght-recommendation max-tokens)))
+                    (oai-restapi--get-length-recommendation max-tokens)))
          (comm0 (nth 0 commands))
          (comm0 (if (and (= ind 0) recom)
                     (concat comm0 " " recom)

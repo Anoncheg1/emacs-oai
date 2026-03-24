@@ -21,7 +21,7 @@ Main function to get content of block:
 
 # Old:
 *oai-restapi-request-prepare chain* that call `oai-restapi-prepare-content'
-1) ~oai-block--collect-chat-messages-at-point~ old: ~oai-restapi--collect-chat-messages-at-point~
+1) ~oai-block-collect-chat-messages-at-point~
   + oai-block--collect-chat-messages - vector
   + oai-block-tags-replace - string
   + oai-block--collect-chat-messages-from-string

@@ -66,7 +66,7 @@
 (require 'oai-block)
 ;; for: oai-restapi--modify-vector-last-user-content,
 ;; oai-restapi--modify-vector-content, oai-restapi-add-max-tokens-recommendation
-;; oai-restapi--get-lenght-recommendation
+;; oai-restapi--get-length-recommendation
 ;; (require 'oai-restapi) ; disabled because of reverse dependency with oai-restapi
 (require 'org-links nil 'noerror)
 
@@ -270,23 +270,27 @@ Optional arguments
 - HEADER is a line above markdown to describe it for LLM, should not have
  new line characters at edges.
 - INNER if non-nil AI language content should be wrapped in
- markdown block.
+ markdown block, HEADER is ignored
 - HEADER added after first chat prefix or just at the begining if
  CONTENT dont starts with chat prefix.
 To detect LANG use `oai-block-tags--filepath-to-language'.
-- INNER, if non-nil, ai block wrapped in markdown.
-"
+- INNER, if non-nil, ai block wrapped in markdown."
+(oai--debug "oai-block-tags--compose-m-block N1 %s" inner lang header)
+(oai--debug "oai-block-tags--compose-m-block N2" content)
   (if (and lang (string-equal-ignore-case "ai" lang) (not inner))
-      (if header
-          ; check if content starts with [me:] some chat prefix
-          (if (= (or (string-match oai-block--chat-prefixes-re content) -1) 0)
-              (oai-block-tags--replace-first-match oai-block--chat-prefixes-re (concat header "\n")
-                                                                                       content t)
-            ;; else
-            (concat header "\n" content))
+      ;; - AI-block
+      ;; (if header
+      ;;     ; check if content starts with [me:] some chat prefix
+      ;;     (if (= (or (string-match oai-block--chat-prefixes-re content) -1) 0)
+      ;;         (oai-block-tags--replace-first-match oai-block--chat-prefixes-re
+      ;;                                              (concat header "\n")
+      ;;                                              content
+      ;;                                              t)
+      ;;       ;; else
+      ;;       (concat header "\n" content))
         ;; else
-        content)
-    ;; else
+        content
+    ;; else - any bock
     (concat (when header (concat "\n" header))
             (when content (concat "\n```" (or lang "auto") "\n"
                                   (string-replace "```" "\\`\\`\\`" content)
@@ -352,6 +356,8 @@ Execution in not `org-mode' is supported.
 Same to `oai-restapi-prepare-content'
 Do: expand tags and links, expand noweb, clear properties and trim.
 Expand links and tags only for :eval context, for :tangle, dont expand.
+If ELEMENT not specified, :begin of current element is used, in not Org
+ mode `point-min' is used.
 Optional arguments ELEMENT LINKS-ONLY-LAST
  NOT-CLEAR-PROPERTIES REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES
  MAX-TOKENS documented at `oai-block-tags-get-content'.
@@ -363,54 +369,60 @@ Optional argument AI-BLOCK-MARKERS is a list of header markers created
  also used in `oai-block-tags-replace'.
 MAX-TOKENS-STRING is string.
 Return vector with messages for ai block, or string if REQ-TYPE is
- compeltion."
-  (oai--debug "oai-block-tags-get-content-ai-messages %s %s %s" noweb-control links-only-last not-clear-properties)
-  (let* ((current-block-marker (oai-block-get-header-marker element))
-         (noweb-control (and noweb-control
-                              (not (member current-block-marker ai-block-markers))))
-         (tags-control (unless disable-tags
-                           (not (member current-block-marker ai-block-markers)))))
+ compeltion or nil if loop."
+  (oai--debug "oai-block-tags-get-content-ai-messages N1 %s %s %s" noweb-control links-only-last not-clear-properties ai-block-markers)
+  (let ((current-block-marker (oai-block-get-header-marker element)))
+    (unless (member current-block-marker ai-block-markers)
+      ;; (let
+      ;;    (tags-control (unless disable-tags
+      ;;                      (not (member current-block-marker ai-block-markers)))))
     ;; add to block to list of markers to prevent loop
-    (push current-block-marker ai-block-markers)
-    (if (eql req-type 'completion)
-        ;; - *Completion*
-        (let* ((str (oai-block-get-content element noweb-control)) ; legacy: may be executed in `org-mode' only
-               (str (if noweb-control
-                        (oai-block-tags-replace str ai-block-markers)
-                      ;; else
-                      str))
-               (str (oai-block-tags--clear-properties str)))
-          str) ; return string
+    ;; (unless (member current-block-marker ai-block-markers)
+      (push current-block-marker ai-block-markers)
+      (oai--debug "oai-block-tags-get-content-ai-messages N2 %s %s %s" noweb-control disable-tags ai-block-markers)
+      (if (eql req-type 'completion)
+          ;; - *Completion*
+          (let* ((str (oai-block-get-content element noweb-control)) ; legacy: may be executed in `org-mode' only
+                 (str (if noweb-control
+                          (oai-block-tags-replace str ai-block-markers)
+                        ;; else
+                        str))
+                 (str (oai-block-tags--clear-properties str)))
+            str) ; return string
 
-      ;; else - req-type = chat
-      (let* (;; 1) get messages as vector from content
-             (messages (oai-block--collect-chat-messages-at-point element
-                                                                  sys-prompt
-                                                                  sys-prompt-for-all-messages
-                                                                  max-tokens-string))
-             ;; 2) tags and links expansion
-             (messages (if tags-control
-                           (if links-only-last
-                               (oai-restapi--modify-vector-last-user-content messages #'oai-block-tags-replace ai-block-markers)
-                             ;; else
-                             (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user ai-block-markers))
-                         ;; else
-                         messages))
-             ;; 2) noweb expansion
-             (messages (if noweb-control
-                         (if links-only-last
-                             (oai-restapi--modify-vector-last-user-content messages #'oai-block--apply-noweb)
+        ;; else - req-type = chat
+        (let* (;; 1) get messages as vector from content
+               (messages (oai-block-collect-chat-messages-at-point element
+                                                                   sys-prompt
+                                                                   sys-prompt-for-all-messages
+                                                                   max-tokens-string
+                                                                   t)) ; not-merge
+               (_ (oai--debug "t1" messages))
+               ;; 2) tags and links expansion
+               (messages (if (not disable-tags)
+                             (if links-only-last
+                                 (oai-restapi--modify-vector-last-user-content messages #'oai-block-tags-replace ai-block-markers)
+                               ;; else
+                               (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user ai-block-markers))
                            ;; else
-                           (oai-restapi--modify-vector-content messages #'oai-block--apply-noweb 'user))
-                         ;; else
-                         messages))
-             ;; 3) clear properties (for sending to LLM)
-             (messages (if not-clear-properties
-                           messages
-                         ;; else
-                         (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties 'user))))
-        ;; (oai--debug "oai-block-tags-get-content-ai-messages2" messages)
-        messages)))) ; return
+                           messages))
+               (_ (oai--debug "t2" messages))
+               ;; 2) noweb expansion
+               (messages (if noweb-control
+                             (if links-only-last
+                                 (oai-restapi--modify-vector-last-user-content messages #'oai-block--apply-noweb)
+                               ;; else
+                               (oai-restapi--modify-vector-content messages #'oai-block--apply-noweb 'user))
+                           ;; else
+                           messages))
+               (_ (oai--debug "t3"))
+               ;; 3) clear properties (for sending to LLM)
+               (messages (if not-clear-properties
+                             messages
+                           ;; else
+                           (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties))))
+          ;; (oai--debug "oai-block-tags-get-content-ai-messages2" messages)
+          messages))))) ; return
 
 
 ;; Loop:
@@ -451,13 +463,13 @@ Called from `oai-expand-block', goint to use it everywhere.
 REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES MAX-TOKENS
  arguments documented in `oai-restapi-request-prepare'.
 Return string with expanded content."
-  (oai--debug "oai-block-tags-get-content")
+  (oai--debug "oai-block-tags-get-content N1 %s" ai-block-markers)
   (when-let* ((element (or element (oai-block-p) (oai-block-tags--block-at-point))))
     (let ((max-tokens-string
            (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
-             (oai-restapi--get-lenght-recommendation max-tokens))))
+             (oai-restapi--get-length-recommendation max-tokens))))
       ;; (print (list (org-element-type element) (member (org-element-type element) oai-block-tags-org-blocks-types)))
-      (oai--debug "oai-block-tags-get-content1 %s" element)
+      (oai--debug "oai-block-tags-get-content N2 %s" element)
       (cond
        ((string-equal "ai" (org-element-property :type element))
         (string-trim
@@ -470,6 +482,7 @@ Return string with expanded content."
          (oai-block-tags-replace (org-babel--expand-body (org-babel-get-src-block-info))))) ; org-babel-execute-src-block
 
        ((member (org-element-type element) oai-block-tags-org-blocks-types)
+        (oai--debug "oai-block-tags-get-content blocks-types")
         (oai-block-tags--clear-properties
          (oai-block-tags-replace (caddr (org-src--contents-area element)))))))))
 
@@ -513,7 +526,7 @@ Return nil if begin or end of markdown block was not found or block is
                 (list (1+ begin) (1- end))))))))))
 
 
-(defun oai-block-tags--markdown-block-range (&optional pos)
+(defun oai-block-tags--markdown-block-range ()
   "Return range if current position in current buffer in markdown block.
 Caution: move pointer.
 Execution in not `org-mode' is supported.
@@ -521,16 +534,17 @@ Return cons with begining of lines for markdown block header and footer
  or nil.
 Optional argument POS may be used instead of current position."
   ;; check that we are in Org block
-  (when-let* ((pos (or pos (line-beginning-position)))
-              (region (if (derived-mode-p 'org-mode)
-                          (oai-block-tags--contents-area)
-                        ;; else
-                        (cons (point-min) (point-max))))
-              (beg (car region))
-              (end (cdr region))
-              (ret (oai-block--pos-in-markdown-block-p pos beg end)))
-    (oai--debug "oai-block-tags--markdown-block-range %s %s %s" pos beg end)
-    ret))
+  (save-excursion
+    (when-let* ((pos (line-beginning-position))
+                (region (if (derived-mode-p 'org-mode)
+                            (oai-block-tags--contents-area)
+                          ;; else
+                          (cons (point-min) (point-max))))
+                (beg (car region))
+                (end (cdr region))
+                (ret (oai-block--pos-in-markdown-block-p beg end)))
+      (oai--debug "oai-block-tags--markdown-block-range %s %s" beg end)
+      ret)))
   ;;             (beg (or (org-element-property :contents-begin element)
   ;;                      (org-element-property :begin element))
   ;;             (end (or (org-element-property :contents-end element)
@@ -551,7 +565,7 @@ Optional argiments:
 - INNER, if non-nil, ai block wrapped in markdown.
 Return full content of block."
   ;; 1) enshure that we are inside some Org block
-  (oai--debug "oai-block-tags--get-content-org-block-at-point1 %s" ai-block-markers)
+  (oai--debug "oai-block-tags--get-content-org-block-at-point %s" inner ai-block-markers)
   (when-let ((element (or element (oai-block-tags--block-at-point))))
     ;; (let ((current-block-marker (oai-block-get-header-marker element)))
     ;; add to block to list of markers to prevent loop
@@ -608,7 +622,7 @@ Called for current point in current buffer.
 Return markdown language block with language.
 Return non-nil string of markdown block if exist at current position."
   (oai--debug "oai-block-tags--get-m-block-at-point N1" (- (point) (line-beginning-position)))
-  (if-let* ((range (save-excursion (oai-block-tags--markdown-block-range)))
+  (if-let* ((range (oai-block-tags--markdown-block-range))
             (beg (car range))
             (end (save-excursion (goto-char (cdr range))
                                  (line-end-position))))
@@ -634,7 +648,7 @@ Return string or nil."
          ;; at message?
          (looking-at oai-block--chat-prefixes-re)
          ;; not in markdown?
-         (not (save-excursion (oai-block-tags--markdown-block-range))))
+         (not (oai-block-tags--markdown-block-range)))
     (when-let* ((regions (oai-block--chat-role-regions))
                 (reg (car (oai-block--find-region-with-position regions (point))))
                 (beg (car reg))
@@ -812,27 +826,35 @@ Return string."
         (apply #'concat (reverse replacement-list))))
      ;; - (2) case - in block: Markdown block - in org block
      ((and (member type oai-block-tags-org-blocks-types)
-           (oai--debug "oai-block-tags--get-content-at-point-org (2) case")
-           (oai-block-tags--get-m-block-at-point)))
+           (unwind-protect
+               (oai-block-tags--get-m-block-at-point)
+             (oai--debug "oai-block-tags--get-content-at-point-org (2) case"))))
      ;; - (3) case - in block: in ai block: message
      ((and (oai-block-p element)
-           (oai--debug "oai-block-tags--get-content-at-point-org (3) case")
-           (oai-block-tags--get-content-chat-message-at-point ai-block-markers)))
+           (unwind-protect
+               (oai-block-tags--get-content-chat-message-at-point ai-block-markers)
+             (oai--debug "oai-block-tags--get-content-at-point-org (3) case"))))
      ;; - (4) case - Org Block
      ((and (member type oai-block-tags-org-blocks-types)
-           (oai--debug "oai-block-tags--get-content-at-point-org (4) case %s" (point) type)
+
            (let ((case-fold-search t))
              (save-excursion
                (beginning-of-line)
                (or
                 (looking-at "[ \t]*#\\+BEGIN_\\(\\S-+\\)")
                 (looking-at org-babel-src-name-regexp)))))
+      (oai--debug "oai-block-tags--get-content-at-point-org (4) case %s" (point) type ai-block-markers)
       (oai-block-tags--get-content-org-block-at-point element ai-block-markers)) ; noweb issue
-     ;; - (5) case - Org element with :end
+     ;; - (5) case - #+name: without block
+     ((and (eq type 'keyword)
+           (looking-at org-babel-src-name-regexp))
+      (user-error "Reference to #+name: \"%s\" without actual block." (org-element-property :value element )))
+     ;; - (6) case - Org element with :end
      ((when-let ((end (org-element-property :end element))) ; safe
+        (oai--debug "oai-block-tags--get-content-at-point-org (6) case %s" (point) type end ai-block-markers)
         (oai-block-tags--compose-m-block (buffer-substring-no-properties (line-beginning-position) end))))
      ;; (oai-block-tags--markdown-block-range
-     ;; - (6) case -  Org block (or ai block)
+
      (t
       (user-error "Cant get content at point for link in Org buffer")))))
 
@@ -849,7 +871,7 @@ Supported: blocks and headers.
 - at markdown block header or inside markdown block
 - at src header or inside src block
 Move pointer to the end of block."
-  (oai--debug "oai-block-tags--get-content-at-point")
+  (oai--debug "oai-block-tags--get-content-at-point %s" ai-block-markers)
   (if (not (derived-mode-p 'org-mode))
       (oai-block-tags--get-content-at-point-not-org ai-block-markers)
     ;; else - Org mode
@@ -968,7 +990,7 @@ Return replacement string."
   ;; `org-link-open' for type and opening,  `org-link-search' for search in current buffer.
   ;; from `org-link-open-from-string'
   ;; - - 1) convert string to Org element
-  (oai--debug "oai-block-tags--get-replacement-for-org-link %s" link-string)
+  (oai--debug "oai-block-tags--get-replacement-for-org-link %s" link-string (point))
   (let ((link-el (with-temp-buffer
                    (let ((org-inhibit-startup nil))
                      (insert link-string)
@@ -1000,7 +1022,7 @@ Return replacement string."
                (if (oai-block-tags--path-is-current-buffer-p path)
                    (if-let ((num (oai-block-tags--string-is-integer option)))
                        ;; case 2) PATH::NUM
-                       (progn (org-goto-line num) (oai-block-tags--get-content-at-point))
+                       (progn (org-goto-line num) (oai-block-tags--get-content-at-point ai-block-markers))
                      ;; else case 3) recursion call without path
                      (oai-block-tags--get-replacement-for-org-link (concat "[[" option "]]") ai-block-markers)) ; recursive call
                  ;; - else case 4) <other-file>
@@ -1021,36 +1043,37 @@ Return replacement string."
                (oai-block-tags--get-org-links-content (org-element-property :raw-link link-el)
                                                       ai-block-markers)) ; NUM-NUM
              ;; 0) search with `org-link-search' and get content with `oai-block-tags--get-content-at-point'
-             (let ((ln-before (line-number-at-pos))
-                   ;; - 1) find target of link-el & link-string
-                   (found (oai-block-tags--org-search-local link-el type path))  ; <- Search!
-                   target-pos)
-               ;; - 2) move pointer to search result
-               (setq target-pos (point))
-               ;; (print (list "oai-block-tags--get-replacement-for-org-link found" found (point)))
-               ;; 2.1) several targets with same name exist? = error
-               (when (and oai-block-tags-check-double-targets-found-flag
-                          (eq found 'dedicated)
-                          (not (eq (line-number-at-pos) ln-before))) ; found?
-                 (let ((ln-found (line-number-at-pos))
-                       oai-block-tags-error-on-missing-link-flag)
-                   (with-restriction (line-end-position) (point-max)
-                     (condition-case nil
-                         (setq found (oai-block-tags--org-search-local link-el type path))
-                       (error nil)))
-                   (when (and (not (eq (line-number-at-pos) ln-found)) ; found?
-                              (eq found 'dedicated))
-                     ;; (print (list (line-number-at-pos) ln-found (progn (forward-line ln-found)
-                     ;;                                                   (buffer-substring-no-properties (line-beginning-position) (line-end-position)))))
-                     (user-error "Two targets found for link %s\n- %s: %s\n- %s: %s" link-string
-                                 (line-number-at-pos) (buffer-substring-no-properties (line-beginning-position) (line-end-position))
-                                 ln-found (progn (forward-line (- ln-found (line-number-at-pos)))
-                                                 (buffer-substring-no-properties (line-beginning-position) (line-end-position)))))))
+             (let ((ln-before (line-number-at-pos)))
+               (let (
+                     ;; - 1) find target of link-el & link-string
+                     (found (oai-block-tags--org-search-local link-el type path))  ; <- Search!
+                     target-pos)
+                 ;; - 2) move pointer to search result
+                 (setq target-pos (point))
+                 ;; (print (list "oai-block-tags--get-replacement-for-org-link found" found (point)))
+                 ;; 2.1) several targets with same name exist? = error
+                 (when (and oai-block-tags-check-double-targets-found-flag
+                            (eq found 'dedicated)
+                            (not (eq (line-number-at-pos) ln-before))) ; found?
+                   (let ((ln-found (line-number-at-pos))
+                         oai-block-tags-error-on-missing-link-flag)
+                     (with-restriction (line-end-position) (point-max)
+                       (condition-case nil
+                           (setq found (oai-block-tags--org-search-local link-el type path))
+                         (error nil)))
+                     (when (and (not (eq (line-number-at-pos) ln-found)) ; found?
+                                (eq found 'dedicated))
+                       ;; (print (list (line-number-at-pos) ln-found (progn (forward-line ln-found)
+                       ;;                                                   (buffer-substring-no-properties (line-beginning-position) (line-end-position)))))
+                       (user-error "Two targets found for link %s\n- %s: %s\n- %s: %s" link-string
+                                   (line-number-at-pos) (buffer-substring-no-properties (line-beginning-position) (line-end-position))
+                                   ln-found (progn (forward-line (- ln-found (line-number-at-pos)))
+                                                   (buffer-substring-no-properties (line-beginning-position) (line-end-position)))))))
 
-               ;; - 4) Move to position of target position
-               (goto-char target-pos)
-               ;; - 5) `oai-block-tags--get-content-at-point'
-               (oai-block-tags--get-content-at-point))))))))))
+                 ;; - 4) Move to position of target position
+                 (goto-char target-pos)
+                 ;; - 5) `oai-block-tags--get-content-at-point'
+                 (oai-block-tags--get-content-at-point ai-block-markers)))))))))))
 ;; - test:
 ;; (if (not (let ((oai-block-tags-use-simple-directory-content-flag t))
 ;;            (and
@@ -1145,7 +1168,8 @@ reserve any extra captured groups.
 Check that found regexp not in markdown block.
 If REPLACEMENT not provided return found str-orig for regexp or nil if not
 found."
-  (oai--debug "oai-block-tags--replace-last-regex-smart" str-orig replacement)
+  (oai--debug "oai-block-tags--replace-last-regex-smart N1 %s" str-orig)
+  (oai--debug "oai-block-tags--replace-last-regex-smart N2" replacement)
   (let ((pos 0)
         (last-pos nil)
         (last-end nil))
@@ -1203,16 +1227,16 @@ Return modified string with text properties or the same string."
   (oai--debug "oai-block-tags-replace N0 %s" string)
   ;; - "@Backtrace" substring exist - replace the last one only
   ;; Result will be *Wrapped in markdown*
-  (let ((i 99))
+  (let ((i 9))
     (while (and (string-match oai-block-tags--regexes-backtrace string)
                 (not (zerop i)))
       (setq i (1- i))
-      (oai--debug "oai-block-tags-replace N1 backtrace")
+      (oai--debug "oai-block-tags-replace N1 backtrace %s %s" (match-string 0 string))
       (if-let* ((bt (or (oai-block-tags--get-backtrace-buffer-string)
                         (user-error "No backtrace buffer for @Backtrace tag"))) ; *Backtrace* buffer exist
                 (bt (oai-block-tags--take-n-lines bt oai-block-tags-backtrace-max-lines))
                 (bt (oai-block-tags--compose-m-block bt
-                                                     :lang "elisp-backtrace"
+                                                     :lang "backtrace"
                  ;; (concat "\n```" (plist-get oai-block-tags--markdown-prefixes :backtrace) "\n"
                  ;;            bt
                  ;;            oai-block-tags--markdown-postfix)
@@ -1222,11 +1246,11 @@ Return modified string with text properties or the same string."
 
   ;; - Path @/path/file.txt - replace the last one only
   ;; Result will be *Wrapped in markdown*
-  (let ((i 99))
+  (let ((i 9))
     (while (and (string-match oai-block-tags--regexes-path string)
                 (not (zerop i)))
       (setq i (1- i))
-      (oai--debug "oai-block-tags-replace N2 regexes-path")
+      (oai--debug "oai-block-tags-replace N2 regexes-path %s %s" i (match-string 0 string))
       (if-let* ((path-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--regexes-path)) ; find the last
                 ;; remove first @ character from link
 
@@ -1249,7 +1273,7 @@ Return modified string with text properties or the same string."
     (while (and (string-match oai-block-tags--org-link-any-re string) ; exist in text?
                 (not (zerop i)))
       (setq i (1- i))
-      (oai--debug "oai-block-tags-replace N3 link-any-r")
+      (oai--debug "oai-block-tags-replace N3 link-any-r %s %s" i (match-string 0 string))
       (if-let* ((link (oai-block-tags--replace-last-regex-smart string oai-block-tags--org-link-any-re)) ; find the last
 
                 (replacement (concat (oai-block-tags--get-replacement-for-org-link link ai-block-markers) "\n")) ; add empty line after it.
@@ -1257,6 +1281,7 @@ Return modified string with text properties or the same string."
                                                                       oai-block-tags--org-link-any-re
                                                                       replacement)))
           (setq string new-string))))
+  (oai--debug "oai-block-tags-replace N4" string)
   string) ; return
 
 (defun oai-block-tags--clear-properties (string)
@@ -1267,6 +1292,7 @@ made by `oai-block-tags--replace-last-regex-smart'.
 Return modified STRING."
   (set-text-properties 0 (length string) nil string)
   (string-trim string))
+
 
 ;; (oai-block-tags-replace  "[[./]]")
 ;; (oai-block-tags-replace  "11[[sas]]222[[bbbaa]]3333[[sas]]4444")
