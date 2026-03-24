@@ -115,7 +115,8 @@ Return last argument, but should not be used for return value."
                      (and (bound-and-true-p ert-enabled) (current-buffer))
                      (get-buffer-create oai-debug-buffer)))
              (current-window (selected-window))
-             (bu-window (or (get-buffer-window bu)                            (when (not (eq last-input-event 7)) ; not C-g exit - too much verbose
+             (bu-window (or (get-buffer-window bu)
+                            (when (not (eq last-input-event 7)) ; not C-g exit - too much verbose
                               (if (>= (count-windows) 2)
                                   (display-buffer-in-direction ; exist but hidden
                                    bu
@@ -134,12 +135,12 @@ Return last argument, but should not be used for return value."
              result-string)
 
         (with-current-buffer bu
-          ;; - move point to  to bottom
+          ;; - 1) move point to  to bottom
           (when buf-exist ; was not created
               (goto-char (point-max))
             ;; else buffer just created
             (local-set-key "q" #'quit-window))
-          ;; ;; - scroll debug buffer down
+           ;; - scroll debug buffer down
           (when (and bu-window (not (bound-and-true-p ert-enabled)))
               (with-selected-window (get-buffer-window bu)
                 ;; (with-no-warnings
@@ -155,16 +156,15 @@ Return last argument, but should not be used for return value."
           ;;     (insert "Din ")
           ;;     (insert caller)
           ;;     (insert " :")))
-          ;; - output args
+          ;; - 2) prepare output in result-string variable
           (save-match-data
             ;; if first line is a string with %s we output all at one line
             (if (and (equal (type-of (car args)) 'string)
                      (string-match "%s" (car args)))
-                ;; format %s
-                ;; (setq result-string (concat (apply #'format (car args) (cdr args)) "\n"))
+                ;; "safe format"
                 (setq result-string (apply #'oai-debug--safe-format args)) ; (concat (apply #'format (car args) (cdr args)) "\n"))
 
-              ;; else - output arguments line by line
+              ;; else - "```debug" with line by line
               (setq result-string (concat (oai-debug--format-argument (car args))
                                           (when (cdr args)
                                             (concat
@@ -174,6 +174,7 @@ Return last argument, but should not be used for return value."
             (when (and oai-debug-filter
                        (not (string-match-p (regexp-quote oai-debug-filter) result-string)))
                     (setq result-string nil))
+            ;; - 3) output as: timestamp - function - ```debug or "safe-format"
             (when result-string
               ;; - two ways to output: for ert.el and to debug buffer.
               (if (bound-and-true-p ert-enabled)

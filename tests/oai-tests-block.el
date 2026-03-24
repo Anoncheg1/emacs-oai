@@ -386,7 +386,9 @@ as
                   (nreverse (remove nil results))))
       (should (equal correct-sep res))
       (setq res (oai-block--collect-chat-messages-from-string payload))
-      (should (equal correct-merged res)))))
+      (should (equal res correct-sep))
+      (setq res (vconcat (oai-block--merge-by-role res)))
+      (should (equal res correct-merged)))))
 
 ;; -=-= Test: `oai-block--find-region-with-position'
 (ert-deftest oai-tests-block--find-region-with-position ()
@@ -510,48 +512,51 @@ as
    (equal
     (let ((test-string "[SYS]: system\n[ME]: user\n[AI]: assistant"))
       (oai-block--collect-chat-messages-from-string test-string))
-    '[(:role system :content "system")
+    '((:role system :content "system")
       (:role user :content "user")
-      (:role assistant :content "assistant")]))
+      (:role assistant :content "assistant"))))
 
   ;; sys prompt intercalated
   (should
    (equal
     (let ((test-string "[SYS]: system\n[ME]: user\n[AI]: assistant\n[ME]: user"))
       (oai-block--collect-chat-messages-from-string test-string "system"))
-    '[(:role system :content "system")
+    '((:role system :content "system")
       (:role user :content "user")
       (:role assistant :content "assistant")
-      (:role user :content "user")]))
+      (:role user :content "user"))))
 
-  (should
-   (equal
-    (let ((test-string "[SYS]: system\n[ME]: user\n[AI]: assistant\n[ME]: user"))
-      (oai-block--collect-chat-messages-from-string test-string nil "pers-system1" nil " "))
-    '[(:role system :content "system")
-      (:role user :content "pers-system1 user")
-      (:role assistant :content "assistant")
-      (:role user :content "pers-system1 user")]))
+  ;; (should
+  ;;  (equal
+  ;;   (let ((test-string "[SYS]: system\n[ME]: user\n[AI]: assistant\n[ME]: user"))
+  ;;     (oai-block--collect-chat-messages-from-string test-string nil "pers-system1" nil " "))
+  ;;   '[(:role system :content "system")
+  ;;     (:role user :content "pers-system1 user")
+  ;;     (:role assistant :content "assistant")
+  ;;     (:role user :content "pers-system1 user")]))
 
-  (should
-   (equal
-    (let ((test-string "[SYS]: system\n[ME]: user\n[AI]: assistant\n[ME]: user"))
-      (oai-block--collect-chat-messages-from-string test-string "def-system1" nil "maxt-system2" " "))
-    '[(:role system :content "system maxt-system2")
-      (:role user :content "user")
-      (:role assistant :content "assistant")
-      (:role user :content "user")]))
+  ;; (should
+  ;;  (equal
+  ;;   (let ((test-string "[SYS]: system\n[ME]: user\n[AI]: assistant\n[ME]: user"))
+  ;;     (oai-block--collect-chat-messages-from-string test-string "def-system1" nil "maxt-system2" " "))
+  ;;   '[(:role system :content "system maxt-system2")
+  ;;     (:role user :content "user")
+  ;;     (:role assistant :content "assistant")
+  ;;     (:role user :content "user")]))
 
   ;; merge messages with same role
-  (should
-   (equal
-    (let ((test-string "[ME]: hello\n[ME]: world")) (oai-block--collect-chat-messages-from-string test-string))
-    '[(:role user :content "hello\nworld")]))
+
+    (let ((test-string "[ME]: hello\n[ME]: world")
+          res)
+      (setq res (oai-block--collect-chat-messages-from-string test-string))
+      (should (equal res '((:role user :content "hello") (:role user :content "world"))))
+      (setq res (vconcat (oai-block--merge-by-role res)))
+      (should (equal res '[(:role user :content "hello\nworld")])))
 
   (should
    (equal
     (let ((test-string "[ME:] hello world")) (oai-block--collect-chat-messages-from-string test-string))
-    '[(:role user :content "hello world")])))
+    '((:role user :content "hello world")))))
 
 ;; -=-= Test: `oai-block--insert-stream-response'
 
@@ -966,16 +971,18 @@ as
         org-execute-file-search-functions
         points
         res)
+
     (with-temp-buffer
       (org-mode)
       (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
       (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n#+end_ai")
-      (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-min) (point-max)))
+      (goto-char (point-min))
+      (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
       ;; (oai-block-tags--markdown-mark-fenced-code-body))))
       (should-not res))
-    (with-temp-buffer
 
-      (let(p1 p2 p3 p4 p5 p6)
+    (with-temp-buffer
+      (let (p1 p2 p3 p4 p5 p6)
         (goto-char (point-min))
         (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"")
         (setq p1 (point))
@@ -987,25 +994,31 @@ as
         ;; (print (point))
         (setq p4 (point))
         (insert "```")
-        ;; (setq p5 (point))
+        (setq p5 (point))
         (insert "\n")
         (setq p6 (point))
         (insert "#+end_ai")
         (insert "\n")
-      (setq res (oai-block--pos-in-markdown-block-p p1 (point-min) (point-max)))
-      (should-not res)
-      (setq res (oai-block--pos-in-markdown-block-p p2 (point-min) (point-max)))
-      ;; (should-not res
-      (should (equal res '(91 . 102)))
-      (setq res (oai-block--pos-in-markdown-block-p p3 (point-min) (point-max)))
-      (should (equal res '(91 . 102)))
+        (goto-char p1)
+        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (should-not res)
+        (goto-char p2)
+        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        ;; (should-not res
+        (should (equal res '(91 . 102)))
+        (goto-char p3)
+        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (should (equal res '(91 . 102)))
+        (goto-char p4)
+        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (should (equal res '(91 . 102)))
+        (goto-char p5)
+        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (should (equal res '(91 . 102)))
+        (goto-char p6)
+        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (should-not res)))))
 
-      (setq res (oai-block--pos-in-markdown-block-p p4 (point-min) (point-max)))
-      (should (equal res '(91 . 102)))
-      ;; (setq res (oai-block--pos-in-markdown-block-p p5 (point-min) (point-max))))))
-      ;; (should (equal res '((91 105) (100 99))))
-      (setq res (oai-block--pos-in-markdown-block-p p6 (point-min) (point-max)))
-      (should-not res)))))
 
 ;; -=-= Test: `oai-block--apply-noweb'
 (ert-deftest oai-tests-block--apply-noweb ()
@@ -1029,6 +1042,66 @@ test
  aa test
  bb" 0 5 (face region) 9 14 (face region)))
       ))))
+
+;; -=-= Test: `oai-block--markdown-subblocks-regions'
+(ert-deftest oai-tests-block--markdown-subblocks-regions1 ()
+  (should
+   (equal
+    '(2 26 30 43)
+    (with-temp-buffer
+      (insert "
+  ```elisp
+```text
+test
+```
+```elisp
+```\n")
+      (oai-block--markdown-subblocks-regions (point-min) (point-max))))))
+
+(ert-deftest oai-tests-block--markdown-subblocks-regions2 ()
+  (should
+   (equal
+    (with-temp-buffer
+      (insert "```elisp
+```text
+test
+```
+as
+```")
+      (let ((reg (oai-block--markdown-subblocks-regions (point-min) (point-max))))
+        (buffer-substring (car reg) (cadr reg))))
+    "```elisp
+```text
+test
+")))
+
+(ert-deftest oai-tests-block--markdown-subblocks-regions3 ()
+  (should
+   (equal
+    '(2 26 30 44)
+    (with-temp-buffer
+      (insert "
+  ```elisp
+```text
+test
+```
+```elisp
+sasd\n")
+      (oai-block--markdown-subblocks-regions (point-min) (point-max))))))
+
+(ert-deftest oai-tests-block--markdown-subblocks-regions4 ()
+  (should
+   (equal
+    '(2 26)
+    (with-temp-buffer
+      (insert "
+  ```elisp
+```text
+test
+```
+```
+sasd\n")
+      (oai-block--markdown-subblocks-regions (point-min) (point-max))))))
 
 ;; -=-= provide
 (provide 'oai-tests-block)

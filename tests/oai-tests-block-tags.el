@@ -42,9 +42,12 @@
 ;; (setopt oai-debug-buffer "*debug-oai*")
 
 ;; -=-= help functions
-(defun oai-tests-block-tags-insert-block ()
-  (mark-whole-buffer) ; output Mark set
-  (call-interactively #'kill-region)
+(defun oai-tests-block-tags-insert-block (&optional name not-clear)
+  (unless not-clear
+    (mark-whole-buffer) ; output Mark set
+    (call-interactively #'kill-region))
+  (when name
+    (insert "#+name: " name "\n"))
   (insert "#+begin_ai\n")
   (let ((p1 (point)))
     (insert "\n#+end_ai")
@@ -680,19 +683,21 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (oai-block-tags--get-content-at-point)))))
 
 (ert-deftest oai-tests-block-tags--get-content-at-point2 ()
-  (should
-   (string-equal
-    "```elisp\naa\n```"
+  ;; (should
+  ;;  (string-equal
+  ;;   "```elisp\naa\n```"
     (with-temp-buffer
       (org-mode)
       (insert "#+NAME: asd\n#+begin_src text\n```elisp")
-      (let ((p (point)))
+      (let ((p (point))
+            res)
         (insert "\naa\n```\n#+end_src\n")
         (goto-char p)
         ;; (oai-block-tags--contents-area)))
         ;; (oai-block-tags--markdown-block-range)))
         ;; (oai-block-tags--get-m-block)))
-        (oai-block-tags--get-content-at-point))))))
+        (setq res (oai-block-tags--get-content-at-point))
+        (should (string-equal res "```elisp\naa\n```")))))
 
 (ert-deftest oai-tests-block-tags--get-content-at-point3 ()
   (should
@@ -755,13 +760,14 @@ ss
 (ert-deftest oai-tests-block-tags--compose-m-block ()
   (should
    (string-equal (oai-block-tags--compose-m-block "aaa" :lang "bbb" :header "ccc") "\nccc\n```bbb\naaa\n```"))
+  ;; Header are ignored for AI block
   (should
-   (string-equal (oai-block-tags--compose-m-block "asda\n[me:] asdas" :lang "ai" :header "some header") "some header\nasda\n[me:] asdas"))
+   (string-equal (oai-block-tags--compose-m-block "asda\n[me:] asdas" :lang "ai" :header "some header") "asda\n[me:] asdas"))
   (should
-   (string-equal (oai-block-tags--compose-m-block "[me:] asda\n[ai:] asdas" :lang "ai" :header "some header") "[me:] some header\nasda\n[ai:] asdas"))
+   (string-equal (oai-block-tags--compose-m-block "[me:] asda\n[ai:] asdas" :lang "ai" :header "some header") "[me:] asda\n[ai:] asdas"))
   (should
    (string-equal (oai-block-tags--compose-m-block "Text\nasdas" :lang "ai" :header "Header:")
-                 "Header:\nText\nasdas"))
+                 "Text\nasdas"))
   (should
    (string-equal (oai-block-tags--compose-m-block "Text\nasdas" :lang "ai" :header "Header:" :inner t)
                  "\nHeader:\n```ai\nText\nasdas\n```")))
@@ -992,6 +998,76 @@ ss
       (should (eql 'assistant (plist-get (aref res 2) :role)))
       (should (eql 'user (plist-get (aref res 3) :role)))
       (should (string-match "tt" (plist-get (aref res 3) :content))))))
+
+;; -=-= Test: oai-block-tags-get-content-ai-messages with tags
+;; oai-block-tags-replace and
+(ert-deftest oai-tests-block-tags--get-content-ai-messages-loop ()
+  (with-temp-buffer
+    (progn
+      (org-mode)
+      ;; block 1. Named
+      (oai-tests-block-tags-insert-block "aal")
+      (insert "test\n\n[ai]:\nMy output have limit of 150-tokens.\n\n[ME]:")
+      (let ((block (oai-block-p)))
+        (goto-char (point-max))
+        (forward-line)
+        ;; block 2. with link
+        (oai-tests-block-tags-insert-block nil t)
+        (insert "blas\n")
+        (insert "[[aal]]")
+        (oai-block-tags-replace (oai-block-get-content))))))
+
+(when (require 'org-links nil 'noerror)
+  (ert-deftest oai-tests-block-tags--block-get-content--tags-replace ()
+    (with-temp-buffer
+      (progn
+        (org-mode)
+        ;; 1) insert aal block
+        (oai-tests-block-tags-insert-block "aal")
+        (insert "test\n\n[ai]:\nMy output have limit of 150-tokens.\n\n[ME]:")
+        (let ((block (oai-block-p))
+              res)
+          (goto-char (point-max))
+          (newline)
+          ;; 2) insert block with link to block 1)
+          (oai-tests-block-tags-insert-block nil t)
+          (insert "blas\n")
+          (insert "[[aal]]")
+          ;; 3) get-content and replace-tags
+          (setq res
+                (oai-block-tags--clear-properties
+                 (oai-block-tags-replace (oai-block-get-content))))
+          (should (string-equal res
+                                "blas
+[ME]: test
+
+[ai]: My output have limit of 150-tokens."))))))
+
+
+  (ert-deftest oai-tests-block-tags--get-content-ai-messages-direct2 ()
+    (with-temp-buffer
+      (progn
+        (org-mode)
+        (oai-tests-block-tags-insert-block "aal")
+        (insert "test\n\n[ai]:\nMy output have limit of 150-tokens.\n\n[ME]:")
+        (let ((block (oai-block-p))
+              res)
+          (goto-char (point-max))
+          (newline)
+          (oai-tests-block-tags-insert-block nil t)
+          (insert "blas\n")
+          (insert "[[aal]]")
+          (setq res
+                (oai-block-tags-get-content))
+          (should (string-equal res
+                                "[ME]: blas
+test
+
+[ai]: My output have limit of 150-tokens.")))))))
+
+;; (name (org-element-property :name (oai-block-p))))
+
+;; (oai-block-tags-replace (oai-block-get-content))
 
 ;; -=-= provide
 (provide 'oai-tests-block-tags)

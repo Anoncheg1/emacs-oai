@@ -99,7 +99,9 @@
 ;; Terms:
 ;; - chat roles or prefixes - [AI]: [ME:]
 ;; - parts or messages - major parts of chat with prefixes of roles
-
+;; - two steps of preparing messages:
+;;   1) apply additional system messages from info. `oai-block--prepare-chat-messages'
+;;   2) expand links and noweb references. `oai-block-tags-get-content-ai-messages' and others.
 
 ;;;; Other packages:
 
@@ -176,6 +178,10 @@
 ;;  should be rewrited, in which org-edit-src-code should be executed
 ;;  with content, not current block
 ;; - unbind dependency to each other of `oai-restapi' and `oai-block-tags'
+;;   create oai-block-chat and collect all functions that works with chat prefixes.
+;;   includes: oai-block -> oai-block-chat -> oai-restapi
+;; - add optional function to put text in markdown language block to the
+;;  begining of the line by removing indentation
 
 ;;; Code:
 
@@ -297,11 +303,10 @@ Return list of strings to print."
   (seq-let (element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream info) (oai-parse-org-header)
     (let* ((req-type (oai-block--get-request-type info))
            ;; (req-type-completion (not (eq 'x (alist-get :completion info 'x))))
-           disable-tags ai-block-markers links-only-last ; nil
-           (not-clear-properties t)
+           disable-tags ai-block-markers links-only-last not-clear-properties ; nil
            (max-tokens-string
             (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
-              (oai-restapi--get-lenght-recommendation max-tokens)))
+              (oai-restapi--get-length-recommendation max-tokens)))
            (messages (unless (eql req-type 'completion)
                        ;; - split content to messages
                        (oai-block-tags-get-content-ai-messages

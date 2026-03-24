@@ -50,7 +50,7 @@
                                               "[ME:]How to make coffe?\n[AI]: IDK.")
                                              ""
                                              max-tokens))
-      (vector (list :role 'system :content (concat (nth 0 oai-prompt-chain-list) " " (oai-restapi--get-lenght-recommendation 200)))
+      (vector (list :role 'system :content (concat (nth 0 oai-prompt-chain-list) " " (oai-restapi--get-length-recommendation 200)))
                     (list :role 'user :content "How to make coffe?")
                     (list :role 'assistant :content "IDK.")))))
 

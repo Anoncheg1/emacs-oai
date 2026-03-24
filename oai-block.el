@@ -113,13 +113,12 @@ Arguments: type, role-text, pos, buffer
 
 
 (defcustom oai-block-parse-part-hook nil
-  "Call hook function with raw string of current block after role prefix.
-Implemented as a list of functions that called with two argument content
-string after prefix and role prefix as a symbol from from
-`oai-block-roles-prefixes'.  Executed from left to right and pass result
-content string to each other.  Executed at step of reading ai block from
-raw content of buffer before any processing but after splitting to
-parts."
+  "Run before request preparation after splitting ai block to chat messages.
+Call hook function with raw string of current block after role prefix.
+ Implemented as a list of functions that called with two argument
+ content string after prefix and role prefix as a symbol from from
+ `oai-block-roles-prefixes'.  Executed from left to right and pass
+ result content string to each other."
   :type 'hook
   :group 'oai)
 
@@ -218,11 +217,10 @@ In `oai-block-roles-prefixes'.")
 ;;   (or (cdr (assoc-string role oai-block-roles-prefixes)) ; Get value by key
 ;;       oai-block-roles-prefixes-unknown)) ; => assistant
 
-(defconst oai-block--ai-block-begin-re "^#\\+begin_ai.*$")
-(defconst oai-block--ai-block-end-re "^#\\+end_ai.*$")
-(defconst oai-block--ai-block-begin-end-re "^#\\+\\(begin\\|end\\)_ai.*$")
-
-
+(defconst oai-block--ai-block-begin-re "^[ \t]*#\\+begin_ai.*$")
+(defconst oai-block--ai-block-end-re "^[ \t]*#\\+end_ai.*$")
+(defconst oai-block--ai-block-begin-end-re "^[ \t]*#\\+\\(begin\\|end\\)_ai.*$")
+(org-in-regexp org-babel-src-name-regexp)
 (defvar oai-block--markdown-begin-re "^\\s-*```\\([^\s\t\n[{]+\\)[\s\t]?$")
 (defvar oai-block--markdown-end-re "^[\s\t]**```\\s-*$")
 (defvar oai-block--markdown-beg-end-re "^[\s\t]*```\\(.*\\)$")
@@ -230,7 +228,8 @@ In `oai-block-roles-prefixes'.")
   "Prefix should be at the begining of the line with spaces or without.
 Or roles regex.")
 (defvar oai-block--markdown-header-re "^\\(#+\\)\\s-+\\([0-9a-zA-Z][).]\\)?\\s-*\\(.*\\)$"
-  "Used for highlighting and for jumping.")
+  "Match markdown headers starting with one or more # character.
+Used for highlighting and for jumping.")
 
 
 (defface oai-block--me-ai-chat-prefixes-font-face
@@ -638,14 +637,31 @@ BEG and END is a range in which to search markdown.
 Careful, move pointer.
 Return list or nil."
   (goto-char beg)
-  (let (regions)
+  (let (regions markdown-beg)
+
     (while (and (< (point) end)
-                (re-search-forward oai-block--markdown-beg-end-re end t)) ; point is at end of line now
+                ;; 1) find begining of block
+                (and (re-search-forward oai-block--markdown-beg-end-re end t)  ; point is at end of line now
+                     (setq markdown-beg (line-beginning-position)))
+                ;; 2) find end of block
+                (re-search-forward oai-block--markdown-end-re end t))
+      (push markdown-beg regions)
       (push (line-beginning-position) regions))
+    ;; if last block without ending, we presume that it ends and "end"
+    (when (and regions
+               (not (member markdown-beg regions))
+               (progn (goto-char markdown-beg)
+                      (looking-at oai-block--markdown-begin-re)))
+      (push markdown-beg regions)
+      (push end regions))
+    ;; (print (list regions (member markdown-beg regions)))
     (when regions
       (reverse regions))))
 
-(defun oai-block--pos-in-markdown-block-p (&optional pos limit-start limit-end)
+
+
+
+(defun oai-block--pos-in-markdown-block-p (&optional limit-start limit-end)
   "Return (cons beg end) if pos is inside markdown block.
 Execution in not `org-mode' is supported.
 Caution: move pointer.
@@ -657,22 +673,26 @@ LIMIT-START and LIMIT-END are parameters for
 If POS at the footer of block, return nil.
 Positions of (cons beg end) are begining of the line.
 If not found return nil."
-  (oai--debug "oai-block--pos-in-markdown-block-p N0 %s %s %s" pos limit-start limit-end)
+  (oai--debug "oai-block--pos-in-markdown-block-p N0 %s %s" limit-start limit-end)
   ;; - preparation
-  (let ((pos (or pos (line-beginning-position)))
+  (let ((pos (line-beginning-position))
         (reg (unless (and limit-start limit-end)
                (if (derived-mode-p 'org-mode)
-                   (oai-block--contents-region)
+                   (or (oai-block--contents-region)
+                       (error "Not at AI block in Org mode"))
+                 ;; else
                  (cons (point-min) (point-max))))))
     (let ((limit-start (or limit-start (car reg)))
           (limit-end (or limit-end (cdr reg))))
       ;; - main
       (when-let* ((regions (oai-block--markdown-subblocks-regions limit-start limit-end)) ; TODO: last block without footer
-                  (res (or (oai-block--find-region-with-position regions pos)
-                           (when (progn (goto-char pos)
-                                        (looking-at oai-block--markdown-begin-re))
-                             (cons (cons pos limit-end) 0)))))
-        (oai--debug "oai-block--pos-in-markdown-block-p N1" res)
+                  (res (oai-block--find-region-with-position regions pos)))
+
+                  ;; (res (or (oai-block--find-region-with-position regions pos)
+                  ;;          (when (progn (goto-char pos)
+                  ;;                       (looking-at oai-block--markdown-begin-re))
+                  ;;            (cons (cons pos limit-end) 0)))))))))
+        (oai--debug "oai-block--pos-in-markdown-block-p N1" regions res)
         (if (zerop (mod (cdr res) 2)) ; we need 0 2 4
             (car res)
           ;; else - special case - pointer at the footer line.
@@ -755,7 +775,7 @@ on the current line.
       (oai-block--in-markdown-quotes-p pos "```")))
 
 
-;; -=-= chat: insert message
+;; -=-= response: insert
 (defun oai-block--insert-single-response (end-marker &optional text insert-me not-final)
   "Insert result to ai block.
 If text is nil, it counts as INSERT-ME and FINAL.
@@ -963,18 +983,20 @@ Return positions  as start points  that match PREFIX-RE (normally  it is
 and content end at the beginin and the end of flat list."
   (when (< content-end content-start)
     (error "Point is at wrong position"))
+  (oai--debug "oai-block--get-chat-messages-positions %s" oai-block-not-check-prefix-in-markdown-block-flag)
   (save-excursion
     (let (positions)
       (goto-char content-start)
       ;; Collect all chat header positions
       (while (re-search-forward prefix-re content-end t) ; point at begin of next line or after space
-        (oai--debug "messages-positions1 %s" (point))
+        ;; (oai--debug "messages-positions1 %s" (point))
         ;; check that we are not in markdown subblock
-        (when (or oai-block-not-check-prefix-in-markdown-block-flag ; if t disable check
-                  (not (save-match-data
-                           (oai-block--pos-in-markdown-block-p (line-beginning-position) content-start content-end)))) ; change position
-          (oai--debug "messages-positions2 %s %s" (match-beginning 0) (point))
-          (push (match-beginning 0) positions))
+        (if oai-block-not-check-prefix-in-markdown-block-flag ; if t disable check
+            (push (match-beginning 0) positions)
+          ;; else
+            (unless (save-match-data
+                      (oai-block--pos-in-markdown-block-p content-start content-end))
+              (push (match-beginning 0) positions)))
         (goto-char (match-end 0)))
       (setq positions (nreverse positions))
       ;; Ensure content-start is included first
@@ -1019,8 +1041,10 @@ line."
     (oai-block--get-chat-messages-positions con-beg con-end oai-block--chat-prefixes-re)))
 
 (defun oai-block--merge-by-role (messages &optional sep)
-  "Merge consecutive MESSAGES plists with same :role.
-Joining non-empty content by SEP (defaults to newline)."
+  "Merge consecutive list of plist MESSAGES with same :role.
+Joining non-empty content by SEP (defaults to newline).
+Return new list of plist messages with :role and :content."
+  (oai--debug "oai-block--merge-by-role" messages)
   (setq sep (or sep "\n"))
   (let (result role content)
     (dolist (msg messages)
@@ -1031,7 +1055,7 @@ Joining non-empty content by SEP (defaults to newline)."
          (and role (eq r role))
           (when (and c (not (string-empty-p c)))
             (setq content (if (and content (not (string-empty-p content)))
-                              (concat content sep c) c)))
+                              (concat content sep c) c))) ; CONCAT!
           ;; else. New role: push previous role/content, start new batch
           (when (and role content (not (string-empty-p content)))
             (push (list :role role :content content) result))
@@ -1041,19 +1065,23 @@ Joining non-empty content by SEP (defaults to newline)."
       (push (list :role role :content content) result))
     (nreverse result)))
 
-
 ;; Parse parts and build messages
-(defun oai-block--parse-part (pos-beg pos-end)
+(defun oai-block--parse-part (pos-beg pos-end &optional first-chat-role not-clear-properties)
   "Get part of chat as a plist with :role and :content in current buffer.
 Positions POS-BEG POS-END used as limits.
 Skip AI_REASON role string.
 If prefix found two times error is thrown.
 Uses `oai-block-roles-prefixes' variable and `oai-block--chat-prefixes-re'.
-If content is empty string return nil otherwise plist."
+If content is empty string return nil otherwise plist.
+Optional FIRST-CHAT-ROLE is \'user by default.
+NOT-CLEAR-PROPERTIES used for splitting parsed messages to preserve
+ region selection added by `oai-block-tags-replace'.
+Return plist of message with :role and :content or nil if content is
+ empty."
   (save-excursion
     (goto-char pos-beg)
     ;; - find prefix
-    (let ((first_chat_role 'user)
+    (let ((first-chat-role (or first-chat-role 'user))
           content ; after prefix or from pos
           role-str
           role
@@ -1061,26 +1089,40 @@ If content is empty string return nil otherwise plist."
       ;; get role and begining of content
       (save-match-data
         (when (re-search-forward oai-block--chat-prefixes-re pos-end t)
-            (setq role-str (match-string 1))
-            (setq pre-end-pos (match-end 0))
-            (when (re-search-forward oai-block--chat-prefixes-re pos-end t)
-              (error "Another role prefix found before POS-END %s %s "(point) pos-end))))
+          (setq role-str (match-string 1))
+          (setq pre-end-pos (match-end 0))
+          (when (re-search-forward oai-block--chat-prefixes-re pos-end t)
+            (error "Another role prefix found before POS-END %s %s "(point) pos-end))))
 
       (unless (string= role-str "AI_REASON") ; works for nil
         ;; first - get role symbol
         (if role-str
-          (setq role (or (cdr (assoc-string role-str oai-block-roles-prefixes t))
-                         oai-block-roles-prefixes-unknown))
+            (setq role (or (cdr (assoc-string role-str oai-block-roles-prefixes t))
+                           oai-block-roles-prefixes-unknown))
           ;; else
-          (setq role first_chat_role))
+          (setq role first-chat-role))
         ;; get content
-        (setq content (string-trim (buffer-substring-no-properties (or pre-end-pos pos-beg)
-                                                                   pos-end)))
-        (setq content (oai-block--pipeline oai-block-parse-part-hook content role)))
-      ;; if content is empty return nil.
-      (when (not (string-empty-p content))
-        (list :role role :content content)))))
+        (setq content (buffer-substring (or pre-end-pos pos-beg)
+                                        pos-end))
+        (unless not-clear-properties
+          (setq content (substring-no-properties content)))
+        (setq content (string-trim content))
 
+        ;; if content is empty return nil.
+        (when (not (string-empty-p content))
+          ;; (oai--debug "oai-block--parse-part %s %s" role content)
+          (list :role role :content content))))))
+
+;; (defun oai-block--parse-part-from-string (string &optional first-chat-role)
+;;   "Same as `oai-block--parse-part' but from string instead of buffer."
+;;   (with-temp-buffer
+;;     (insert string)
+;;     (oai-block--parse-part (point-min) (point-max) first-chat-role)))
+
+;; (with-temp-buffer
+;;   (insert "[ai:] asd")
+;;   (oai-block--parse-part (point-min) (point-max)))
+;;
 ;; (defun oai-block--get-chat-parts (pos-beg pos-end)
 ;;   "Return a list of chat message plists (:role :content) in region POS-BEG to POS-END.
 
@@ -1116,35 +1158,54 @@ If content is empty string return nil otherwise plist."
 ;;       (nreverse parts))))
 
 
-(defun oai-block--collect-chat-messages (content-start content-end &optional default-system-prompt persistant-sys-prompts max-token-recommendation separator)
-  "Return a list of positions for chat messages within current oai block.
+(defun oai-block--collect-chat-messages-from-buffer (content-start content-end &optional first-chat-role not-clear-properties)
+  "Positions CONTENT-START and CONTENT-END used as limits for parsing ai
+block, may be retrieved with :contents-begin and :contents-end
+properties of ai block Org element.
+Don't merge roles with `oai-block--merge-by-role'.
+Used in `oai-block-collect-chat-messages-at-point' is main function and
+ `oai-block--collect-chat-messages-from-string' that used to split
+ parsed message.
+Optional argiments,
+- FIRST-CHAT-ROLE is \'user by default, used for first message if
+ it have no prefix.
+- NOT-CLEAR-PROPERTIES used for splitting parsed messages to preserve
+ region selection added by `oai-block-tags-replace'.
+Return list of plist with :contant and :role."
+  ;; 1) Positions: for prefixes [ME:], [AI:] in current buffer
+  (let ((positions (oai-block--get-chat-messages-positions content-start content-end oai-block--chat-prefixes-re))
+        res)
+    (oai--debug "oai-block--collect-chat-messages-from-buffer %s" positions)
+    (while (cdr positions)
+      ;; 2) parse current block
+      (push (oai-block--parse-part (car positions) (cadr positions) first-chat-role not-clear-properties)
+            res)
+      (setq positions (cdr positions)))
+    (nreverse (remove nil res))))
+
+
+(defun oai-block--prepare-chat-messages (parts &optional default-system-prompt persistant-sys-prompts max-token-recommendation not-merge separator)
+  "Implement first step of preparation for chat messages.
+PARTS is list of plist with :role and :content.
 `DEFAULT-SYSTEM-PROMPT' used for [SYS] or the first [SYS]
 prompt found in `CONTENT-STRING'.
 If `PERSISTANT-SYS-PROMPTS' is non-nil, [SYS] prompts are
  intercalated.
-SEPARATOR used for merging message with same role
+When NOT-MERGE is not-nil, don't merge messages after reading.
+SEPARATOR used for merging message with same role.
 Positions CONTENT-START and CONTENT-END used as limits for parsing ai
 block, may be retrieved with :contents-begin and :contents-end
 properties of ai block Org element.
 MAX-TOKEN-RECOMMENDATION is string to add to first system message.
-Return vector with plist with :role and :content."
-  (oai--debug "oai-block--collect-chat-messages N1" content-start content-end default-system-prompt persistant-sys-prompts max-token-recommendation separator)
-  (let ((separator (or separator "\n"))
-        ;; 1) Positions: for prefixes [ME:], [AI:] in current buffer
-        (positions (oai-block--get-chat-messages-positions content-start content-end oai-block--chat-prefixes-re)))
-    (oai--debug "oai-block--collect-chat-messages N2 %s" positions)
-    (let* (
-          ;; 2) Parts: loop over positions to get strings of parts
-          (parts (let ((lst positions)
-                       (results '()))
-                   (while (cdr lst)
-                     (push (oai-block--parse-part (car lst) (cadr lst)) results) ; parse current block
-                     (setq lst (cdr lst)))
-                   (nreverse (remove nil results)))) ; reorder and filter nil
-          ;; Merge messages with same role.
-          (parts (oai-block--merge-by-role parts separator))
-          ;; 3) sys-prompt: check if [SYS] is the first part in parts.
-          (starts-with-sys-prompt-p (and parts (eql (plist-get (car parts) :role) 'system))))
+Return new list with plist with :role and :content."
+  (oai--debug "oai-block--prepare-chat-messages N1" parts)
+  (oai--debug "oai-block--prepare-chat-messages N2 %s" default-system-prompt persistant-sys-prompts max-token-recommendation not-merge separator)
+  (let* ((parts (if not-merge parts
+                  ;; else
+                  (oai-block--merge-by-role parts (or separator "\n")))) ; Merge messages with same role.
+         (starts-with-sys-prompt-p (and parts (eql (plist-get (car parts) :role) 'system))))
+
+      ;; (oai--debug "oai-block--collect-chat-messages N3" parts)
 
       ;; 4) Parts: fix [SYS:]
       (when (and default-system-prompt (not starts-with-sys-prompt-p))
@@ -1167,23 +1228,43 @@ Return vector with plist with :role and :content."
           (while lst
             (setq cur (car lst))
             (when (eql (plist-get cur :role) 'user)
-              ;; modify content
+              ;; modify content or parts
               (setf (plist-get cur :content)
                     (concat
                      persistant-sys-prompts " "
                      (plist-get cur :content))))
             (setq lst (cdr lst)))))
+      parts))
+
+      ;; (setq content (oai-block--pipeline oai-block-parse-part-hook content role))
+      ;; (oai--debug "oai-block--collect-chat-messages N4" parts)
       ;; 5) convert to vectors
-      (apply #'vector parts))))
+      ;; (apply #'vector parts)))
 
 
-(defun oai-block--collect-chat-messages-at-point (&optional element default-system-prompt persistant-sys-prompts max-token-recommendation separator)
+;; (defun oai-block-collect-messages-from-buffer (content-start content-end &optional default-system-prompt persistant-sys-prompts max-token-recommendation first-chat-role not-merge separator)
+;;   "Collect and prepare messages from current buffer.
+;; Apply first step of chat messages preparation.
+;; Return vector with plist with :role and :content with chat messages."
+;;   (oai--debug "oai-block--collect-chat-messages N1 %s" content-start content-end default-system-prompt persistant-sys-prompts max-token-recommendation separator)
+;;   (let* ((parts (oai-block--collect-chat-messages-from-buffer content-start content-end first-chat-role))
+;;          (parts (oai-block--prepare-chat-messages parts default-system-prompt persistant-sys-prompts max-token-recommendation not-merge separator)))
+;;     (apply #'vector parts)))
+
+
+(defun oai-block-collect-chat-messages-at-point (&optional element default-system-prompt persistant-sys-prompts max-token-recommendation not-merge first-chat-role separator)
   "Collect messages for ai block at current positon.
 Execution in not `org-mode' is supported.
-For not `org-mode', get all buffer.
+Used for main ai block call. Should not be used for sub-calls.
+Apply first step of chat messages preparation.
+Call `oai-block-parse-part-hook' for parts.
+For not `org-mode', content of whole buffer is used.
 Optional argument ELEMENT is AI block in current buffer.
+When NOT-MERGE is not-nil, don't merge messages after reading.
 Description for DEFAULT-SYSTEM-PROMPT PERSISTANT-SYS-PROMPTS
-MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
+MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'.
+Return vector of plist messages with :role and :content."
+  (oai--debug "oai-block-collect-chat-messages-at-point N1 %s" element)
   (let* ((element (or element (when (derived-mode-p 'org-mode)
                                 (oai-block-p))))
          (content-start (if element (org-element-property :contents-begin element)
@@ -1192,18 +1273,50 @@ MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
          (content-end  (if element (org-element-property :contents-end element)
                          ;; else
                          (point-max))))
-    (oai-block--collect-chat-messages content-start content-end default-system-prompt persistant-sys-prompts max-token-recommendation separator)))
+    ;; (oai--debug "oai-block-collect-chat-messages-at-point N2 %s" element)
+    (let ((parts (oai-block--collect-chat-messages-from-buffer
+                  content-start content-end first-chat-role))) ; list, preserve properties
+      ;; (oai--debug "oai-block-collect-chat-messages-at-point N3" parts)
+      ;; - Apply hook for every message, modify parts
+      (mapc (lambda (cur)
+              ;; (oai--debug "oai-block-collect-chat-messages-at-point N4 %s" cur)
+              (let* ((content (plist-get cur :content))
+                     (new-content (oai-block--pipeline oai-block-parse-part-hook
+                                                       content (plist-get cur :role))))
+                ;; (oai--debug "oai-block-collect-chat-messages-at-point N5 %s" new-content)
+                ;; (unless (string-equal content new-content)
+                (setf (plist-get cur :content) new-content)))
+            parts)
+      ;; - first step of preparation
+      ;; (oai--debug "oai-block-collect-chat-messages-at-point N6" parts)
+      (setq parts (oai-block--prepare-chat-messages parts default-system-prompt persistant-sys-prompts max-token-recommendation not-merge separator))
+      (oai--debug "oai-block-collect-chat-messages-at-point N7" parts)
+      (apply #'vector parts))))
 
-(defun oai-block--collect-chat-messages-from-string (content-string &optional default-system-prompt persistant-sys-prompts max-token-recommendation separator)
+(defun oai-block--collect-chat-messages-from-string (content-string &optional first-chat-role not-clear-properties)
   "Collect messages from CONTENT-STRING.
-Description for DEFAULT-SYSTEM-PROMPT PERSISTANT-SYS-PROMPTS
-MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
+Apply first step of chat messages preparation.
+Don't merge roles with `oai-block--merge-by-role'.
+Description for  SEPARATOR at `oai-block--collect-chat-messages-from-buffer'.
+Used for `oai-restapi--vector-split-by-chat-prefix'.
+Return list of plist messages with :role and :content."
   (with-temp-buffer
-    (erase-buffer)
+    ;; (erase-buffer)
     (insert content-string)
     (let ((content-start (point-min))
           (content-end   (point-max)))
-      (oai-block--collect-chat-messages content-start content-end default-system-prompt persistant-sys-prompts max-token-recommendation separator))))
+      (oai-block--collect-chat-messages-from-buffer
+       content-start content-end first-chat-role not-clear-properties))))
+
+;; old:
+;; - oai-block--collect-chat-messages-from-string
+;; - oai-block--collect-chat-messages
+;; - oai-block--collect-chat-messages-at-point
+
+;; new:
+;; - oai-block-collect-chat-messages-at-point - main - call hook
+;; - oai-block-collect-messages-from-buffer - subcalls
+;; - oai-block--collect-chat-messages-from-string -
 
 ;; -=-= chat: stringify-chat-messages
 
@@ -1478,7 +1591,6 @@ Return number of marked content."
                           (block-size (when reg (- (car reg) (cdr reg))))) ; may be nil
                      (deactivate-mark)
                      (goto-char pos)
-                     ;; (print "wtfsh")
                      (ignore-errors                    ;; Guard in case not on element
                        (message "Org Element")
                        (org-mark-element)
@@ -1489,7 +1601,7 @@ Return number of marked content."
                  ;; Step 1: Markdown block
                  (lambda ()
                    (message "MBlock content")
-                   (when-let* ((rng1 (oai-block--pos-in-markdown-block-p (line-beginning-position) block-beg block-end))
+                   (when-let* ((rng1 (oai-block--pos-in-markdown-block-p block-beg block-end))
                                (rng2 (oai-block--markdown-block-content-range (car rng1) (cdr rng1))))
                      ;; (print (list rng1 (car rng1) (cdr rng1) rng2))
                      (list (car rng2) (cdr rng2))))
@@ -1497,7 +1609,7 @@ Return number of marked content."
                  ;; Step 2: Markdown block with header and footer
                  (lambda ()
                    (message "MBlock with header")
-                   (when-let ((rng (oai-block--pos-in-markdown-block-p (line-beginning-position) block-beg block-end)))
+                   (when-let ((rng (oai-block--pos-in-markdown-block-p block-beg block-end)))
                      (list (car rng) (progn (goto-char (cdr rng)) (line-end-position)))))
                  ;; Step 3: Chat message
                  (lambda ()
