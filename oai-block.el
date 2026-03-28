@@ -1264,7 +1264,7 @@ For not `org-mode', content of whole buffer is used.
 Optional argument ELEMENT is AI block in current buffer.
 Description for SEPARATOR at
  `oai-block--collect-chat-messages-from-buffer'.
-Optional argument FIRST-CHAT-ROLE may be used to change default 'user
+Optional argument FIRST-CHAT-ROLE may be used to change default \='user
  for the first message that may don't have chat prefix.
 When NOT-MERGE is not-nil, don't merge messages after reading.
 Description for DEFAULT-SYSTEM-PROMPT PERSISTANT-SYS-PROMPTS
@@ -1303,7 +1303,7 @@ Return vector of plist messages with :role and :content."
   "Collect messages from CONTENT-STRING.
 Apply first step of chat messages preparation.
 Don't merge roles with `oai-block--merge-by-role'.
-Optional argument FIRST-CHAT-ROLE may be used to change default 'user
+Optional argument FIRST-CHAT-ROLE may be used to change default \='user
  for the first message that may don't have chat prefix.
 Used for `oai-restapi--vector-split-by-chat-prefix'.
 Return list of plist messages with :role and :content.

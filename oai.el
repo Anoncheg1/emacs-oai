@@ -311,7 +311,7 @@ Return list of strings to print."
                        ;; - split content to messages
                        (oai-block-tags-get-content-ai-messages
                         element
-                        nil ; noweb-control
+                        noweb-control
                         nil ; links-only-last
                         nil ; not-clear-properties
                         nil ; ai-block-markers

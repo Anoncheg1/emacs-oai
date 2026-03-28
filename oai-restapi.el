@@ -1596,11 +1596,11 @@ over."
 
 ;; (when (not (equal (oai-restapi---regex-substring-list "foo" "barfooquxfoozip")
 ;;                          '("bar" "fooqux" "foozip")))
-;;   (error "test:oai-restapi---regex-substring-list test1"))
+;;   (error "Test:oai-restapi---regex-substring-list test1"))
 
 ;; (when (not (equal (oai-restapi---regex-substring-list "baz" "barfooquxfoozip")
 ;;                          '("barfooquxfoozip")))
-;;   (error "test:oai-restapi---regex-substring-list test2"))
+;;   (error "Test:oai-restapi---regex-substring-list test2"))
 
 ;; (defun oai-restapi--collect-chat-messages-from-string (string &optional first-chat-role)
 ;;   ;; 3) collect
@@ -1649,18 +1649,18 @@ Return a list of messages."
 ;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
 ;;   (when (not (equal res
 ;;                     ["foo\n" "[me:]bar" "baz" "qux\n" "[ai:]\nquux" "\ncorge"]))
-;;              (error "test:oai-restapi--vector-split-by-chat-prefix1"))
+;;              (error "Test:oai-restapi--vector-split-by-chat-prefix1"))
 ;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
 ;;   (setq idxs '(2 0))
 ;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
 ;;   (when (not (equal res
 ;;                     ["foo\n" "[me:]bar" "baz" "qux\n" "[ai:]\nquux" "\ncorge"]))
-;;     (error "test:oai-restapi--vector-split-by-chat-prefix1"))
+;;     (error "Test:oai-restapi--vector-split-by-chat-prefix1"))
 ;;   (setq idxs '(0 1))
 ;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
 ;;   (when (not (equal res
 ;;                     ["foo\n" "[me:]bar" "baz" "qux\n[ai:]\nquux" "\ncorge"]))
-;;              (error "test:oai-restapi--vector-split-by-chat-prefix2")))
+;;              (error "Test:oai-restapi--vector-split-by-chat-prefix2")))
 
 ;; (oai-restapi--vector-split-by-chat-prefix '[(:role system :content "ad") (:role user :content "adb\n[ai:] bb")] '(1))
 ;; ; [(:role system :content "ad") (:role user :content "adb") (:role assistant :content "bb")]
