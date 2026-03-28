@@ -571,44 +571,44 @@ Useful for small max-tokens.
     ;; )
 
 ;; -=-= Prepare content
-
-(defun oai-restapi-prepare-content (element &optional noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens)
-  "Get content of ai block of element in current buffer.
-Handle Tags, two types of REQ-TYPE and separation of PROMPT and MESSAGES.
-Return:
-- vector with messages for chat REQ-TYPE.
-- string for completion REQ-TYPE.
-ELEMENT is result of `oai-block-p'.
-Optional arguments:
-If NOWEB-CONTROL is not-nil, activate expansion of noweb links in all
-user messages.
-If MAX-TOKENS is not-nil, and
- `oai-restapi-add-max-tokens-recommendation' is set, recommendation
- about MAX-TOKENS added to first system message.
-REQ-TYPE is completion, return string, otherwise prcess body for chat.
-Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
-`oai-restapi-request-prepare', used only if non-nil.
-Return vector or string for completion REQ-TYPE."
-  (oai--debug "oai-restapi-prepare-content" noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens oai-restapi-add-max-tokens-recommendation)
-  ;; (let ((content (oai-block-get-content element))) ; string - is block content
-  (if (eql req-type 'completion)
-      ;; - *Completion*
-      (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
-    ;; - else - *Chat*
-    (let* ((messages (oai-block-collect-chat-messages-at-point element
-                                                               sys-prompt
-                                                               sys-prompt-for-all-messages
-                                                               (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
-                                                                 (oai-restapi--get-length-recommendation max-tokens))))
-           (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
-           (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties))
-           (messages (if noweb-control
-                         (oai-restapi--modify-vector-content messages
-                                                             #'oai-block--apply-noweb
-                                                             'user)
-                       messages)) ; noweb
-           (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
-      messages))) ; return vector
+;; old
+;; (defun oai-restapi-prepare-content (element &optional noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens)
+;;   "Get content of ai block of element in current buffer.
+;; Handle Tags, two types of REQ-TYPE and separation of PROMPT and MESSAGES.
+;; Return:
+;; - vector with messages for chat REQ-TYPE.
+;; - string for completion REQ-TYPE.
+;; ELEMENT is result of `oai-block-p'.
+;; Optional arguments:
+;; If NOWEB-CONTROL is not-nil, activate expansion of noweb links in all
+;; user messages.
+;; If MAX-TOKENS is not-nil, and
+;;  `oai-restapi-add-max-tokens-recommendation' is set, recommendation
+;;  about MAX-TOKENS added to first system message.
+;; REQ-TYPE is completion, return string, otherwise prcess body for chat.
+;; Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
+;; `oai-restapi-request-prepare', used only if non-nil.
+;; Return vector or string for completion REQ-TYPE."
+;;   (oai--debug "oai-restapi-prepare-content" noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens oai-restapi-add-max-tokens-recommendation)
+;;   ;; (let ((content (oai-block-get-content element))) ; string - is block content
+;;   (if (eql req-type 'completion)
+;;       ;; - *Completion*
+;;       (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
+;;     ;; - else - *Chat*
+;;     (let* ((messages (oai-block-collect-chat-messages-at-point element
+;;                                                                sys-prompt
+;;                                                                sys-prompt-for-all-messages
+;;                                                                (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
+;;                                                                  (oai-restapi--get-length-recommendation max-tokens))))
+;;            (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
+;;            (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties))
+;;            (messages (if noweb-control
+;;                          (oai-restapi--modify-vector-content messages
+;;                                                              #'oai-block--apply-noweb
+;;                                                              'user)
+;;                        messages)) ; noweb
+;;            (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
+;;       messages))) ; return vector
 
 
 ;; -=-= Main
