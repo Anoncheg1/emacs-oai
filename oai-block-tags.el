@@ -848,7 +848,7 @@ Return string."
      ;; - (5) case - #+name: without block
      ((and (eq type 'keyword)
            (looking-at org-babel-src-name-regexp))
-      (user-error "Reference to #+name: \"%s\" without actual block." (org-element-property :value element )))
+      (user-error "Reference to #+name: \"%s\" without actual block" (org-element-property :value element )))
      ;; - (6) case - Org element with :end
      ((when-let ((end (org-element-property :end element))) ; safe
         (oai--debug "oai-block-tags--get-content-at-point-org (6) case %s" (point) type end ai-block-markers)

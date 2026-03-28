@@ -1073,7 +1073,7 @@ Skip AI_REASON role string.
 If prefix found two times error is thrown.
 Uses `oai-block-roles-prefixes' variable and `oai-block--chat-prefixes-re'.
 If content is empty string return nil otherwise plist.
-Optional FIRST-CHAT-ROLE is \'user by default.
+Optional FIRST-CHAT-ROLE is \='user by default.
 NOT-CLEAR-PROPERTIES used for splitting parsed messages to preserve
  region selection added by `oai-block-tags-replace'.
 Return plist of message with :role and :content or nil if content is
@@ -1159,7 +1159,8 @@ Return plist of message with :role and :content or nil if content is
 
 
 (defun oai-block--collect-chat-messages-from-buffer (content-start content-end &optional first-chat-role not-clear-properties)
-  "Positions CONTENT-START and CONTENT-END used as limits for parsing ai
+  "Get list of messages for content between boundaries in current buffer.
+Positions CONTENT-START and CONTENT-END used as limits for parsing ai
 block, may be retrieved with :contents-begin and :contents-end
 properties of ai block Org element.
 Don't merge roles with `oai-block--merge-by-role'.
@@ -1167,11 +1168,12 @@ Used in `oai-block-collect-chat-messages-at-point' is main function and
  `oai-block--collect-chat-messages-from-string' that used to split
  parsed message.
 Optional argiments,
-- FIRST-CHAT-ROLE is \'user by default, used for first message if
+- FIRST-CHAT-ROLE is \='user by default, used for first message if
  it have no prefix.
-- NOT-CLEAR-PROPERTIES used for splitting parsed messages to preserve
- region selection added by `oai-block-tags-replace'.
-Return list of plist with :contant and :role."
+- NOT-CLEAR-PROPERTIES if not-nil, preserve highlighting of replacement
+ of links, tags and noweb fererences added by `oai-block-tags-replace',
+ for `oai-expand-block'.
+Return list of plist with :content and :role."
   ;; 1) Positions: for prefixes [ME:], [AI:] in current buffer
   (let ((positions (oai-block--get-chat-messages-positions content-start content-end oai-block--chat-prefixes-re))
         res)
@@ -1255,14 +1257,18 @@ Return new list with plist with :role and :content."
 (defun oai-block-collect-chat-messages-at-point (&optional element default-system-prompt persistant-sys-prompts max-token-recommendation not-merge first-chat-role separator)
   "Collect messages for ai block at current positon.
 Execution in not `org-mode' is supported.
-Used for main ai block call. Should not be used for sub-calls.
+Used for main ai block call.  Should not be used for sub-calls.
 Apply first step of chat messages preparation.
 Call `oai-block-parse-part-hook' for parts.
 For not `org-mode', content of whole buffer is used.
 Optional argument ELEMENT is AI block in current buffer.
+Description for SEPARATOR at
+ `oai-block--collect-chat-messages-from-buffer'.
+Optional argument FIRST-CHAT-ROLE may be used to change default \='user
+ for the first message that may don't have chat prefix.
 When NOT-MERGE is not-nil, don't merge messages after reading.
 Description for DEFAULT-SYSTEM-PROMPT PERSISTANT-SYS-PROMPTS
-MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'.
+MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--prepare-chat-messages'.
 Return vector of plist messages with :role and :content."
   (oai--debug "oai-block-collect-chat-messages-at-point N1 %s" element)
   (let* ((element (or element (when (derived-mode-p 'org-mode)
@@ -1297,9 +1303,14 @@ Return vector of plist messages with :role and :content."
   "Collect messages from CONTENT-STRING.
 Apply first step of chat messages preparation.
 Don't merge roles with `oai-block--merge-by-role'.
-Description for  SEPARATOR at `oai-block--collect-chat-messages-from-buffer'.
+Optional argument FIRST-CHAT-ROLE may be used to change default \='user
+ for the first message that may don't have chat prefix.
 Used for `oai-restapi--vector-split-by-chat-prefix'.
-Return list of plist messages with :role and :content."
+Return list of plist messages with :role and :content.
+
+Optional argument NOT-CLEAR-PROPERTIES if not-nil, preserve highlighting
+ of replacement of links, tags and noweb fererences added by
+ `oai-block-tags-replace', for `oai-expand-block'."
   (with-temp-buffer
     ;; (erase-buffer)
     (insert content-string)

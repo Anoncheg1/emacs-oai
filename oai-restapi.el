@@ -571,44 +571,44 @@ Useful for small max-tokens.
     ;; )
 
 ;; -=-= Prepare content
-
-(defun oai-restapi-prepare-content (element &optional noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens)
-  "Get content of ai block of element in current buffer.
-Handle Tags, two types of REQ-TYPE and separation of PROMPT and MESSAGES.
-Return:
-- vector with messages for chat REQ-TYPE.
-- string for completion REQ-TYPE.
-ELEMENT is result of `oai-block-p'.
-Optional arguments:
-If NOWEB-CONTROL is not-nil, activate expansion of noweb links in all
-user messages.
-If MAX-TOKENS is not-nil, and
- `oai-restapi-add-max-tokens-recommendation' is set, recommendation
- about MAX-TOKENS added to first system message.
-REQ-TYPE is completion, return string, otherwise prcess body for chat.
-Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
-`oai-restapi-request-prepare', used only if non-nil.
-Return vector or string for completion REQ-TYPE."
-  (oai--debug "oai-restapi-prepare-content" noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens oai-restapi-add-max-tokens-recommendation)
-  ;; (let ((content (oai-block-get-content element))) ; string - is block content
-  (if (eql req-type 'completion)
-      ;; - *Completion*
-      (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
-    ;; - else - *Chat*
-    (let* ((messages (oai-block-collect-chat-messages-at-point element
-                                                               sys-prompt
-                                                               sys-prompt-for-all-messages
-                                                               (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
-                                                                 (oai-restapi--get-length-recommendation max-tokens))))
-           (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
-           (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties))
-           (messages (if noweb-control
-                         (oai-restapi--modify-vector-content messages
-                                                             #'oai-block--apply-noweb
-                                                             'user)
-                       messages)) ; noweb
-           (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
-      messages))) ; return vector
+;; old
+;; (defun oai-restapi-prepare-content (element &optional noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens)
+;;   "Get content of ai block of element in current buffer.
+;; Handle Tags, two types of REQ-TYPE and separation of PROMPT and MESSAGES.
+;; Return:
+;; - vector with messages for chat REQ-TYPE.
+;; - string for completion REQ-TYPE.
+;; ELEMENT is result of `oai-block-p'.
+;; Optional arguments:
+;; If NOWEB-CONTROL is not-nil, activate expansion of noweb links in all
+;; user messages.
+;; If MAX-TOKENS is not-nil, and
+;;  `oai-restapi-add-max-tokens-recommendation' is set, recommendation
+;;  about MAX-TOKENS added to first system message.
+;; REQ-TYPE is completion, return string, otherwise prcess body for chat.
+;; Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
+;; `oai-restapi-request-prepare', used only if non-nil.
+;; Return vector or string for completion REQ-TYPE."
+;;   (oai--debug "oai-restapi-prepare-content" noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens oai-restapi-add-max-tokens-recommendation)
+;;   ;; (let ((content (oai-block-get-content element))) ; string - is block content
+;;   (if (eql req-type 'completion)
+;;       ;; - *Completion*
+;;       (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
+;;     ;; - else - *Chat*
+;;     (let* ((messages (oai-block-collect-chat-messages-at-point element
+;;                                                                sys-prompt
+;;                                                                sys-prompt-for-all-messages
+;;                                                                (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
+;;                                                                  (oai-restapi--get-length-recommendation max-tokens))))
+;;            (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
+;;            (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties))
+;;            (messages (if noweb-control
+;;                          (oai-restapi--modify-vector-content messages
+;;                                                              #'oai-block--apply-noweb
+;;                                                              'user)
+;;                        messages)) ; noweb
+;;            (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
+;;       messages))) ; return vector
 
 
 ;; -=-= Main
@@ -638,7 +638,8 @@ SERVICE symbol or string - is the AI cloud service such as openai or
 STREAM string - as bool, indicates whether to stream the response."
   (ignore info)
   (oai--debug "oai-restapi-request-prepare %s" sys-prompt-for-all-messages)
-  (let* (disable-tags ai-block-markers links-only-last not-clear-properties ; nil, for get-content call
+  (let* (
+         ;; disable-tags ai-block-markers links-only-last not-clear-properties ; nil, for get-content call
          (max-tokens-string
            (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
              (oai-restapi--get-length-recommendation max-tokens)))
@@ -647,7 +648,13 @@ STREAM string - as bool, indicates whether to stream the response."
               (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
             ;; chat
             (oai-block-tags-get-content-ai-messages
-             element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)
+             element
+             noweb-control
+             nil ; links-only-last
+             nil ; not-clear-properties
+             nil ; ai-block-markers
+             nil ; disable-tags
+             req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)
 
             ;; (oai-restapi-prepare-content
             ;;  element noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens)
@@ -868,7 +875,7 @@ We count running ones in global integer only.
 
 For not stream url return event and hook `after-change-functions'
  triggered only after url buffer already kill, that is why we don't use
- this hook. For not stream we process data directly in callback.
+ this hook.  For not stream we process data directly in callback.
 Use argument SERVICE to find endpoint, MODEL as parameter to request."
   ;; - HTTP body preparation as a string
   (let ((url-request-extra-headers (oai-restapi--get-headers service))
@@ -1326,7 +1333,7 @@ Return nil if error."
 
 (defun oai-restapi--url-request-on-change-function (_beg _end _len)
   "First function that read url-request buffer and extracts JSON stream responses.
-Arguments _BEG _END _LEN are not used. They are:
+Arguments _BEG _END _LEN are not used.  They are:
 the positions of the beginning and end of the range of changed text,
 and the length in chars of the pre-change text replaced by that range.
 Call `oai-restapi--current-url-request-callback' with data.
@@ -1589,11 +1596,11 @@ over."
 
 ;; (when (not (equal (oai-restapi---regex-substring-list "foo" "barfooquxfoozip")
 ;;                          '("bar" "fooqux" "foozip")))
-;;   (error "test:oai-restapi---regex-substring-list test1"))
+;;   (error "Test:oai-restapi---regex-substring-list test1"))
 
 ;; (when (not (equal (oai-restapi---regex-substring-list "baz" "barfooquxfoozip")
 ;;                          '("barfooquxfoozip")))
-;;   (error "test:oai-restapi---regex-substring-list test2"))
+;;   (error "Test:oai-restapi---regex-substring-list test2"))
 
 ;; (defun oai-restapi--collect-chat-messages-from-string (string &optional first-chat-role)
 ;;   ;; 3) collect
@@ -1642,18 +1649,18 @@ Return a list of messages."
 ;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
 ;;   (when (not (equal res
 ;;                     ["foo\n" "[me:]bar" "baz" "qux\n" "[ai:]\nquux" "\ncorge"]))
-;;              (error "test:oai-restapi--vector-split-by-chat-prefix1"))
+;;              (error "Test:oai-restapi--vector-split-by-chat-prefix1"))
 ;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
 ;;   (setq idxs '(2 0))
 ;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
 ;;   (when (not (equal res
 ;;                     ["foo\n" "[me:]bar" "baz" "qux\n" "[ai:]\nquux" "\ncorge"]))
-;;     (error "test:oai-restapi--vector-split-by-chat-prefix1"))
+;;     (error "Test:oai-restapi--vector-split-by-chat-prefix1"))
 ;;   (setq idxs '(0 1))
 ;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
 ;;   (when (not (equal res
 ;;                     ["foo\n" "[me:]bar" "baz" "qux\n[ai:]\nquux" "\ncorge"]))
-;;              (error "test:oai-restapi--vector-split-by-chat-prefix2")))
+;;              (error "Test:oai-restapi--vector-split-by-chat-prefix2")))
 
 ;; (oai-restapi--vector-split-by-chat-prefix '[(:role system :content "ad") (:role user :content "adb\n[ai:] bb")] '(1))
 ;; ; [(:role system :content "ad") (:role user :content "adb") (:role assistant :content "bb")]
@@ -1675,10 +1682,12 @@ Return a list of messages."
 
 
 (defun oai-restapi--modify-vector-content (vec applicant &optional role &rest rest)
-  "Modify every string content of messages VEC that match role.
+  "Modify content of messages in VEC by role.
+Side effect function.
 When ROLE is non-nil, it used to filter all such messages, right part of
  `oai-block-roles-prefixes'.
-APPLICANT may be string or function. if function, it is called if a
+If ROLES is nil, modify all messages with APPLICANT.
+APPLICANT may be string or function.  if function, it is called if a
  string, it replace :content of vector item.  Intened for usage with
  `oai-block-tags-replace'.
 REST optional arguments are arguments that will be passed to call of
@@ -1688,18 +1697,20 @@ Return modified VEC."
   ;; (unless (vectorp vec)
   ;;   (user-error "Not a vector"))
   (let ((i (1- (length vec)))
-        (newvec (copy-sequence vec))
-        el
+        ;; (vec (copy-sequence vec)) ; copy of vector with shared messages
+        mes
         content
+        content-old
         idxs)
     ;; loop over messages in vec
     (while (>= i 0)
-      (setq el (aref newvec i)) ; from 0 to len-1
-      (setq content-old (plist-get el :content))
+      (setq mes (aref vec i)) ; from 0 to len-1
+
       ;; replace content for role
       (when (or (and role
-                     (eql role (plist-get el :role)))
+                     (eql role (plist-get mes :role)))
                 (not role))
+        (setq content-old (plist-get mes :content))
         (setq content (if (functionp applicant)
                           (if rest
                               (apply #'funcall applicant content-old rest)
@@ -1708,16 +1719,17 @@ Return modified VEC."
                         ;; else
                         applicant))
         (unless (string-equal content-old content)
-          (aset newvec i (plist-put (copy-sequence el) :content content))
+          (aset vec i
+                (plist-put mes :content content)) ; plist-put return new message plist
           (push i idxs)))
       (setq i (1- i)))
-    (oai--debug "oai-restapi--modify-vector-content N2" idxs newvec)
+    (oai--debug "oai-restapi--modify-vector-content N2" idxs vec)
     (if idxs
         (vconcat
          (oai-block--merge-by-role
-          (oai-restapi--vector-split-by-chat-prefix newvec idxs)))
+          (oai-restapi--vector-split-by-chat-prefix vec idxs)))
       ;; else
-      newvec)))
+      vec)))
 
 (defun oai-restapi--modify-vector-last-user-content (vec applicant &rest rest)
   "Replacing last \='user :content with APPLICANT in VEC.
@@ -1744,7 +1756,7 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
          (unless (string-equal content-old content-new)
            (let ((newvec (copy-sequence vec)))
              (aset newvec idx
-                   (plist-put (copy-sequence elt) :content content-new)) ;; elt copy with new content
+                   (plist-put elt :content content-new)) ; plist-put return new message plist
              ;; (print (list "asd" newvec))
              (vconcat
               (oai-block--merge-by-role

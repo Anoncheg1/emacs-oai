@@ -157,9 +157,16 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
                                                                                                         step
                                                                                                         (with-current-buffer (marker-buffer header-marker)
                                                                                                           ;; get messages vector
-                                                                                                          (oai-restapi-prepare-content (oai-block-element-by-marker header-marker)
-                                                                                                                                       noweb-control
-                                                                                                                                       'chat)
+                                                                                                          ;; (oai-restapi-prepare-content (oai-block-element-by-marker header-marker)
+                                                                                                          ;;                              noweb-control
+                                                                                                          ;;                              'chat)
+                                                                                                          (oai-block-tags-get-content-ai-messages (oai-block-element-by-marker header-marker)
+                                                                                                                                                  noweb-control
+                                                                                                                                                  nil ; links-only-last
+                                                                                                                                                  nil ; not-clear-properties
+                                                                                                                                                  nil ; ai-block-markers
+                                                                                                                                                  nil ; disable-tags
+                                                                                                                                                  'chat)
                                                                                                           ;; (oai-restapi--collect-chat-messages-at-point (oai-block-element-by-marker header-marker))
                                                                                                           )
                                                                                                                                                             ;; (oai-block-get-content (oai-block-element-by-marker header-marker)))
