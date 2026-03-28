@@ -303,14 +303,20 @@ Return list of strings to print."
   (seq-let (element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream info) (oai-parse-org-header)
     (let* ((req-type (oai-block--get-request-type info))
            ;; (req-type-completion (not (eq 'x (alist-get :completion info 'x))))
-           disable-tags ai-block-markers links-only-last not-clear-properties ; nil
+           ;; disable-tags ai-block-markers links-only-last not-clear-properties ; nil
            (max-tokens-string
             (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
               (oai-restapi--get-length-recommendation max-tokens)))
            (messages (unless (eql req-type 'completion)
                        ;; - split content to messages
                        (oai-block-tags-get-content-ai-messages
-                        element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)
+                        element
+                        nil ; noweb-control
+                        nil ; links-only-last
+                        nil ; not-clear-properties
+                        nil ; ai-block-markers
+                        nil ; disable-tags
+                        req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)
                        ; old
                        ;; (oai-restapi-prepare-content
                        ;;  element noweb-control 'chat sys-prompt sys-prompt-for-all-messages max-tokens)
