@@ -275,26 +275,30 @@ Optional arguments
  CONTENT dont starts with chat prefix.
 To detect LANG use `oai-block-tags--filepath-to-language'.
 - INNER, if non-nil, ai block wrapped in markdown."
-(oai--debug "oai-block-tags--compose-m-block N1 %s" inner lang header)
-(oai--debug "oai-block-tags--compose-m-block N2" content)
-  (if (and lang (string-equal-ignore-case "ai" lang) (not inner))
-      ;; - AI-block
-      ;; (if header
-      ;;     ; check if content starts with [me:] some chat prefix
-      ;;     (if (= (or (string-match oai-block--chat-prefixes-re content) -1) 0)
-      ;;         (oai-block-tags--replace-first-match oai-block--chat-prefixes-re
-      ;;                                              (concat header "\n")
-      ;;                                              content
-      ;;                                              t)
-      ;;       ;; else
-      ;;       (concat header "\n" content))
+  (oai--debug "oai-block-tags--compose-m-block N1 %s" inner lang header)
+  (oai--debug "oai-block-tags--compose-m-block N2" content)
+  (if (or (not content)
+          (string-empty-p content))
+      nil
+    ;; else
+    (if (and lang (string-equal-ignore-case "ai" lang) (not inner))
+        ;; - AI-block
+        ;; (if header
+        ;;     ; check if content starts with [me:] some chat prefix
+        ;;     (if (= (or (string-match oai-block--chat-prefixes-re content) -1) 0)
+        ;;         (oai-block-tags--replace-first-match oai-block--chat-prefixes-re
+        ;;                                              (concat header "\n")
+        ;;                                              content
+        ;;                                              t)
+        ;;       ;; else
+        ;;       (concat header "\n" content))
         ;; else
         content
-    ;; else - any bock
-    (concat (when header (concat "\n" header))
-            (when content (concat "\n```" (or lang "auto") "\n"
-                                  (string-replace "```" "\\`\\`\\`" content)
-                                  "\n```")))))
+      ;; else - any bock
+      (concat (when header (concat "\n" header))
+              (when content (concat "\n```" (or lang "auto") "\n"
+                                    (string-replace "```" "\\`\\`\\`" content)
+                                    "\n```"))))))
 
 (defun oai-block-tags--compose-block-for-path (path-string content)
   "Return mardown block with description.
@@ -310,12 +314,14 @@ For provided PATH-STRING and CONTENT string, return string that will be
 
 (defun oai-block-tags--compose-block-for-path-full (path-string)
   "Return file or directory in prepared mardown block.
-PATH-STRING may be path to file or a directory."
+PATH-STRING may be path to file or a directory.
+Return string or nil or raise user-error."
   (oai--debug "oai-block-tags--compose-block-for-path-full %s" path-string)
   (oai-block-tags--compose-block-for-path path-string
                                           (if (file-directory-p path-string)
                                               (oai-block-tags--get-directory-content path-string)
                                             ;; else
+                                            ;; raise user-error if something
                                             (org-file-contents path-string)))) ; oai-block-tags--read-file-to-string-safe
 
 ;; (cl-loop with context = (org-element-context)
@@ -563,7 +569,7 @@ Optional argiments:
 - AI-BLOCK-MARKERS used to prevent loop by coparing with ELEMENT at
  current position.
 - INNER, if non-nil, ai block wrapped in markdown.
-Return full content of block."
+Return full content of block or nil."
   ;; 1) enshure that we are inside some Org block
   (oai--debug "oai-block-tags--get-content-org-block-at-point %s" inner ai-block-markers)
   (when-let ((element (or element (oai-block-tags--block-at-point))))
@@ -708,7 +714,8 @@ Works with outline, programming, text buffers.
 4) Use `paragraph-separate' variable.
 POS should be at begining of the line.
 Optional argument AI-BLOCK-MARKERS explained in
- `oai-block-tags-get-content'."
+ `oai-block-tags-get-content'.
+Return string or nil."
   (oai--debug "oai-block-tags--get-content-at-point-not-org")
   (beginning-of-line) ; just in case
   (cond
@@ -773,7 +780,7 @@ Optional argument AI-BLOCK-MARKERS explained in
 Optional AI-BLOCK-MARKERS argument used to prevent loop.
 Cursor position may be not at the begining of the line for
  `oai-block-tags--get-m-block-at-point'.
-Return string."
+Return string or nil."
   (let* ((element (or (oai-block-tags--block-at-point) (org-element-context)))
          (type (org-element-type element))) ; Org block or ai block or some element (not in block)
     (oai--debug "oai-block-tags--get-content-at-point-org type %s" type (- (point) (line-beginning-position)))
@@ -859,7 +866,7 @@ Return string."
       (user-error "Cant get content at point for link in Org buffer")))))
 
 (defun oai-block-tags--get-content-at-point (&optional ai-block-markers)
-  "Return prepared block at current position.
+  "Get prepared block at current position.
 Support any mode buffers.  Here code for Org mode.
 If at current position there is a Org block or markdown block
 Return markdown block for LLM for current element at current position.
@@ -870,7 +877,8 @@ Supported: blocks and headers.
 - Org header - loop over elements and convert to markdown
 - at markdown block header or inside markdown block
 - at src header or inside src block
-Move pointer to the end of block."
+Move pointer to the end of block.
+Return string or nil"
   (oai--debug "oai-block-tags--get-content-at-point %s" ai-block-markers)
   (if (not (derived-mode-p 'org-mode))
       (oai-block-tags--get-content-at-point-not-org ai-block-markers)
@@ -890,7 +898,8 @@ Support for `org-links' package with additional links types.
 Headlines not wrapped in markdown blocks.
 LINK is string in format is what inside [[...]] or Plain link.
 Target may be not in Org buffer.
-Optional AI-BLOCK-MARKERS argument used to prevent loop."
+Optional AI-BLOCK-MARKERS argument used to prevent loop.
+Return string or nil."
   ;; (require 'org-links)
   (oai--debug "oai-block-tags--get-org-links-content N1 %s " link)
   (if-let ((nums (org-links--local-get-target-position-for-link link))) ; may be nil
@@ -985,7 +994,7 @@ Uses `oai-block--block-header-marker' variable to check that target of
 link or noweb reference don't point to current block to prevent
 recursion, created with `oai-block-get-header-marker'.
 Optional AI-BLOCK-MARKERS argument used to prevent loop.
-Return replacement string."
+Return replacement string or nil."
   ;; Some code was taken from:
   ;; `org-link-open' for type and opening,  `org-link-search' for search in current buffer.
   ;; from `org-link-open-from-string'
@@ -1257,7 +1266,8 @@ Return modified string with text properties or the same string."
                 (path-string (if (> (length path-string) 0)
                                  (substring path-string 1)
                                ""))
-                (replacement (concat (oai-block-tags--compose-block-for-path-full path-string) "\n"))
+                (replacement (oai-block-tags--compose-block-for-path-full path-string))
+                (replacement (concat replacement "\n"))
                 (new-string (oai-block-tags--replace-last-regex-smart string
                                                                       oai-block-tags--regexes-path
                                                                       replacement)))
@@ -1275,8 +1285,8 @@ Return modified string with text properties or the same string."
       (setq i (1- i))
       (oai--debug "oai-block-tags-replace N3 link-any-r %s %s" i (match-string 0 string))
       (if-let* ((link (oai-block-tags--replace-last-regex-smart string oai-block-tags--org-link-any-re)) ; find the last
-
-                (replacement (concat (oai-block-tags--get-replacement-for-org-link link ai-block-markers) "\n")) ; add empty line after it.
+                (replacement (oai-block-tags--get-replacement-for-org-link link ai-block-markers))
+                (replacement (concat replacement "\n")) ; add empty line after it.
                 (new-string (oai-block-tags--replace-last-regex-smart string
                                                                       oai-block-tags--org-link-any-re
                                                                       replacement)))
