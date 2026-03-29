@@ -770,7 +770,10 @@ ss
                  "Text\nasdas"))
   (should
    (string-equal (oai-block-tags--compose-m-block "Text\nasdas" :lang "ai" :header "Header:" :inner t)
-                 "\nHeader:\n```ai\nText\nasdas\n```")))
+                 "\nHeader:\n```ai\nText\nasdas\n```"))
+  (should (equal (oai-block-tags--compose-m-block nil :lang "ai" :inner t) nil))
+  (should (equal (oai-block-tags--compose-m-block nil :lang "ai" :inner nil) nil))
+  (should (equal (oai-block-tags--compose-m-block nil :lang nil :inner t) nil)))
 
 ;; -=-= Test: oai-block-tags--position-in-markdown-block-str-p
 (ert-deftest oai-tests-block-tags--position-in-markdown-block-str-p ()
