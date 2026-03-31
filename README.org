@@ -215,6 +215,25 @@ There are ~oai-block-roles-prefixes~ variable that allow to customize roles at s
 
 For incoming RestAPI conversion to prefixes ~oai-block-roles-restapi~ variable used.
 
+** Elisp: Get content of block
+: (oai-block-tags-get-content)
+Or
+#+begin_src elisp :lexical t :results none :exports code :eval no
+(oai-block-tags--clear-properties
+ (oai-block-tags-replace (oai-block-get-content (oai-block-p) nil :export nil)
+                         (list (oai-block-get-header-marker (oai-block-p)))))
+#+end_src
+** Elisp: query AI directly.
+Uses oai-restapi-con-service, service name and model string define all connection informnation.
+#+begin_src elisp :lexical t :results none :exports code :eval no
+(setq debug-on-message "^#<buffer.*")
+(let ((oai-restapi-show-error-function #'oai-restapi--show-error))
+  (oai-restapi-request 'github "openai/gpt-4.1"
+                       (lambda (result) (oai-restapi--get-single-response-text result))
+                       :messages '((:role user :content "test"))  ; chat
+                       :stream nil))
+#+end_src
+
 * Org functions for block
 - org-in-src-block-p = oai-block-p
 - oai-block-insert-result = oai-block-insert-result

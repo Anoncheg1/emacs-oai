@@ -439,7 +439,8 @@ Used as argument for `oai-restapi--modify-vector-last-user-content' and
 Start and first line after header, end at of line of the first not empty
  line before footer.
 Same as `org-src--contents-area', but without content.
-Optional argument ELEMENT should be ai block if specified."
+Optional argument ELEMENT should be ai block if specified.
+Return nil or cons."
   (when-let ((element (or element (oai-block-p))))
     (let ((beg (org-element-property :contents-begin element))
           (end (org-element-property :contents-end element)))
@@ -660,12 +661,11 @@ Return list or nil."
 
 
 
-
-(defun oai-block--pos-in-markdown-block-p (&optional limit-start limit-end)
+;; old oai-block--pos-in-markdown-block-p
+(defun oai-block--markdown-block-p (&optional limit-start limit-end)
   "Return (cons beg end) if pos is inside markdown block.
 Execution in not `org-mode' is supported.
 Caution: move pointer.
-POS should be at begining of line.
 If POS is not provided current cursor position is used.
 LIMIT-START and LIMIT-END are parameters for
  `oai-block--markdown-subblocks-regions', if not provided ai block
@@ -673,7 +673,7 @@ LIMIT-START and LIMIT-END are parameters for
 If POS at the footer of block, return nil.
 Positions of (cons beg end) are begining of the line.
 If not found return nil."
-  (oai--debug "oai-block--pos-in-markdown-block-p N0 %s %s" limit-start limit-end)
+  (oai--debug "oai-block--markdown-block-p N0 %s %s" limit-start limit-end)
   ;; - preparation
   (let ((pos (line-beginning-position))
         (reg (unless (and limit-start limit-end)
@@ -692,7 +692,7 @@ If not found return nil."
                   ;;          (when (progn (goto-char pos)
                   ;;                       (looking-at oai-block--markdown-begin-re))
                   ;;            (cons (cons pos limit-end) 0)))))))))
-        (oai--debug "oai-block--pos-in-markdown-block-p N1" regions res)
+        (oai--debug "oai-block--markdown-block-p N1" regions res)
         (if (zerop (mod (cdr res) 2)) ; we need 0 2 4
             (car res)
           ;; else - special case - pointer at the footer line.
@@ -702,14 +702,14 @@ If not found return nil."
             ;; second attempt
             (forward-line -1)
             (let ((res (oai-block--find-region-with-position regions (point))))
-              (oai--debug "oai-block--pos-in-markdown-block-p N2" res)
+              (oai--debug "oai-block--markdown-block-p N2" res)
               (when (zerop (mod (cdr res) 2))
                 (car res)))))))))
 
 (defun oai-block--markdown-block-content-range (m-block-start m-block-end)
   "For markdown subblock return cons of content start and content ends.
 M-BLOCK-START M-BLOCK-END are line begin position of markdown range with
- header and footer as returned by `oai-block--pos-in-markdown-block-p',
+ header and footer as returned by `oai-block--markdown-block-p',
  `oai-block--markdown-subblocks-regions'.  Caution, move pointer."
   (goto-char m-block-end) ; begin of line at ```
   (while (bolp)
@@ -736,7 +736,7 @@ pos at Org table."
                      (and (not dont-check-tables) (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
     (goto-char pos)))
 
-(defun oai-block--in-markdown-quotes-p (pos &optional delimiter beg end)
+(defun oai-block--markdown-quotes-at-line-p (pos &optional delimiter beg end)
   "Return t if POS is inside any markdown quotes at current line.
 if BEG END not provided, look for DELIMITER at the current line only.
 DELIMITER should be a string (\"`\" or \"```\"), defaults to \"`\"."
@@ -757,23 +757,12 @@ DELIMITER should be a string (\"`\" or \"```\"), defaults to \"`\"."
                 (setq found t))))))
       found)))
 
-(defun oai-block--in-markdown-single-quotes-p (pos)
-  "Return t if POS is inside a markdown single backquote (`...`).
-On current line or at quote itself."
-  (oai-block--in-markdown-quotes-p pos "`"))
-
-(defun oai-block--in-markdown-triple-quotes-p (pos)
-  "Return t if POS is inside a markdown triple backquote (```...```).
-On current line or at quote itself."
-  (oai-block--in-markdown-quotes-p pos "```"))
-
-(defun oai-block--in-markdown-any-quotes-p (pos)
+(defun oai-block--markdown-quotes-p (pos)
   "Return t if POS is inside any markdown backquote block at line.
 on the current line.
 \(`...` or ```...```\) on current line or at quote itself."
-  (or (oai-block--in-markdown-quotes-p pos "`")
-      (oai-block--in-markdown-quotes-p pos "```")))
-
+  (or (oai-block--markdown-quotes-at-line-p pos "`")
+      (oai-block--markdown-quotes-at-line-p pos "```")))
 
 ;; -=-= response: insert
 (defun oai-block--insert-single-response (end-marker &optional text insert-me not-final)
@@ -995,7 +984,7 @@ and content end at the beginin and the end of flat list."
             (push (match-beginning 0) positions)
           ;; else
             (unless (save-match-data
-                      (oai-block--pos-in-markdown-block-p content-start content-end))
+                      (oai-block--markdown-block-p content-start content-end))
               (push (match-beginning 0) positions)))
         (goto-char (match-end 0)))
       (setq positions (nreverse positions))
@@ -1035,7 +1024,7 @@ line."
   (let* ((element (or element (when (derived-mode-p 'org-mode)
                                 (oai-block-p))))
          (reg (or (when element (oai-block--contents-region element))
-                  (cons (point-min) (point-max))))
+                  (cons (point-min) (point-max)))) ; in ai file
          (con-beg (car reg))
          (con-end (cdr reg)))
     (oai-block--get-chat-messages-positions con-beg con-end oai-block--chat-prefixes-re)))
@@ -1334,11 +1323,15 @@ Optional argument NOT-CLEAR-PROPERTIES if not-nil, preserve highlighting
 ;; [[file:~/sources/emacs-oai/oai-restapi.el::1986::(cl-defun oai-restapi--stringify-chat-messages (messages &optional &key]]
 (defun oai-block--format-message (msg)
   "Return converted to a string plist MSG.
-Used in `oai-expand-block'."
+If optional argument NO-FIRST-PREFIX is non-nil, dont add prefix if
+ first message of user role.
+Used in `oai-expand-block'.
+Return string."
   (let* ((role (plist-get msg :role))
          (content (plist-get msg :content))
          (role-str (car (rassoc role oai-block-roles-prefixes))))
     (concat "[" role-str "]: " content)))
+
 
 (defun oai-block--stringify-chat-messages (messages &optional default-system-prompt)
   "Convert a chat message to a string.
@@ -1348,17 +1341,19 @@ If DEFAULT-SYSTEM-PROMPT non-nil, a [SYS] prompt is prepended if the
 first message is not a system message, otherwise DEFAULT-SYSTEM-PROMPT
 argument is ignored.
 Used in `oai-expand-block'.
-Uses `oai-block-roles-prefixes' variable for mapping roles to prefixes."
+Uses `oai-block-roles-prefixes' variable for mapping roles to prefixes.
+If optional argument NO-FIRST-PREFIX is non-nil, dont add prefix if
+ first message of user role.
+Return string."
   ;; 1) add default-system-prompt as first [SYS]: if not exist
   (let ((messages (if (and default-system-prompt
                            (not (eql (plist-get (aref messages 0) :role) 'system))) ; enforce that vector should consist of plists
                       ;; (cl-concatenate 'vector (vector (list :role 'system :content default-system-prompt)) messages)
                       (vconcat (vector (list :role 'system :content default-system-prompt)) messages)
                     messages)))
-    ;; 2) convert every message to a string and join them.
     (string-join
      (mapcar #'oai-block--format-message messages)
-    "\n\n")))
+     "\n\n")))
 
 ;; (oai-block--stringify-chat-messages '[(:role assistant :content "Be helpful; then answer.") (:role user :content "Be hnswer.")] "as")
 
@@ -1598,7 +1593,7 @@ Return number of marked content."
                  (lambda ()
                    ;; Additionally check if point is in markdown block
                    ;; that element is less than block.
-                   (let* ((reg (oai-block--pos-in-markdown-block-p))
+                   (let* ((reg (oai-block--markdown-block-p))
                           (block-size (when reg (- (car reg) (cdr reg))))) ; may be nil
                      (deactivate-mark)
                      (goto-char pos)
@@ -1612,7 +1607,7 @@ Return number of marked content."
                  ;; Step 1: Markdown block
                  (lambda ()
                    (message "MBlock content")
-                   (when-let* ((rng1 (oai-block--pos-in-markdown-block-p block-beg block-end))
+                   (when-let* ((rng1 (oai-block--markdown-block-p block-beg block-end))
                                (rng2 (oai-block--markdown-block-content-range (car rng1) (cdr rng1))))
                      ;; (print (list rng1 (car rng1) (cdr rng1) rng2))
                      (list (car rng2) (cdr rng2))))
@@ -1620,7 +1615,7 @@ Return number of marked content."
                  ;; Step 2: Markdown block with header and footer
                  (lambda ()
                    (message "MBlock with header")
-                   (when-let ((rng (oai-block--pos-in-markdown-block-p block-beg block-end)))
+                   (when-let ((rng (oai-block--markdown-block-p block-beg block-end)))
                      (list (car rng) (progn (goto-char (cdr rng)) (line-end-position)))))
                  ;; Step 3: Chat message
                  (lambda ()
@@ -1807,6 +1802,7 @@ Insert RESULT into the current buffer.
 TODO: EXEC-TIME.
 Optional argument RESULT-PARAMS not used.
 Optional argument HASH not used."
+  (oai--debug "oai-block-insert-result" result)
   (ignore exec-time)
   (when (stringp result)
     (setq result (substring-no-properties result)))
@@ -1847,7 +1843,7 @@ Optional argument HASH not used."
 If Optional  argument INSERT is  non-nil just enshure that  result field
 exist.
 For _INFO HASH check `org-babel-where-is-src-block-result' function."
-  (oai--debug "oai-block-where-is-result")
+  (oai--debug "oai-block-where-is-result %s" insert _info hash)
   (let ((context (oai-block-p)))
     (catch :found
       (org-with-wide-buffer
@@ -2187,7 +2183,7 @@ We search for \\[...\\] multiline \\(...\\) from LIM-BEG to LIM-END."
       (setq send (match-end 0))
 
       (unless (or (oai-block--at-special-p send t) ; multiline block with language
-                  (oai-block--in-markdown-any-quotes-p send)) ; line
+                  (oai-block--markdown-quotes-p send)) ; line
         (org-src-font-lock-fontify-block "latex" sbeg send))
       (goto-char send))
     ;; Inline \\( ... \\) - at one line
@@ -2196,7 +2192,7 @@ We search for \\[...\\] multiline \\(...\\) from LIM-BEG to LIM-END."
       (setq sbeg (match-beginning 0))
       (setq send (match-end 0))
       (unless (or (oai-block--at-special-p send t)
-                  (oai-block--in-markdown-any-quotes-p send)) ; line
+                  (oai-block--markdown-quotes-p send)) ; line
         (org-src-font-lock-fontify-block "latex" sbeg send))
       (goto-char send))
     (goto-char lim-end)))

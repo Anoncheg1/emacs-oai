@@ -613,13 +613,16 @@ If NO-EVAL is non-nil, do not evaluate Lisp in parameters."
          (info
 	  (list
 	   lang ; "elisp"
-           ;; 1) content:
-           (oai-block-tags-get-content
-            ;; element
-            datum
-            ;; noweb-and-tags:
-            (or (org-babel-noweb-p (oai-block-get-info datum) :tangle)
-                (org-entry-get (point) "oai-noweb" t)))
+           ;; 1) content: here we replace links in all messages for code simplicity.
+           (oai-block-tags--clear-properties
+            (oai-block-tags-replace (oai-block-get-content datum nil :tangle nil)
+                                    (oai-block-get-header-marker datum)))
+           ;; (oai-block-tags-get-content
+           ;;  ;; element
+           ;;  datum
+           ;;  ;; noweb-and-tags:
+           ;;  (or (org-babel-noweb-p (oai-block-get-info datum) :tangle)
+           ;;      (org-entry-get (point) "oai-noweb" t)))
            ;; 2) org-babel-default-header-args + default "lang" parameters:
            (apply #'org-babel-merge-params
 		  org-babel-default-header-args

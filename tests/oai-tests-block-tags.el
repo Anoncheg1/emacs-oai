@@ -775,15 +775,15 @@ ss
   (should (equal (oai-block-tags--compose-m-block nil :lang "ai" :inner nil) nil))
   (should (equal (oai-block-tags--compose-m-block nil :lang nil :inner t) nil)))
 
-;; -=-= Test: oai-block-tags--position-in-markdown-block-str-p
+;; -=-= Test: oai-block-tags--markdown-block-string-p
 (ert-deftest oai-tests-block-tags--position-in-markdown-block-str-p ()
   (let* ((line "aaa```bbb```ccc")
-         (range (oai-block-tags--position-in-markdown-block-str-p line 5)))
+         (range (oai-block-tags--markdown-block-string-p line 5)))
     (should (string-equal (substring line (car range) (cadr range)) "```bbb")))
 
-  (should (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 5))
-  (should-not (oai-block-tags--position-in-markdown-block-str-p "aaa```bbb```ccc" 10))
-  (should (equal (oai-block-tags--position-in-markdown-block-str-p "a```f```d ```elie aa ``` asd" 14) '(10 21))))
+  (should (oai-block-tags--markdown-block-string-p "aaa```bbb```ccc" 5))
+  (should-not (oai-block-tags--markdown-block-string-p "aaa```bbb```ccc" 10))
+  (should (equal (oai-block-tags--markdown-block-string-p "a```f```d ```elie aa ``` asd" 14) '(10 21))))
 
 
 

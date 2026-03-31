@@ -167,7 +167,7 @@ Nil if buffer does not exist."
       (with-current-buffer buf
         (string-trim (substring-no-properties (buffer-string)))))))
 
-;; -=-= Links: Files & Directories
+; -=-= Links: Files & Directories
 
 (defvar oai-block-tags-get-directory-switches "-AltGg")
 
@@ -330,7 +330,7 @@ Return string or nil or raise user-error."
 ;;          do (setq context (org-element-property :parent context))
 ;;          finally return context)
 ;; (oai-block-tags--compose-block-for-path-full "/home/g/sources/nongnu/Makefile")
-;; -=-= help functions: blocks: block-at-point, contents-area, get-content
+;; -=-= help functions:  block-at-point, contents-area, get-content
 
  (defun oai-block-tags--block-at-point (&optional element)
   "Get Org block if point at one of `oai-block-tags-org-blocks-types'.
@@ -356,6 +356,7 @@ Start and first line after header, end at of line of the first not empty
       (when-let* ((res (org-src--contents-area element)))
         (cons (car res) (cadr res))))))
 
+;; -=-= functions: get-content, get-content-ai-messages
 (defun oai-block-tags-get-content-ai-messages (&optional element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)
   "Get content of ai block with expansion of links and cleaning.
 Execution in not `org-mode' is supported.
@@ -492,6 +493,7 @@ Return string with expanded content."
         (oai-block-tags--clear-properties
          (oai-block-tags-replace (caddr (org-src--contents-area element)))))))))
 
+;; -=-= help functions: markdown-fenced-code-body-get-range, markdown-block-range
 
 (defun oai-block-tags--markdown-fenced-code-body-get-range (&optional limit-begin limit-end)
   "Return (begin end) if point is inside a Markdown fenced language block.
@@ -537,18 +539,16 @@ Return nil if begin or end of markdown block was not found or block is
 Caution: move pointer.
 Execution in not `org-mode' is supported.
 Return cons with begining of lines for markdown block header and footer
- or nil.
-Optional argument POS may be used instead of current position."
+ or nil."
   ;; check that we are in Org block
   (save-excursion
-    (when-let* ((pos (line-beginning-position))
-                (region (if (derived-mode-p 'org-mode)
-                            (oai-block-tags--contents-area)
-                          ;; else
-                          (cons (point-min) (point-max))))
-                (beg (car region))
-                (end (cdr region))
-                (ret (oai-block--pos-in-markdown-block-p beg end)))
+    (let* ((region (if (derived-mode-p 'org-mode)
+                       (oai-block-tags--contents-area)
+                     ;; else
+                     (cons (point-min) (point-max))))
+           (beg (car region))
+           (end (cdr region))
+           (ret (oai-block--markdown-block-p beg end)))
       (oai--debug "oai-block-tags--markdown-block-range %s %s" beg end)
       ret)))
   ;;             (beg (or (org-element-property :contents-begin element)
@@ -598,11 +598,14 @@ Return full content of block or nil."
 
 
 ; TODO: rewrite as `oai-block-tags--markdown-fenced-code-body-get-range' to return range or implement new.
-(defun oai-block-tags--position-in-markdown-block-str-p (str pos)
-  "Return list range if POS (an index) is inside a '```' code block in STR.
-Otherwise return nil.
+(defun oai-block-tags--markdown-block-string-p (str pos)
+  "Check if POS is inside markdown block and return its positions.
 Substring '```content' without last '```'.
-Used in `oai-block-tags--replace-last-regex-smart'."
+Don't count new lines and don't language markdown block begining from
+ end.
+Used in `oai-block-tags--replace-last-regex-smart'.
+Return list range if POS (an index) is inside a '```' code block in STR,
+ otherwise return nil."
   (save-match-data
     (let ((search-pos 0)
           (block-boundaries '()))
@@ -623,29 +626,36 @@ Used in `oai-block-tags--replace-last-regex-smart'."
 
 (defun oai-block-tags--get-m-block-at-point ()
   "Get language markdown block or inline markdown block at current line.
+Pointer should be at markdown header or inside qutoes on line.
 Execution in not `org-mode' is supported.
 Called for current point in current buffer.
-Return markdown language block with language.
-Return non-nil string of markdown block if exist at current position."
+Move pointer.
+Return non-nil string of markdown block with header if exist at current
+ position."
   (oai--debug "oai-block-tags--get-m-block-at-point N1" (- (point) (line-beginning-position)))
-  (if-let* ((range (oai-block-tags--markdown-block-range))
-            (beg (car range))
-            (end (save-excursion (goto-char (cdr range))
-                                 (line-end-position))))
-      (string-trim-left (buffer-substring-no-properties beg end))
-    ;; else - flat mardown block in one line
-    (when-let* ((line (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
-                (range (oai-block-tags--position-in-markdown-block-str-p
+  (if-let* ((line (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
+                (range (oai-block-tags--markdown-block-string-p
                         line
                         (- (point) (line-beginning-position)))))
-      (oai--debug "oai-block-tags--get-m-block-at-point N2" range (- (point) (line-beginning-position)))
-      (oai--debug "oai-block-tags--get-m-block-at-point N3" line)
-      (oai--debug "oai-block-tags--get-m-block-at-point N4" (line-beginning-position))
-      (concat (substring line (car range) (cadr range)) "```"))))
+      ;; flat mardown block in one line
+      (progn
+        (oai--debug "oai-block-tags--get-m-block-at-point N2" range (- (point) (line-beginning-position)))
+        (oai--debug "oai-block-tags--get-m-block-at-point N3" line)
+        (oai--debug "oai-block-tags--get-m-block-at-point N4" (line-beginning-position))
+        (concat (substring line (car range) (cadr range)) "```"))
+    ;; else - looking at header of block?
+    (beginning-of-line)
+    (when (looking-at oai-block--markdown-beg-end-re)
+      (when-let* ((range (oai-block-tags--markdown-block-range))
+                  (beg (car range))
+                  (end (save-excursion (goto-char (cdr range))
+                                       (line-end-position))))
+        (string-trim-left (buffer-substring-no-properties beg end))))))
 
 (defun oai-block-tags--get-content-chat-message-at-point (&optional ai-block-markers)
-  "Get message at point.
+  "Get chat message at point, if pointer at message prefix.
 Execution in not `org-mode' is supported.
+Move pointer.
 Optional argument AI-BLOCK-MARKERS explained in
  `oai-block-tags-get-content'.
 Return string or nil."
@@ -755,7 +765,7 @@ Return string or nil."
    ;; 3) ai file
    ((and (string-equal "ai" (oai-block-tags--filepath-to-language (buffer-file-name)))
 
-         (or (oai-block-tags--get-m-block-at-point)
+         (or (save-excursion (oai-block-tags--get-m-block-at-point))
              (oai-block-tags--get-content-chat-message-at-point ai-block-markers))))
 
    ;; 4) paragraph
@@ -831,19 +841,18 @@ Return string or nil."
         (push "\n```\n" replacement-list)
         ;; (print (list "!!!!!!!!!" (reverse replacement-list)))
         (apply #'concat (reverse replacement-list))))
-     ;; - (2) case - in block: Markdown block - in org block
+     ;; - (2) case - at first line of Markdown block one line or multiline - in org block
      ((and (member type oai-block-tags-org-blocks-types)
            (unwind-protect
-               (oai-block-tags--get-m-block-at-point)
+               (save-excursion (oai-block-tags--get-m-block-at-point))
              (oai--debug "oai-block-tags--get-content-at-point-org (2) case"))))
-     ;; - (3) case - in block: in ai block: message
+     ;; - (3) case - at chat message prefix
      ((and (oai-block-p element)
            (unwind-protect
                (oai-block-tags--get-content-chat-message-at-point ai-block-markers)
              (oai--debug "oai-block-tags--get-content-at-point-org (3) case"))))
-     ;; - (4) case - Org Block
+     ;; - (4) case - Org Block - at begining
      ((and (member type oai-block-tags-org-blocks-types)
-
            (let ((case-fold-search t))
              (save-excursion
                (beginning-of-line)
@@ -857,10 +866,9 @@ Return string or nil."
            (looking-at org-babel-src-name-regexp))
       (user-error "Reference to #+name: \"%s\" without actual block" (org-element-property :value element )))
      ;; - (6) case - Org element with :end
-     ((when-let ((end (org-element-property :end element))) ; safe
-        (oai--debug "oai-block-tags--get-content-at-point-org (6) case %s" (point) type end ai-block-markers)
-        (oai-block-tags--compose-m-block (buffer-substring-no-properties (line-beginning-position) end))))
-     ;; (oai-block-tags--markdown-block-range
+     ;; ((when-let ((end (org-element-property :end element))) ; safe
+     ;;    (oai--debug "oai-block-tags--get-content-at-point-org (6) case %s" (point) type end ai-block-markers)
+     ;;    (oai-block-tags--compose-m-block (buffer-substring-no-properties (line-beginning-position) end))))
 
      (t
       (user-error "Cant get content at point for link in Org buffer")))))
@@ -1188,7 +1196,7 @@ found."
 
       (setq pos (match-beginning 0))
       ;; (print (list "sdasd" pos))
-      (unless (or (oai-block-tags--position-in-markdown-block-str-p str-orig pos) ; not in ``` multiline markdown block
+      (unless (or (oai-block-tags--markdown-block-string-p str-orig pos) ; not in ``` multiline markdown block
                   (oai-block-tags--string-is-quoted-p str-orig pos))
         (setq last-pos pos)
         (setq last-end (match-end 0))) ; end
@@ -1351,7 +1359,7 @@ This is special fontify function, that return t when match found.
 goto to the begining firstly function `org-activate-links' used to
 highlight any link.
 TODO: maybe we should use something like
-`oai-block-tags--position-in-markdown-block-str-p'"
+`oai-block-tags--markdown-block-string-p'"
   (let ((case-fold-search t)
         ret)
     ;; - loop per ai block
@@ -1372,9 +1380,8 @@ TODO: maybe we should use something like
               (while (re-search-forward oai-block-tags--org-link-any-re end t)
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
-                ;; (print (list lbeg beg end (oai-block--in-special lbeg beg)))
                 (unless (or (oai-block--at-special-p lbeg)
-                            (oai-block--in-markdown-any-quotes-p lbeg))
+                            (oai-block--markdown-quotes-p lbeg))
                   (remove-text-properties lbeg lend '(face nil))
                   (setq ret (org-activate-links lend)))
                 (goto-char lend)))
@@ -1385,7 +1392,7 @@ TODO: maybe we should use something like
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
                 (unless (or (oai-block--at-special-p lbeg)
-                            (oai-block--in-markdown-any-quotes-p lbeg))
+                            (oai-block--markdown-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend)))
@@ -1396,7 +1403,7 @@ TODO: maybe we should use something like
                 (setq lbeg (match-beginning 0))
                 (setq lend (match-end 0))
                 (unless (or (oai-block--at-special-p lbeg)
-                            (oai-block--in-markdown-any-quotes-p lbeg))
+                            (oai-block--markdown-quotes-p lbeg))
                   (add-face-text-property lbeg lend 'org-link)
                   (setq ret t))
                 (goto-char lend))))))

@@ -585,116 +585,130 @@ as
     (funcall func (point))))
 
 ;; 1. No backquotes
+;; Help function:
+(defun oai-block--markdown-quotes-single-p (pos)
+  "Return t if POS is inside a markdown single backquote (`...`).
+On current line or at quote itself."
+  (oai-block--markdown-quotes-at-line-p pos "`"))
+
 
 ;; 4. Position exactly on first backquote
 (ert-deftest oai-tests-block--in-markdown-quotes-at-line-p-on-first-backquote ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 0 #'oai-block--in-markdown-single-quotes-p)))
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 0 #'oai-block--markdown-quotes-single-p)))
 
 ;; 5. Multiple regions – inside second
 (ert-deftest oai-tests-block--in-markdown-quotes-at-line-p-multiple-second-region ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and `bar`" 12 #'oai-block--in-markdown-single-quotes-p)))
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and `bar`" 12 #'oai-block--markdown-quotes-single-p)))
 
 
 ;; 1. None present: Should NOT be inside for any
-(ert-deftest oai-block--in-markdown-single-quotes-p-no-quotes ()
-  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "foobar" 2 #'oai-block--in-markdown-single-quotes-p)))
-(ert-deftest oai-block--in-markdown-triple-quotes-p-no-quotes ()
-  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "foobar" 2 #'oai-block--in-markdown-triple-quotes-p)))
-(ert-deftest oai-block--in-markdown-any-quotes-p-no-quotes ()
-  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "foobar" 2 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-single-p-no-quotes ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "foobar" 2 #'oai-block--markdown-quotes-single-p)))
+
+;; help function:
+(defun oai-block--markdown-triple-quotes-p (pos)
+  "Return t if POS is inside a markdown triple backquote (```...```).
+On current line or at quote itself."
+  (oai-block--markdown-quotes-at-line-p pos "```"))
+
+
+(ert-deftest oai-block--markdown-triple-quotes-p-no-quotes ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "foobar" 2 #'oai-block--markdown-triple-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-no-quotes ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "foobar" 2 #'oai-block--markdown-quotes-p)))
 ;; 2. Only one backquote
-(ert-deftest oai-block--in-markdown-single-quotes-p-one-backquote ()
-  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "`foobar" 2 #'oai-block--in-markdown-single-quotes-p)))
-(ert-deftest oai-block--in-markdown-triple-quotes-p-one-triple-backquote ()
-  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "```foobar" 4 #'oai-block--in-markdown-triple-quotes-p)))
-(ert-deftest oai-block--in-markdown-any-quotes-p-one-backquote ()
-  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "`foobar" 2 #'oai-block--in-markdown-any-quotes-p)))
-(ert-deftest oai-block--in-markdown-any-quotes-p-one-triple-backquote ()
-  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "```foobar" 4 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-single-p-one-backquote ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "`foobar" 2 #'oai-block--markdown-quotes-single-p)))
+(ert-deftest oai-block--markdown-triple-quotes-p-one-triple-backquote ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "```foobar" 4 #'oai-block--markdown-triple-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-one-backquote ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "`foobar" 2 #'oai-block--markdown-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-one-triple-backquote ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "```foobar" 4 #'oai-block--markdown-quotes-p)))
 ;; 3. Strictly inside single and triple region
-(ert-deftest oai-block--in-markdown-single-quotes-p-inside ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 2 #'oai-block--in-markdown-single-quotes-p)))
-(ert-deftest oai-block--in-markdown-triple-quotes-p-inside ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 5 #'oai-block--in-markdown-triple-quotes-p)))
-(ert-deftest oai-block--in-markdown-any-quotes-p-inside-single ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 2 #'oai-block--in-markdown-any-quotes-p)))
-(ert-deftest oai-block--in-markdown-any-quotes-p-inside-triple ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 5 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-single-p-inside ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 2 #'oai-block--markdown-quotes-single-p)))
+(ert-deftest oai-block--markdown-triple-quotes-p-inside ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 5 #'oai-block--markdown-triple-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-inside-single ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 2 #'oai-block--markdown-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-inside-triple ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 5 #'oai-block--markdown-quotes-p)))
 ;; 4. On first quote of region
-(ert-deftest oai-block--in-markdown-single-quotes-p-on-first-backquote ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 0 #'oai-block--in-markdown-single-quotes-p)))
-(ert-deftest oai-block--in-markdown-triple-quotes-p-on-first-backquote ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 0 #'oai-block--in-markdown-triple-quotes-p)))
-(ert-deftest oai-block--in-markdown-any-quotes-p-on-first-single-backquote ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 0 #'oai-block--in-markdown-any-quotes-p)))
-(ert-deftest oai-block--in-markdown-any-quotes-p-on-first-triple-backquote ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 0 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-single-p-on-first-backquote ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 0 #'oai-block--markdown-quotes-single-p)))
+(ert-deftest oai-block--markdown-triple-quotes-p-on-first-backquote ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 0 #'oai-block--markdown-triple-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-on-first-single-backquote ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`code`" 0 #'oai-block--markdown-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-on-first-triple-backquote ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```code```" 0 #'oai-block--markdown-quotes-p)))
 
 ;; ## E. Multiple regions, inside second
-(ert-deftest oai-block--in-markdown-single-quotes-p-multiple-second-region ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and `bar`" 12 #'oai-block--in-markdown-single-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-single-p-multiple-second-region ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and `bar`" 12 #'oai-block--markdown-quotes-single-p)))
 
 ;; Triple quotes: strictly inside second region
-(ert-deftest oai-block--in-markdown-triple-quotes-p-multiple-second-region ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "```foo``` and ```bar```" 18 #'oai-block--in-markdown-triple-quotes-p)))
+(ert-deftest oai-block--markdown-triple-quotes-p-multiple-second-region ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```foo``` and ```bar```" 18 #'oai-block--markdown-triple-quotes-p)))
 
 ;; Any quotes: strictly inside second region, single quotes
-(ert-deftest oai-block--in-markdown-any-quotes-p-multiple-second-region-single ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and `bar`" 12 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-multiple-second-region-single ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and `bar`" 12 #'oai-block--markdown-quotes-p)))
 
 ;; Any quotes: strictly inside second region, triple quotes
-(ert-deftest oai-block--in-markdown-any-quotes-p-multiple-second-region-triple ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "```foo``` and ```bar```" 18 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-multiple-second-region-triple ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "```foo``` and ```bar```" 18 #'oai-block--markdown-quotes-p)))
 
 ;; ## G. Empty region (strictly between two quotes)
-(ert-deftest oai-block--in-markdown-single-quotes-p-empty-region ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 1 #'oai-block--in-markdown-single-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-single-p-empty-region ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 1 #'oai-block--markdown-quotes-single-p)))
 
 ;; Triple quotes: empty region
-(ert-deftest oai-block--in-markdown-triple-quotes-p-empty-region ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 3 #'oai-block--in-markdown-triple-quotes-p)))
+(ert-deftest oai-block--markdown-triple-quotes-p-empty-region ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 3 #'oai-block--markdown-triple-quotes-p)))
 
 ;; Any quotes: empty region single
-(ert-deftest oai-block--in-markdown-any-quotes-p-empty-region-single ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 1 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-empty-region-single ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 1 #'oai-block--markdown-quotes-p)))
 
 ;; Any quotes: empty region triple
-(ert-deftest oai-block--in-markdown-any-quotes-p-empty-region-triple ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 3 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-empty-region-triple ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 3 #'oai-block--markdown-quotes-p)))
 
 ;; ## H. At first quote of empty region
 ;; Single quotes: on first backquote
-(ert-deftest oai-block--in-markdown-single-quotes-p-empty-region-at-first ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 0 #'oai-block--in-markdown-single-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-single-p-empty-region-at-first ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 0 #'oai-block--markdown-quotes-single-p)))
 
 ;; Triple quotes: on first triple backquote
-(ert-deftest oai-block--in-markdown-triple-quotes-p-empty-region-at-first ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 0 #'oai-block--in-markdown-triple-quotes-p)))
+(ert-deftest oai-block--markdown-triple-quotes-p-empty-region-at-first ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 0 #'oai-block--markdown-triple-quotes-p)))
 
 ;; Any quotes: on first of single
-(ert-deftest oai-block--in-markdown-any-quotes-p-empty-region-at-first-single ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 0 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-empty-region-at-first-single ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``" 0 #'oai-block--markdown-quotes-p)))
 
 ;; Any quotes: on first of triple
-(ert-deftest oai-block--in-markdown-any-quotes-p-empty-region-at-first-triple ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 0 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-empty-region-at-first-triple ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "``````" 0 #'oai-block--markdown-quotes-p)))
 
 ;; ## I. Mixed region: both types present - t
 ;; Cursor inside single-quote region, both present
-(ert-deftest oai-block--in-markdown-any-quotes-p-mixed-single-inside ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and ```bar```" 2 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-mixed-single-inside ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and ```bar```" 2 #'oai-block--markdown-quotes-p)))
 
 ;; Cursor inside triple-quote region, both present
-(ert-deftest oai-block--in-markdown-any-quotes-p-mixed-triple-inside ()
-  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and ```bar```" 10 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-mixed-triple-inside ()
+  (should (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and ```bar```" 10 #'oai-block--markdown-quotes-p)))
 
 ;; Cursor in plain in-between (should not match)
-(ert-deftest oai-block--in-markdown-any-quotes-p-mixed-outside ()
-  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and ```bar```" 7 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-mixed-outside ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "`foo` and ```bar```" 7 #'oai-block--markdown-quotes-p)))
 
 ;; Cursor in plain in-between (should not match)
-(ert-deftest oai-block--in-markdown-any-quotes-p-mixed-outside2 ()
-  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "ss`foo` and ```bar```" 0 #'oai-block--in-markdown-any-quotes-p)))
+(ert-deftest oai-block--markdown-quotes-p-mixed-outside2 ()
+  (should-not (oai-tests-block--test--with-temp-buffer-at-pos "ss`foo` and ```bar```" 0 #'oai-block--markdown-quotes-p)))
 
 
 ;; -=-= Test: `oai-block-mark-at-point'
@@ -885,7 +899,7 @@ as
       (setq res (oai-block--chat-role-regions))
     (should (equal res '(1 12 22 35))))))
 
-;; -=-= Test: `oai-block--pos-in-markdown-block-p'
+;; -=-= Test: `oai-block--markdown-block-p'
 (ert-deftest oai-tests-block--pos-in-markdown-block-p-org ()
   (with-temp-buffer
     ;; (setq ert-enabled nil)
@@ -906,24 +920,24 @@ as
       (setq p5 (point))
       (insert "sd1\n```\nvvv")
       (goto-char (point-min))
-      (should (equal (oai-block--pos-in-markdown-block-p) nil))
+      (should (equal (oai-block--markdown-block-p) nil))
       (goto-char p1)
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res nil))
       (goto-char p2)
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res '(24 . 38)))
       (goto-char p3)
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res nil))
       (goto-char p4)
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res '(52 . 66)))
       (goto-char p5)
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res nil))
       (goto-char (point-max))
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res nil)))))
 
 (ert-deftest oai-tests-block--pos-in-markdown-block-p-not-org ()
@@ -946,24 +960,24 @@ as
       (setq p5 (point))
       (insert "sd1\n```\nvvv")
       (goto-char (point-min))
-      (should (equal (oai-block--pos-in-markdown-block-p) nil))
+      (should (equal (oai-block--markdown-block-p) nil))
       (goto-char p1)
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res nil))
       (goto-char p2)
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res '(13 . 27)))
       (goto-char p3)
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res nil))
       (goto-char p4)
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res '(41 . 55)))
       (goto-char p5)
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res nil))
       (goto-char (point-max))
-      (setq res (oai-block--pos-in-markdown-block-p))
+      (setq res (oai-block--markdown-block-p))
       (should (equal res nil)))))
 
 (ert-deftest oai-tests-block--pos-in-markdown-block-p3 ()
@@ -977,7 +991,7 @@ as
       (add-hook 'org-execute-file-search-functions (intern "org-links-additional-formats"))
       (insert "#+begin_ai :max-tokens 100 :stream nil :sys \"Be helpful\"  :service github :model \"openai\"\n#+end_ai")
       (goto-char (point-min))
-      (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+      (setq res (oai-block--markdown-block-p (point-min) (point-max)))
       ;; (oai-block-tags--markdown-mark-fenced-code-body))))
       (should-not res))
 
@@ -1000,23 +1014,23 @@ as
         (insert "#+end_ai")
         (insert "\n")
         (goto-char p1)
-        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (setq res (oai-block--markdown-block-p (point-min) (point-max)))
         (should-not res)
         (goto-char p2)
-        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (setq res (oai-block--markdown-block-p (point-min) (point-max)))
         ;; (should-not res
         (should (equal res '(91 . 102)))
         (goto-char p3)
-        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (setq res (oai-block--markdown-block-p (point-min) (point-max)))
         (should (equal res '(91 . 102)))
         (goto-char p4)
-        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (setq res (oai-block--markdown-block-p (point-min) (point-max)))
         (should (equal res '(91 . 102)))
         (goto-char p5)
-        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (setq res (oai-block--markdown-block-p (point-min) (point-max)))
         (should (equal res '(91 . 102)))
         (goto-char p6)
-        (setq res (oai-block--pos-in-markdown-block-p (point-min) (point-max)))
+        (setq res (oai-block--markdown-block-p (point-min) (point-max)))
         (should-not res)))))
 
 
