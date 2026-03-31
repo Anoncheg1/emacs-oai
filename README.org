@@ -192,7 +192,6 @@ Example to remove empty lines after AI answer:
 (require 'oai-optional) ; for `oai-optional-remove-distant-empty-lines'
 
 (defun my/ai-postprocess (type _content _pos _stream)
-  (ignore _content _pos)
     (when (equal type 'end)
       (save-excursion
         (let* ((context (oai-block-p))

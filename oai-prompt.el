@@ -104,7 +104,7 @@ Return t if we replace default call implementation
       (apply #'oai-prompt-request-chain args)
       t))
 
-(defun oai-prompt-request-chain (req-type element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional info)
+(defun oai-prompt-request-chain (_req-type element noweb-control sys-prompt _sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service _stream &optional _info)
   "Use :chain parameter to activate and use :step to execute chain of prompt.
 Aspects:
 1) start and stop reporter at begining and at the end (final callback).
@@ -121,8 +121,6 @@ SYS-PROMPT-FOR-ALL-MESSAGES, MODEL, MAX-TOKENS, TOP-P, TEMPERATURE,
 FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
 `oai-restapi-request-prepare'."
   (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
-  ;; noqa Unused lexical argument
-  (ignore req-type sys-prompt-for-all-messages stream info)
   ;; (setq req-type req-type
   ;;       sys-prompt-for-all-messages sys-prompt-for-all-messages
   ;;       stream stream)
@@ -139,8 +137,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
 
     (let (
           (call (lambda (step) ; called 3 times
-                  (lambda (data callback)
-                    (ignore data)
+                  (lambda (_data callback)
                     (oai--debug "oai-prompt-request-chain1 step %s" step) ; 0, 1, 2
                     (oai--debug "oai-prompt-request-chain1 buffer %s" (current-buffer))
                     (oai--debug "oai-prompt-request-chain1 max-tokens %s header-marker %s sys-prompt %s" max-tokens header-marker sys-prompt)
@@ -188,9 +185,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
                           (oai--debug "calbackmy %s %s %s" oai-timers--element-marker-variable-dict (current-buffer) data)
                           (oai-block--insert-single-response end-marker data nil 'not-final)
                           (run-at-time 0 nil callback data))))
-          (calbafin (lambda (data callback)
-                      (ignore callback)
-                      ;; (setq _callback _callback)
+          (calbafin (lambda (data _callback)
                       (when data ; if not data it is fail
                         (oai--debug "calbafin")
                         (oai-block--insert-single-response end-marker data t)
