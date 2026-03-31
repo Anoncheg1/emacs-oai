@@ -252,6 +252,18 @@ Executed after all preparations for messages was done.  Every function
   :type 'hook
   :group 'oai)
 
+(defcustom oai-restapi-show-error-function 'oai-block-insert-result-message
+  "Function to display error in oai-restapi about internal and remote errors.
+Available choices include:
+- `oai-block-insert-result-message' accept message and header-marker parameters.
+To  use  url-buffer,  get header-marker  with  (oai-timers--get-variable
+url-buffer), hence every url-buffer key bound to some ai block variable.
+- `oai-restapi--show-error' ignore header-marker parameter.
+Or provide your own function."
+  :type 'function
+  :options '(oai-block-insert-result-message oai-restapi--show-error)
+  :group 'oai)
+
 (defvar-local oai-restapi--current-url-request-callback nil
   "Internal var that stores the current request callback.
 Called within url request buffer, should know about target position,
@@ -259,9 +271,6 @@ that is why defined as lambda with marker.")
 
 (defvar-local oai-restapi--current-request-is-streamed nil
   "Whether we expect a streamed response or a single completion payload.")
-
-
-;; (defvar-local oai-restapi--currently-reasoning nil)
 
 (defvar-local oai-restapi--url-buffer-last-position-marker nil
   "Local buffer var to store url-buffer read position.")
@@ -290,17 +299,6 @@ Argument SOURCE-BUF url-http response buffer."
             (newline)))))))
 
 ;; -=-= Show error
-(defcustom oai-restapi-show-error-function 'oai-block-insert-result-message
-  "Function to display error in oai-restapi about internal and remote errors.
-Available choices include:
-- `oai-block-insert-result-message' accept message and header-marker parameters.
-To  use  url-buffer,  get header-marker  with  (oai-timers--get-variable
-url-buffer), hence every url-buffer key bound to some ai block variable.
-- `oai-restapi--show-error' ignore header-marker parameter.
-Or provide your own function."
-  :type 'function
-  :options '(oai-block-insert-result-message oai-restapi--show-error)
-  :group 'oai)
 
 ;; (defun oai-restapi-insert-result-error (message url-buffer)
 ;;     (oai-block-insert-result-message message
@@ -646,7 +644,7 @@ STREAM string - as bool, indicates whether to stream the response."
          (content
           (if (eql req-type 'completion) ; old
               (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
-            ;; chat
+            ;; chat - vector
             (oai-block-tags-get-content-ai-messages
              element
              noweb-control
@@ -678,8 +676,8 @@ STREAM string - as bool, indicates whether to stream the response."
     ;; - Call and save buffer.
     (oai-timers--set
      (oai-restapi-request service model callback
-                          :prompt (when (eql req-type 'completion) content) ; if completion
-                          :messages (when (not (eql req-type 'completion)) content) ; chat
+                          :prompt (when (eql req-type 'completion) content) ; if completion - string
+                          :messages (when (not (eql req-type 'completion)) content) ; chat - vector
                           :max-tokens max-tokens
                           :temperature temperature
                           :top-p top-p
@@ -711,9 +709,9 @@ Return text of message."
   (when response
     (oai--debug "oai-restapi--get-single-response-text response:" response)
     (if-let ((err-obj (plist-get response 'error)))
-        (let ((message (or (plist-get err-obj 'message)
+        (let ((mes (or (plist-get err-obj 'message)
                            err-obj)))
-            (error message)) ; not used
+            (error mes)) ; not used
       ;; else - no "error" field
       (if-let* ((choice (aref (plist-get response 'choices) 0))
                 (text (or (plist-get choice 'text)
@@ -788,10 +786,10 @@ Return list or responses, with every response as `oai-block--response'."
         (let ((choices (plist-get response 'choices)))
           (when (and choices (> (length choices) 0))
             (let* ((choice (aref choices 0))
-                   (message (plist-get choice 'message))
+                   (mes (plist-get choice 'message))
                    (delta (plist-get choice 'delta))
-                   (role (or (plist-get delta 'role) (plist-get message 'role)))
-                   (text (or (plist-get delta 'content) (plist-get message 'content)))
+                   (role (or (plist-get delta 'role) (plist-get mes 'role)))
+                   (text (or (plist-get delta 'content) (plist-get mes 'content)))
                    (finish-reason (plist-get choice 'finish_reason)))
               (append
                (when role
@@ -849,7 +847,9 @@ Return list or responses, with every response as `oai-block--response'."
 (cl-defun oai-restapi-request (service model callback &optional &key prompt messages max-tokens temperature top-p frequency-penalty presence-penalty stream)
   "Use API to LLM to request and get response.
 Executed by `oai-restapi-request-prepare'
-PROMPT is the query for completions MESSAGES is the query for chatgpt.
+PROMPT is string with the query for completions.
+MESSAGES is vector or list with plist containing :role user and :content
+ with request for chat.
 CALLBACK is the callback function.
 MODEL is the
 model to use.
@@ -878,9 +878,10 @@ For not stream url return event and hook `after-change-functions'
  this hook.  For not stream we process data directly in callback.
 Use argument SERVICE to find endpoint, MODEL as parameter to request."
   ;; - HTTP body preparation as a string
-  (let ((url-request-extra-headers (oai-restapi--get-headers service))
+  (let ((endpoint (oai-restapi--get-endpoint messages service))
+        ;; url.el special variables:
+        (url-request-extra-headers (oai-restapi--get-headers service))
         (url-request-method "POST")
-        (endpoint (oai-restapi--get-endpoint messages service))
         (url-request-data
          (encode-coding-string (json-encode
                                 (oai-restapi--payload :prompt prompt
@@ -908,6 +909,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
            (url-retrieve ; <- - - - - - - - -  MAIN
             endpoint
             (lambda (events)
+              (oai--debug "oai-restapi-request in event" (current-buffer) oai-restapi-show-error-function)
               ;; "Called within url-request-buffer after `after-change-functions'"
               (ignore events)
               ;; debug
@@ -933,11 +935,16 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
 
       (oai--debug "Main request after." url-request-buffer)
 
+      ;; - Set global bariable for functions that called within request-buffer
       (with-current-buffer url-request-buffer
         ;; - it is `oai-block--insert-stream-response' or `oai-block--insert-single-response'
-        (setq oai-restapi--current-url-request-callback callback)
+        (setq-local oai-restapi--current-url-request-callback callback)
         ;; - `oai-restapi--url-request-on-change-function', `oai-restapi--current-request-is-streamed'
-        (setq oai-restapi--current-request-is-streamed stream)
+        (setq-local oai-restapi--current-request-is-streamed stream)
+
+        ;; - set current global value as permanent in local buffer.
+        (set (make-local-variable 'oai-restapi-show-error-function) (symbol-value 'oai-restapi-show-error-function))
+        (oai--debug "oai-restapi-request " oai-restapi-show-error-function)
 
         ;; - for stream add hook, otherwise remove - do word by word output (optional actually)
         (if stream
@@ -1201,6 +1208,7 @@ We store url-buf with marker of header in oai-timers.el"
 If http-code is nil - C\\-g was used to stop all.
 Return t if error happen, otherwise nil.
 If C\\-g was used return nil.
+Uses global variable `oai-restapi-show-error-function'.
 Should be executed in url-buffer only."
   (oai--debug "oai-restapi--maybe-show-openai-request-error1")
   (save-excursion ; ??
@@ -1235,13 +1243,13 @@ Should be executed in url-buffer only."
                    (when-let* ((body (json-read))
                                (err (or (alist-get 'error body)
                                         (plist-get body 'error)))
-                               (message (or (alist-get 'message err)
+                               (mes (or (alist-get 'message err)
                                             (plist-get err 'message)))
-                               (message (if (and message (not (string-blank-p message)))
-                                            message
+                               (mes (if (and mes (not (string-blank-p mes)))
+                                            mes
                                           (json-encode err))))
                      (funcall oai-restapi-show-error-function (concat (format "%s\n" http-header-first-line)
-                                                                      "Error from the service API:\n\t" message)
+                                                                      "Error from the service API:\n\t" mes)
                               (oai-timers--get-variable (current-buffer))) ; header-marker
                      )
                  (error nil)))))
@@ -1251,7 +1259,9 @@ Should be executed in url-buffer only."
 
 (cl-defun oai-restapi--payload (&optional &key service model prompt messages max-tokens temperature top-p frequency-penalty presence-penalty stream)
   "Create the payload for the OpenAI API.
-PROMPT is the query for completions MESSAGES is the query for chatgpt.
+PROMPT is string with the query for completions.
+MESSAGES is vector or list with plist containing :role user and :content
+ with request for chat.
 MODEL is the model to use.
 MAX-TOKENS is the maximum number of tokens to generate.
 TEMPERATURE is the temperature of the distribution.
@@ -1261,7 +1271,8 @@ PRESENCE-PENALTY is the presence penalty.
 STREAM is a boolean indicating whether to stream the response.
 Use argument SERVICE to find endpoint, MODEL as parameter to request."
   (let ((extra-system-prompt)
-        (max-completion-tokens))
+        (max-completion-tokens)
+        (messages (vconcat messages))) ; enshure messages is vector
 
     (when (eq service 'anthropic)
       (when (string-equal (plist-get (aref messages 0) :role) "system")
@@ -1752,12 +1763,10 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
                              (funcall applicant content-old))
                          ;; else
                          applicant)))
-         ;; (print "asd")
          (unless (string-equal content-old content-new)
            (let ((newvec (copy-sequence vec)))
              (aset newvec idx
                    (plist-put elt :content content-new)) ; plist-put return new message plist
-             ;; (print (list "asd" newvec))
              (vconcat
               (oai-block--merge-by-role
                (oai-restapi--vector-split-by-chat-prefix newvec (list idx))))))) ; return

@@ -423,6 +423,14 @@ Other modes at point ~oai-block-tags--get-content-at-point-not-org~.
 file path:
 - oai-block-tags--compose-block-for-path-full
 
+Simpliest way to get content with full explansion without text properties:
+#+begin_src elisp :lexical t :results none :exports code :eval no
+(let ((element (oai-block-p)))
+  (oai-block-tags--clear-properties
+   (oai-block-tags-replace (oai-block-get-content element nil :tangle nil)
+                           (oai-block-get-header-marker element))))
+#+end_src
+
 * Markdown: ```blocks
 
 Prepare markdown block  `oai-block-tags--compose-m-block' - used by:
@@ -434,7 +442,7 @@ Prepare markdown block  `oai-block-tags--compose-m-block' - used by:
 - `oai-block-tags-replace' - for backtrace
 
 Find markdown positions in ai block
-- `oai-block--pos-in-markdown-block-p' - any ``` block at separate lines.
+- `oai-block--markdown-block-p' - any ``` block at separate lines.
 
 To detect language for compose-m-block:
 - in `oai-block-tags--get-content-org-block-at-point' - for Org element - src or ai block
