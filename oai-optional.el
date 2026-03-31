@@ -60,11 +60,10 @@ Don't remove empty lines that have more than two lines in a row before
       (setq cl (1+ cl ))
       (forward-line -1))))
 
-(defun oai-optional-remove-distant-empty-lines-hook-function (&optional type content before-pos stream)
+(defun oai-optional-remove-distant-empty-lines-hook-function (&optional type _content before-pos _stream)
   "Remove empty lines when there is too many of them.
 Arguments TYPE CONTENT BEFORE-POS STREAM parameters described in
 `oai-block-after-chat-insertion-hook' hook."
-  (ignore content stream)
   (save-excursion
     (oai--debug "oai-optional-remove-distant-empty-lines-hook-function HOOK: %s %s %s %s"
                 before-pos

@@ -44,7 +44,6 @@
 (defun oai-tests--my-http-server-handler (proc _string)
   "Used for HTTP server as callback.
 PROC is process object.  _STRING is data received."
-  (ignore _string) ; noqa Unused lexical argument
   (process-send-string
    proc
    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"choices\":[{\"finish_reason\":\"length\",\"message\":{\"role\":\"assistant\",\"content\":\"Your question needs clarification.\"}}]}\n")

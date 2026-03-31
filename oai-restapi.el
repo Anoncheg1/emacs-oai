@@ -310,12 +310,10 @@ Argument SOURCE-BUF url-http response buffer."
 ;;   :group 'oai)
 
 
-(defun oai-restapi--show-error (error-message &optional header-marker)
+(defun oai-restapi--show-error (error-message &optional _header-marker)
   "Show an error message in a buffer.
 ERROR-MESSAGE is the error message to show.
 Argument _HEADER-MARKER not used."
-  (ignore header-marker)
-  ;; (setq _header-marker _header-marker) ; for melpazoid
   (condition-case nil
       (let ((buf (get-buffer-create "*oai error*")))
         (with-current-buffer buf
@@ -610,7 +608,7 @@ Useful for small max-tokens.
 
 
 ;; -=-= Main
-(defun oai-restapi-request-prepare (req-type element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional info)
+(defun oai-restapi-request-prepare (req-type element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional _info)
   "Compose API request from data and start a server-sent event stream.
 Call `oai-restapi-request' function as a next step.
 Called from `oai-call-block' in main file.
@@ -634,7 +632,6 @@ PRESENCE-PENALTY integer - -2-2, lower less repeat concepts.
 SERVICE symbol or string - is the AI cloud service such as openai or
   azure-openai.
 STREAM string - as bool, indicates whether to stream the response."
-  (ignore info)
   (oai--debug "oai-restapi-request-prepare %s" sys-prompt-for-all-messages)
   (let* (
          ;; disable-tags ai-block-markers links-only-last not-clear-properties ; nil, for get-content call
@@ -908,10 +905,9 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
     (let ((url-request-buffer
            (url-retrieve ; <- - - - - - - - -  MAIN
             endpoint
-            (lambda (events)
+            (lambda (_events)
               (oai--debug "oai-restapi-request in event" (current-buffer) oai-restapi-show-error-function)
               ;; "Called within url-request-buffer after `after-change-functions'"
-              (ignore events)
               ;; debug
               (let (oai-restapi--url-buffer-last-position-marker)
                 (oai-restapi--debug-urllib (current-buffer)))

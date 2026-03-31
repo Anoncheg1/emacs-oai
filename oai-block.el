@@ -1597,7 +1597,7 @@ Return number of marked content."
                           (block-size (when reg (- (car reg) (cdr reg))))) ; may be nil
                      (deactivate-mark)
                      (goto-char pos)
-                     (ignore-errors                    ;; Guard in case not on element
+                     (ignore-errors                    ;; wrong-type-argument number-or-marker-p nil) at begining of the buffer.
                        (message "Org Element")
                        (org-mark-element)
                        (if (and block-size (> (- (region-end) (region-beginning)) block-size))
@@ -1737,9 +1737,9 @@ Used for `oai-set-max-tokens-org' function."
 ;; -=-= fn: find named block (Not used)
 (defun oai-find-named-block (name)
   "Find block by NAME from begining of current buffer.
+Like `org-babel-find-named-block'.
 Return the location of the block identified by source
-NAME, or nil if no such block exists.
-    Like `org-babel-find-named-block'."
+NAME, or nil if no such block exists."
   (save-excursion
     (goto-char (point-min))
     (let ((regexp (concat org-babel-src-name-regexp
@@ -1796,14 +1796,13 @@ If optional argument ELEMENT is non-nil it is used as ai block."
       (goto-char header-marker)
       (oai-block-insert-result message))))
 
-(defun oai-block-insert-result (result &optional result-params hash exec-time)
+(defun oai-block-insert-result (result &optional result-params hash _exec-time)
   "Modified `org-babel-insert-result' function.
 Insert RESULT into the current buffer.
 TODO: EXEC-TIME.
 Optional argument RESULT-PARAMS not used.
 Optional argument HASH not used."
   (oai--debug "oai-block-insert-result" result)
-  (ignore exec-time)
   (when (stringp result)
     (setq result (substring-no-properties result)))
   (save-excursion
@@ -1843,7 +1842,7 @@ Optional argument HASH not used."
 If Optional  argument INSERT is  non-nil just enshure that  result field
 exist.
 For _INFO HASH check `org-babel-where-is-src-block-result' function."
-  (oai--debug "oai-block-where-is-result %s" insert _info hash)
+  (oai--debug "oai-block-where-is-result %s %s" insert hash)
   (let ((context (oai-block-p)))
     (catch :found
       (org-with-wide-buffer
