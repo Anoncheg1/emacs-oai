@@ -358,7 +358,9 @@ DEFAULT is a string with default system prompt for LLM."
 (defun oai-block--get-val (info key prop default type)
   "Resolve and cast VALUE from INFO, Org properties, or DEFAULT.
 KEY is keyword as in header specified.
+PROP is keyword without column first character converted to string.
 Return new value."
+  (print (list "aaa" prop))
   (let* ((entry (assoc key info))
          ;; 1. Value sourcing: Priority (Header Alist > Org Prop > Default)
          (v (cond (entry (or (cdr entry) t))
@@ -398,14 +400,14 @@ This macro constructs a single `let*` block by mapping over the
             ,@(mapcar (lambda (d)
                 (let ((s (car d))) ; 's' is the variable symbol (e.g., 'model)
                   `(,s (oai-block--get-val
-                        ,i
-                        ;; Convert symbol 'model to keyword ':model
+                        ,i ; info
+                        ;; key: Convert symbol 'model to keyword ':model
                         ,(intern (concat ":" (symbol-name s)))
-                        ;; Convert symbol 'model to string "model"
+                        ;; prop: Convert symbol 'model to string "model"
                         ,(symbol-name s)
-                        ;; Extract the default value (second item in definition)
+                        ;; default: Extract the default value (second item in definition)
                         ,(cadr d)
-                        ;; Extract the :type property (e.g., 'number)
+                        ;; type: Extract the :type property (e.g., 'number)
                         ',(car (cdr (member :type d)))))))
               definitions))
        ;; -- END OF BINDINGS LIST --
