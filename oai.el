@@ -468,7 +468,7 @@ SEEN is a list of commands already called, used to prevent recursion."
   "Jump to header of ai block and set max-tokens."
   (interactive)
   (if (oai-block-p)
-      (oai-block-set-block-parameter ":max-tokens" oai-restapi-default-max-tokens)
+      (oai-block-set-block-parameter :max-tokens oai-restapi-default-max-tokens)
     ;; else
     (oai--call-next-key-remap-protected "C-c C-t")))
 

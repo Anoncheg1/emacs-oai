@@ -223,12 +223,13 @@ Or
                          (list (oai-block-get-header-marker (oai-block-p)))))
 #+end_src
 ** Elisp: query AI directly.
-Uses oai-restapi-con-service, service name and model string define all connection informnation.
+Here is example that print result in asynchronous way.
+Service name and model string define all connection information.
 #+begin_src elisp :lexical t :results none :exports code :eval no
 (setq debug-on-message "^#<buffer.*")
 (let ((oai-restapi-show-error-function #'oai-restapi--show-error))
   (oai-restapi-request 'github "openai/gpt-4.1"
-                       (lambda (result) (oai-restapi--get-single-response-text result))
+                       (lambda (result) (print (oai-restapi--get-single-response-text result)))
                        :messages '((:role user :content "test"))  ; chat
                        :stream nil))
 #+end_src
