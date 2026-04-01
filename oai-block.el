@@ -350,8 +350,17 @@ DEFAULT is a string with default system prompt for LLM."
 ;;     - 'string:  Filters out bare switches (t) and "nil" strings to return
 ;;                 a clean Elisp `nil` symbol.
 
+;; Everything inside the mapcar (like intern and symbol-name) happens
+;;  while the code is being loaded or compiled. The oai-block--get-val
+;;  function is what actually does the work when the code is executed.
+
+
 (defun oai-block--get-val (info key prop default type)
-  "Resolve and cast VALUE from INFO, Org properties, or DEFAULT."
+  "Resolve and cast VALUE from INFO, Org properties, or DEFAULT.
+KEY is keyword as in header specified.
+PROP is keyword without column first character converted to string.
+Return new value."
+  (print (list "aaa" prop))
   (let* ((entry (assoc key info))
          ;; 1. Value sourcing: Priority (Header Alist > Org Prop > Default)
          (v (cond (entry (or (cdr entry) t))
@@ -366,30 +375,46 @@ DEFAULT is a string with default system prompt for LLM."
       ('bool   (and v (or (eq v t)
                           (and (stringp v)
                                (member (downcase v) '("t" "true" "yes" "on" "1"))))))
-      ('string (if (or (eq v t) ; empty
-                       ;; (and (stringp v)
-                       ;;      (string-equal-ignore-case v "nil"))
-                       )
+      ('string (if (eq v t) ; empty
                    nil
                  ;; else
                  v))
       (_ v))))
 
 (defmacro oai-block--let-params (info definitions &rest body)
-  "Bind DEFINITIONS from INFO or Org props and execute BODY."
-  (let ((i-sym (make-symbol "info")))
-    `(let* ((,i-sym ,info)
-            ,@(mapcar
-               (lambda (d)
-                 (let ((s (car d)))
-                   `(,s (oai-block--get-val ,i-sym
-                                            ,(intern (concat ":" (symbol-name s)))
-                                            ,(symbol-name s)
-                                            ,(cadr d)
-                                            ',(car (cdr (member :type d)))))))
-               definitions))
-       ,@body)))
+  "Bind DEFINITIONS from INFO/Org and execute BODY.
+This macro constructs a single `let*` block by mapping over the
+ DEFINITIONS list."
+  ;; 1. Generate a unique symbol for the 'info' alist.
+  ;; This ensures that if the 'info' argument is a function call,
+  ;; it only executes once at the very start of the let* block.
+  (let ((i (make-symbol "info-ptr")))
+    ;; 2. Start building the backquoted template for the final code.
+    `(let* (;; -- START OF BINDINGS LIST --
+            ;; First binding: assign the raw 'info' alist to our safe symbol.
+            (,i ,info)
+            ;; Next: 'mapcar' iterates through each item in 'definitions'.
+            ;; Each iteration returns a list like: (var-name (oai-block--get-val ...))
+            ;; The ',@' (splicing) operator unquotes and flattens these
+            ;; generated lists into the parent let* list.
+            ,@(mapcar (lambda (d)
+                (let ((s (car d))) ; 's' is the variable symbol (e.g., 'model)
+                  `(,s (oai-block--get-val
+                        ,i ; info
+                        ;; key: Convert symbol 'model to keyword ':model
+                        ,(intern (concat ":" (symbol-name s)))
+                        ;; prop: Convert symbol 'model to string "model"
+                        ,(symbol-name s)
+                        ;; default: Extract the default value (second item in definition)
+                        ,(cadr d)
+                        ;; type: Extract the :type property (e.g., 'number)
+                        ',(car (cdr (member :type d)))))))
+              definitions))
+       ;; -- END OF BINDINGS LIST --
 
+       ;; 3. Finally, place the user's @body code inside the let* block.
+       ;; All variables defined above are now available to these lines.
+       ,@body)))
 ;; info cases:
 ;; - string: '((:model . "openai/gpt-4.1"))
 ;; - int: '((:max-tokens . 3000))
