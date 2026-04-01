@@ -22,6 +22,7 @@ O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organ
 - *Transparency* for inspecting raw data of request, powerful debugger
 - *Customization and autofilling*, hooks
 - *Prompt engineering* tools, there is ~:chain~ of calls out-of-the-box
+- *No external dependencies*
 
 * Screenshot
 - At left - optional debugging window
