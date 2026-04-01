@@ -351,7 +351,9 @@ DEFAULT is a string with default system prompt for LLM."
 ;;                 a clean Elisp `nil` symbol.
 
 (defun oai-block--get-val (info key prop default type)
-  "Resolve and cast VALUE from INFO, Org properties, or DEFAULT."
+  "Resolve and cast VALUE from INFO, Org properties, or DEFAULT.
+Key is keyword as in header specified.
+Return new value."
   (let* ((entry (assoc key info))
          ;; 1. Value sourcing: Priority (Header Alist > Org Prop > Default)
          (v (cond (entry (or (cdr entry) t))
@@ -376,20 +378,38 @@ DEFAULT is a string with default system prompt for LLM."
       (_ v))))
 
 (defmacro oai-block--let-params (info definitions &rest body)
-  "Bind DEFINITIONS from INFO or Org props and execute BODY."
-  (let ((i-sym (make-symbol "info")))
-    `(let* ((,i-sym ,info)
-            ,@(mapcar
-               (lambda (d)
-                 (let ((s (car d)))
-                   `(,s (oai-block--get-val ,i-sym
-                                            ,(intern (concat ":" (symbol-name s)))
-                                            ,(symbol-name s)
-                                            ,(cadr d)
-                                            ',(car (cdr (member :type d)))))))
-               definitions))
-       ,@body)))
+  "Bind DEFINITIONS from INFO/Org and execute BODY.
+This macro constructs a single `let*` block by mapping over the DEFINITIONS list."
+  ;; 1. Generate a unique symbol for the 'info' alist.
+  ;; This ensures that if the 'info' argument is a function call,
+  ;; it only executes once at the very start of the let* block.
+  (let ((i (make-symbol "info-ptr")))
+    ;; 2. Start building the backquoted template for the final code.
+    `(let* (;; -- START OF BINDINGS LIST --
+            ;; First binding: assign the raw 'info' alist to our safe symbol.
+            (,i ,info)
+            ;; Next: 'mapcar' iterates through each item in 'definitions'.
+            ;; Each iteration returns a list like: (var-name (oai-block--get-val ...))
+            ;; The ',@' (splicing) operator unquotes and flattens these
+            ;; generated lists into the parent let* list.
+            ,@(mapcar (lambda (d)
+                (let ((s (car d))) ; 's' is the variable symbol (e.g., 'model)
+                  `(,s (oai-block--get-val
+                        ,i
+                        ;; Convert symbol 'model to keyword ':model
+                        ,(intern (concat ":" (symbol-name s)))
+                        ;; Convert symbol 'model to string "model"
+                        ,(symbol-name s)
+                        ;; Extract the default value (second item in definition)
+                        ,(cadr d)
+                        ;; Extract the :type property (e.g., 'number)
+                        ',(car (cdr (member :type d)))))))
+              definitions))
+       ;; -- END OF BINDINGS LIST --
 
+       ;; 3. Finally, place the user's @body code inside the let* block.
+       ;; All variables defined above are now available to these lines.
+       ,@body)))
 ;; info cases:
 ;; - string: '((:model . "openai/gpt-4.1"))
 ;; - int: '((:max-tokens . 3000))
