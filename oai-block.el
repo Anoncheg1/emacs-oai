@@ -350,6 +350,11 @@ DEFAULT is a string with default system prompt for LLM."
 ;;     - 'string:  Filters out bare switches (t) and "nil" strings to return
 ;;                 a clean Elisp `nil` symbol.
 
+;; Everything inside the mapcar (like intern and symbol-name) happens
+;;  while the code is being loaded or compiled. The oai-block--get-val
+;;  function is what actually does the work when the code is executed.
+
+
 (defun oai-block--get-val (info key prop default type)
   "Resolve and cast VALUE from INFO, Org properties, or DEFAULT.
 Key is keyword as in header specified.
@@ -368,10 +373,7 @@ Return new value."
       ('bool   (and v (or (eq v t)
                           (and (stringp v)
                                (member (downcase v) '("t" "true" "yes" "on" "1"))))))
-      ('string (if (or (eq v t) ; empty
-                       ;; (and (stringp v)
-                       ;;      (string-equal-ignore-case v "nil"))
-                       )
+      ('string (if (eq v t) ; empty
                    nil
                  ;; else
                  v))
