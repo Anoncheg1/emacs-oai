@@ -132,10 +132,17 @@ and INFO-ALIST is the parameters from its header."
       ;; Position point inside the block for correct context, though not strictly needed for info directly.
 
 
-      (oai-block--let-params info ((stream) (stream2 0 :type number) (stream3 1 :type number) (sys) (max-tokens :type integer) (max-tokens2 10 :type integer) (model) (model1 nil :type string) (model2 10 :type number) (model4 nil :type number) (model3) (temperature :type float) (unknown "s"))
-                             ;; (print (list max-tokens (type-of max-tokens)))
-                             ;; (print (list temperature (type-of temperature)))
-                             ;; (print (list unknown (type-of unknown)))
+      (oai-block--let-params info ((stream) (stream2 0 :type number)
+                                   (stream3 1 :type number) (sys)
+                                   (max-tokens :type integer)
+                                   (max-tokens2 10 :type integer) (model)
+                                   (model1 nil :type string) (model2 10 :type number)
+                                   (model4 nil :type number) (model3) (temperature :type float) (unknown "s"))
+                             ;; (print (list "stream2" (type-of stream2) stream2 ))
+                             ;; (print (list "stream3" (type-of stream3) stream3 ))
+                             ;; (print (list "max-tokens" (type-of max-tokens) max-tokens ))
+                             ;; (print (list "max-tokens2" (type-of max-tokens2) max-tokens2 ))
+
                              (should (= stream3 1))
                              (should (eq stream2 nil))
                              (should (eq max-tokens2 t))
@@ -184,7 +191,7 @@ and INFO-ALIST is the parameters from its header."
                              ;; (print (list "model1" model1)) => ("nil" "nil")
                              ;; (print (list "model" model))
                              (should (string-equal model nil))
-                             (should (equal model1 nil))
+                             (should (equal model1 "nil"))
                              (should (equal model2 nil))
                              (should (equal stream nil))
                              (should (string-equal stream1 nil))

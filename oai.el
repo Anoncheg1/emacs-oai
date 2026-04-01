@@ -270,31 +270,21 @@ Return list of arguments args."
     (oai-block--let-params info
                            ;; format: (variable optional-default type)
                            ((service oai-restapi-con-service string) ; oai-restapi.el
-                            (model (let ((m (oai-restapi--get-values oai-restapi-con-model service)))
-                                       (if (not m)
-                                         (user-error "Model not specified")
-                                       ;; else
-                                       (car m)))
-                                   :type string) ; oai-restapi.el
+                            (model (car (oai-restapi--get-values oai-restapi-con-model service)) :type string)
                             (max-tokens oai-restapi-default-max-tokens :type number)
                             (top-p nil :type number)
                             (temperature nil :type number)
                             (frequency-penalty nil :type number)
                             (presence-penalty nil :type number)
                             (stream t :type bool))
-                           ;; - body with some Org "Post-parsing":
-                           (let (
-                                 (service (or service
-                                              oai-restapi-con-service)) ; default in oai-restapi.el
-                                 (model (if (and (stringp model)
-                                                 (string-equal model "nil"))
-                                            nil
-                                          ;; else
-                                          model)))
-                                 ;; return
-                                 (list element noweb-control sys-prompt sys-prompt-for-all-messages ; message
-                                          model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
-                                          info)))))
+                           ;; body
+                           (unless model
+                             (user-error "Model not specified nor in ai block nor in oai-restapi-con-model. To disable model completely set it to \"nil\""))
+                           (when (string-equal-ignore-case model "nil")
+                             (setq model nil)) ; if specified as "nil" string explicitly, to disable.
+                           (list element noweb-control sys-prompt sys-prompt-for-all-messages ; message
+                                 model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
+                                 info))))
 
 ;; -=-= interactive fn: key M-x: oai-expand-block
 (defun oai-expand-block-deep ()

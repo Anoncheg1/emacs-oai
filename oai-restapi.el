@@ -632,7 +632,7 @@ PRESENCE-PENALTY integer - -2-2, lower less repeat concepts.
 SERVICE symbol or string - is the AI cloud service such as openai or
   azure-openai.
 STREAM string - as bool, indicates whether to stream the response."
-  (oai--debug "oai-restapi-request-prepare %s" sys-prompt-for-all-messages)
+  (oai--debug "oai-restapi-request-prepare %s" model sys-prompt-for-all-messages)
   (let* (
          ;; disable-tags ai-block-markers links-only-last not-clear-properties ; nil, for get-content call
          (max-tokens-string

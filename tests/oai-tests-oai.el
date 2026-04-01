@@ -37,7 +37,7 @@
 
 
 ;; -=-= Test: oai-expand-block-1
-(defvar oai-tests-oai--expand-block-string1 "#+begin_ai :model nil
+(defvar oai-tests-oai--expand-block-string1 "#+begin_ai
 asdas
 [[11::asds]]
 
@@ -45,7 +45,7 @@ asdas
 #+end_ai
 
 #+name: asds
-#+begin_ai :model nil
+#+begin_ai
 [ME]: Please
 [ai]: My output
 #+end_ai
@@ -61,8 +61,9 @@ asdas
       ;; (oai-expand-block nil))
       (let ((oai-restapi-con-token "token")
             res)
+        (setq res (substring-no-properties (oai-expand-block nil)))
         (should (string-equal
-                 (substring-no-properties (oai-expand-block nil))
+                 res
                  "[ME]: asdas
 Please
 
@@ -70,11 +71,12 @@ Please
 
 [ME]: VV"))
         ;; (print (setq res (oai-expand-block-deep)))))
+        (print (setq res (oai-expand-block-deep)))
         (should (equal
                  (oai-expand-block-deep)
-                 '("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json") ("Authorization" . "Bearer token")) ((messages . [(:role system :content "Be helpful.") (:role user :content "asdas
-Please") (:role assistant :content "My output") (:role user :content "VV")]) (stream . t)))))
-        ))))
+                 '("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json") ("Authorization" . "Bearer token"))
+                   ((messages . [(:role system :content "Be helpful.") (:role user :content "asdas\nPlease") (:role assistant :content "My output") (:role user :content "VV")]) (model . "gpt-4o-mini") (stream . t)))
+        ))))))
 
 ;; -=-= Test: oai-expand-block-2
 (defvar oai-tests-oai--expand-block-string "#+begin_ai :model nil

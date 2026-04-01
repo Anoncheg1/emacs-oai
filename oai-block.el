@@ -326,59 +326,69 @@ DEFAULT is a string with default system prompt for LLM."
       sys-raw)))
 
 ;; -=-= macro: let-params
+
+;;; Logic & Purpose:
+;;  ----------------
+;;  Oai blocks require parameters that may be defined in three distinct scopes.
+;;  This macro provides a unified "Waterfall" lookup and type-safety layer:
+;;
+;;  1. Priority Sourcing (The Waterfall):
+;;     - Local Header (INFO):  Explicit block arguments (e.g., :model "gpt-4").
+;;                             If a key exists without a value (e.g., :flag),
+;;                             it is treated as a boolean `t`.
+;;     - Subtree Properties:   Inherited Org-mode properties. These are
+;;                             ALWAYS strings (e.g., #+PROPERTY: model gpt-4).
+;;     - Default Value:        The hardcoded fallback if no other source exists.
+;;
+;;  2. Type Normalization (The Coercion):
+;;     Org properties return strings, but Elisp logic needs types. This
+;;     logic handles "human" input error (e.g., typing "nil" or "off" in Org):
+;;
+;;     - 'number:  Converts strings; handles "nil" strings and empty switches as nil.
+;;     - 'bool:    Strict whitelist. Only "t", "true", "yes", "on", "1" are `t`.
+;;                 Strings like "off", "no", or "0" become `nil`.
+;;     - 'string:  Filters out bare switches (t) and "nil" strings to return
+;;                 a clean Elisp `nil` symbol.
+
+(defun oai-block--get-val (info key prop default type)
+  "Resolve and cast VALUE from INFO, Org properties, or DEFAULT."
+  (let* ((entry (assoc key info))
+         ;; 1. Value sourcing: Priority (Header Alist > Org Prop > Default)
+         (v (cond (entry (or (cdr entry) t))
+                  ((org-entry-get-with-inheritance prop))
+                  (t default))))
+    ;; 2. Declarative Type Casting
+    (pcase type
+      ('number (cond ((or (null v) (eq v t) (equal v "nil")) nil) ; empty or "nil"
+                     ((stringp v) (string-to-number v))
+                     ((numberp v) v)
+                     (t (user-error "Invalid number: %s" v))))
+      ('bool   (and v (or (eq v t)
+                          (and (stringp v)
+                               (member (downcase v) '("t" "true" "yes" "on" "1"))))))
+      ('string (if (or (eq v t) ; empty
+                       ;; (and (stringp v)
+                       ;;      (string-equal-ignore-case v "nil"))
+                       )
+                   nil
+                 ;; else
+                 v))
+      (_ v))))
+
 (defmacro oai-block--let-params (info definitions &rest body)
-  "A specialized `let*' macro for Oai parameters.
-DEFINITIONS is a list of (VARIABLE &optional DEFAULT-FORM &key TYPE).
-TYPE can be \='number, \='bool, \='string, or \='identity (no conversion).
-Return one of:
-- t symbol, if value for key not specified, if specied, return string.
-- for number type, `string-to-number' used, that return 0 if number not
-  recognized.
-- for number if specified without value return t.
-- Processed value of parameter (e.g., t/nil for bool).
-Parameters are sourced from:
-1. From Oai block header INFO alist.  (e.g., :model \"gpt-4\")
-2. Org inherited property. (e.g., #+PROPERTY: model gpt-4)
-3. DEFAULT-FORM."
-  (setq info info) ; for melpazoid
-  `(let* ,(cl-loop for def-item in definitions
-                   collect
-                   (let* ((sym (car def-item))
-                          (default-form (cadr def-item))
-                          (type (cadr (member :type def-item)))
-                          (key (intern (concat ":" (symbol-name sym))))
-                          (prop-name (symbol-name sym))
-                          (postprocessor (cl-case type
-                                       (number `(cond ((null val) nil)
-                                                      ((eq val t) nil) ; empty
-                                                      ((and (stringp val) (string= val "nil")) nil)
-                                                      ((stringp val) (string-to-number val))
-                                                      ((numberp val) val)
-                                                      (t (user-error "Unknwown type value for info kword %" key))))
-                                       (bool `(cond ((null val) nil)
-                                                    ((eq val t) t)
-                                                    ((stringp val) (if (member (downcase val) '("t" "true" "yes" "on" "1")) t nil))
-                                                    (t nil)))
-                                       (string `(cond ((null val) nil)
-                                                      ((eq val t) nil) ; empty
-                                                      ((and (stringp val)
-                                                            (string-equal-ignore-case val "nil"))
-                                                           nil)
-                                                      ((stringp val) (prin1-to-string val))
-                                                      (t (user-error "Unknwown type value for info kword %" key))))
-                                       (identity `val)
-                                       (t `val))))
-                     `(,sym (let ((val (or (let* ((v1 (assoc ,key info))
-                                                  (v2 (cdr v1)))
-                                             (if (and v1 (not v2)) ; exist empty
-                                                 t
-                                               v2))
-                                           (org-entry-get-with-inheritance ,prop-name)
-                                           ,@(when default-form `(,default-form)))))
-                              ,postprocessor))))
-     ,@body))
-
-
+  "Bind DEFINITIONS from INFO or Org props and execute BODY."
+  (let ((i-sym (make-symbol "info")))
+    `(let* ((,i-sym ,info)
+            ,@(mapcar
+               (lambda (d)
+                 (let ((s (car d)))
+                   `(,s (oai-block--get-val ,i-sym
+                                            ,(intern (concat ":" (symbol-name s)))
+                                            ,(symbol-name s)
+                                            ,(cadr d)
+                                            ',(car (cdr (member :type d)))))))
+               definitions))
+       ,@body)))
 
 ;; info cases:
 ;; - string: '((:model . "openai/gpt-4.1"))
