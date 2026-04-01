@@ -137,7 +137,7 @@ and INFO-ALIST is the parameters from its header."
                              ;; (print (list temperature (type-of temperature)))
                              ;; (print (list unknown (type-of unknown)))
                              (should (= stream3 1))
-                             (should (eq stream2 t))
+                             (should (eq stream2 nil))
                              (should (eq max-tokens2 t))
                              (should (string-equal stream "t"))
                              (should (= max-tokens 50))

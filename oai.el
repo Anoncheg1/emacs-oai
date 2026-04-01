@@ -272,9 +272,9 @@ Return list of arguments args."
                            ((service oai-restapi-con-service string) ; oai-restapi.el
                             (model (let ((m (oai-restapi--get-values oai-restapi-con-model service)))
                                        (if (not m)
-                                         (user-error "Model not specified"))
+                                         (user-error "Model not specified")
                                        ;; else
-                                       (car m))
+                                       (car m)))
                                    :type string) ; oai-restapi.el
                             (max-tokens oai-restapi-default-max-tokens :type number)
                             (top-p nil :type number)
@@ -468,7 +468,7 @@ SEEN is a list of commands already called, used to prevent recursion."
   "Jump to header of ai block and set max-tokens."
   (interactive)
   (if (oai-block-p)
-      (oai-block-set-block-parameter ":max-tokens" oai-restapi-default-max-tokens)
+      (oai-block-set-block-parameter :max-tokens oai-restapi-default-max-tokens)
     ;; else
     (oai--call-next-key-remap-protected "C-c C-t")))
 

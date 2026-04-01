@@ -350,23 +350,22 @@ Parameters are sourced from:
                           (prop-name (symbol-name sym))
                           (postprocessor (cl-case type
                                        (number `(cond ((null val) nil)
+                                                      ((eq val t) nil) ; empty
                                                       ((and (stringp val) (string= val "nil")) nil)
                                                       ((stringp val) (string-to-number val))
                                                       ((numberp val) val)
-                                                      (t val)))
+                                                      (t (user-error "Unknwown type value for info kword %" key))))
                                        (bool `(cond ((null val) nil)
                                                     ((eq val t) t)
                                                     ((stringp val) (if (member (downcase val) '("t" "true" "yes" "on" "1")) t nil))
                                                     (t nil)))
                                        (string `(cond ((null val) nil)
-                                                      ((and (not (stringp val)) (equal val t)) ; empty
-                                                       nil)
-                                                      ((stringp val)
-                                                       (if (string-equal-ignore-case val "nil")
-                                                           nil
-                                                         ;; else
-                                                         val))
-                                                      (t (prin1-to-string val))))
+                                                      ((eq val t) nil) ; empty
+                                                      ((and (stringp val)
+                                                            (string-equal-ignore-case val "nil"))
+                                                           nil)
+                                                      ((stringp val) (prin1-to-string val))
+                                                      (t (user-error "Unknwown type value for info kword %" key))))
                                        (identity `val)
                                        (t `val))))
                      `(,sym (let ((val (or (let* ((v1 (assoc ,key info))
@@ -1710,27 +1709,37 @@ If universal argument ARG is non-nil, mark content of ai block."
 
 ;; -=-= fn: set-block-parameter
 
-(defun oai-block-set-block-parameter (parameter default-value)
-  "Jump to header of ai block and set PARAMETER.
-PARAMETER is string for ai block header switch keyword with (:) at
-begining with specified DEFAULT-VALUE.
-Used for `oai-set-max-tokens-org' function."
+(defun oai-block-set-block-parameter (parameter &optional value not-jump-back)
+  "Set PARAMETER in ai block header.
+Uses marker for original position.
+Removes next word after PARAMETER if it doesn't start with ':'.
+If VALUE is provided and NOT-JUMP-BACK is nil, restores cursor."
   (if-let ((element (oai-block-p)))
-      (progn
-        (push-mark)
+      (let ((param-str (if (symbolp parameter) (symbol-name parameter) parameter))
+            (orig-marker (copy-marker (point))))
         (goto-char (car (oai-block--region)))
-        (if (search-forward parameter (line-end-position) t)
-            ;; if - 1) ;modify :max-tokens
-            (if (eq (line-end-position) (point))
-                (insert " ")
-              ;; else
-              (forward-char))
-          ;; else - 2) add :max-tokens
-          (forward-char 10)
-          (insert " " parameter " ")
-          (let ((pos (point)))
-            (insert (format "%s " default-value))
-            (goto-char pos))))
+        ;; Find parameter or insert it if missing
+        (unless (search-forward param-str (line-end-position) t)
+          (forward-char 10) ;; length of "#+begin_ai"
+          (insert " " param-str " ")
+          (forward-char -1))
+        ;; Remove next word if not starts with ":"
+        (let ((p (point)))
+          (skip-chars-forward " \t")
+          (let ((wn (thing-at-point 'word)))
+            (unless (string-prefix-p ":" wn)
+              (delete-region p (+ p (1+ (length wn)))))
+            (goto-char p)))
+        ;; Insert value if provided
+        (if value
+            (progn
+              (insert (format " %s" value))
+              (backward-word))
+          ;; else
+          (insert " "))
+        ;; Jump back if needed
+        (when (and value (not not-jump-back))
+          (goto-char orig-marker)))
     ;; else
     (message "Not oai block here.")))
 
