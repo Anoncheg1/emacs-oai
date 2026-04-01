@@ -357,7 +357,7 @@ DEFAULT is a string with default system prompt for LLM."
 
 (defun oai-block--get-val (info key prop default type)
   "Resolve and cast VALUE from INFO, Org properties, or DEFAULT.
-Key is keyword as in header specified.
+KEY is keyword as in header specified.
 Return new value."
   (let* ((entry (assoc key info))
          ;; 1. Value sourcing: Priority (Header Alist > Org Prop > Default)
@@ -381,7 +381,8 @@ Return new value."
 
 (defmacro oai-block--let-params (info definitions &rest body)
   "Bind DEFINITIONS from INFO/Org and execute BODY.
-This macro constructs a single `let*` block by mapping over the DEFINITIONS list."
+This macro constructs a single `let*` block by mapping over the
+ DEFINITIONS list."
   ;; 1. Generate a unique symbol for the 'info' alist.
   ;; This ensures that if the 'info' argument is a function call,
   ;; it only executes once at the very start of the let* block.
