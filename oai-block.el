@@ -2371,7 +2371,7 @@ Return t if text was changed, nil otherwise."
     (let* ((modified-flag (buffer-chars-modified-tick))
            (end (copy-marker end))
            (cur beg)
-           middle-end)
+           middle-end reg)
       ;; Content exist?
       (save-excursion
         (while (< cur end)
