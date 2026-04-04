@@ -220,9 +220,9 @@ In `oai-block-roles-prefixes'.")
 (defconst oai-block--ai-block-begin-re "^[ \t]*#\\+begin_ai.*$")
 (defconst oai-block--ai-block-end-re "^[ \t]*#\\+end_ai.*$")
 (defconst oai-block--ai-block-begin-end-re "^[ \t]*#\\+\\(begin\\|end\\)_ai.*$")
-(org-in-regexp org-babel-src-name-regexp)
-(defvar oai-block--markdown-begin-re "^\\s-*```\\([^\s\t\n[{]+\\)[\s\t]?$")
-(defvar oai-block--markdown-end-re "^[\s\t]**```\\s-*$")
+;; org-babel-src-name-regexp)
+(defvar oai-block--markdown-begin-re "^\\s-*```\\([^\s\t\n[{]+\\)[\s\t]*$")
+(defvar oai-block--markdown-end-re "^[\s\t]**```[\s\t]*$")
 (defvar oai-block--markdown-beg-end-re "^[\s\t]*```\\(.*\\)$")
 (defvar oai-block--chat-prefixes-re "^[\s\t]*\\[\\([^\]]+\\)\\(:\\]\\|\\]:\\)\\s-*"
   "Prefix should be at the begining of the line with spaces or without.
@@ -592,7 +592,7 @@ Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS
 
 ;; (defun oai-block--find-region-with-position (regions pos)
 ;;   "Return one of region from REGIONS that have POS position inside.
-;; REGIONS is positions returned by `oai-block--markdown-subblocks-regions'
+;; REGIONS is positions returned by `oai-block--markdown-block-regions'
 ;; or `oai-block--chat-role-regions'.
 ;; If POS at the footer of block, it count as a next block.
 ;; Return cons of cons begining and end of region and position or nil."
@@ -613,7 +613,7 @@ Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS
   "Find region for POS in REGIONS provided.
 Return ((START . END) . N) [the region boundaries and region number]
 REGION boundary points (sorted, e.g.  (10 20 30)), is positions returned
- by `oai-block--markdown-subblocks-regions' or
+ by `oai-block--markdown-block-regions' or
  `oai-block--chat-role-regions'.
 POS should be within any region, or at its left boundary.  Else return
  nil."
@@ -665,21 +665,21 @@ POS should be within any region, or at its left boundary.  Else return
 ;;                  (looking-at "^> ")))
 ;;     (goto-char pos)))
 
-(defun oai-block--markdown-subblocks-regions (beg end)
+(defun oai-block--markdown-block-regions (beg end)
   "Return position of markdown subblocks begining and ending headers.
 Execution in not `org-mode' is supported.
 BEG and END is a range in which to search markdown.
 Careful, move pointer.
-Return list or nil."
+Positions in list are begining of lines.
+Return list of integers or nil."
   (goto-char beg)
   (let (regions markdown-beg)
-
     (while (and (< (point) end)
                 ;; 1) find begining of block
-                (and (re-search-forward oai-block--markdown-beg-end-re end t)  ; point is at end of line now
+                (and (re-search-forward oai-block--markdown-beg-end-re end t)  ; point is at end of line now or next line
                      (setq markdown-beg (line-beginning-position)))
                 ;; 2) find end of block
-                (re-search-forward oai-block--markdown-end-re end t))
+                (re-search-forward oai-block--markdown-end-re end t)) ; may be at the end of line or at next line
       (push markdown-beg regions)
       (push (line-beginning-position) regions))
     ;; if last block without ending, we presume that it ends and "end"
@@ -699,14 +699,15 @@ Return list or nil."
 (defun oai-block--markdown-block-p (&optional limit-start limit-end)
   "Return (cons beg end) if pos is inside markdown block.
 Execution in not `org-mode' is supported.
-Caution: move pointer.
+Caution: move pointer at the end of the last markdown subblock footer.
 If POS is not provided current cursor position is used.
 LIMIT-START and LIMIT-END are parameters for
- `oai-block--markdown-subblocks-regions', if not provided ai block
+ `oai-block--markdown-block-regions', if not provided ai block
  content region is used or `point-min' and `point-max`.
 If POS at the footer of block, return nil.
-Positions of (cons beg end) are begining of the line.
-If not found return nil."
+
+Return (cons beg end), Where beg is bol for markdown block, end is bol
+ of next line after markdown block. If not found return nil."
   (oai--debug "oai-block--markdown-block-p N0 %s %s" limit-start limit-end)
   ;; - preparation
   (let ((pos (line-beginning-position))
@@ -719,8 +720,9 @@ If not found return nil."
     (let ((limit-start (or limit-start (car reg)))
           (limit-end (or limit-end (cdr reg))))
       ;; - main
-      (when-let* ((regions (oai-block--markdown-subblocks-regions limit-start limit-end)) ; TODO: last block without footer
+      (when-let* ((regions (oai-block--markdown-block-regions limit-start limit-end))
                   (res (oai-block--find-region-with-position regions pos)))
+        (oai--debug "oai-block--markdown-block-p N01 %s" (point) regions)
 
                   ;; (res (or (oai-block--find-region-with-position regions pos)
                   ;;          (when (progn (goto-char pos)
@@ -730,6 +732,7 @@ If not found return nil."
         (if (zerop (mod (cdr res) 2)) ; we need 0 2 4
             (car res)
           ;; else - special case - pointer at the footer line.
+          (oai--debug "oai-block--markdown-block-p N11" regions res)
           (goto-char pos)
           (when (and (looking-at oai-block--markdown-end-re)
                      (> (length regions) (cdr res)))
@@ -744,7 +747,7 @@ If not found return nil."
   "For markdown subblock return cons of content start and content ends.
 M-BLOCK-START M-BLOCK-END are line begin position of markdown range with
  header and footer as returned by `oai-block--markdown-block-p',
- `oai-block--markdown-subblocks-regions'.  Caution, move pointer."
+ `oai-block--markdown-block-regions'.  Caution, move pointer."
   (goto-char m-block-end) ; begin of line at ```
   (while (bolp)
     (backward-char))
@@ -2327,9 +2330,9 @@ Used to inject font-locks to `org-font-lock-extra-keywords' variable."
   "Apply FUNC to each line in region from START to END with ARGS.
 START and END is a pointer.  FUNC is called with
 \(line-start line-end . ARGS) for each line.
-Executed inside `save-excursion'.
 FUNC should place  point to to the  next line after execution  if end at
-the end of the line."
+the end of the line.
+Return marker of END."
   `(let ((end-marker (copy-marker ,end)))
      (save-excursion
        (goto-char ,start)
@@ -2338,7 +2341,8 @@ the end of the line."
                (line-end (line-end-position)))
            (if (< line-start line-end) ; not empty line
                (apply ,func line-start line-end (list ,@args))
-             (forward-line)))))))
+             (forward-line)))))
+     end-marker))
 
 (defun oai-block-fill-region-as-paragraph (from to &optional justify nosqueeze squeeze-after)
   "Ignore lines that begin with \"< \".
@@ -2346,65 +2350,139 @@ For `fill-region-as-paragraph' that applied per lines.
 Argument FROM TO JUSTIFY NOSQUEEZE SQUEEZE-AFTER is arguments of
 fill-region-as-paragraph."
   ;; (oai--debug "oai-block-fill-region-as-paragraph %s %s" from to)
+  (oai--debug "oai-block-fill-region-as-paragraph %s %s" from to justify nosqueeze squeeze-after)
   (goto-char (min from to))
-  (if (not (or (looking-at "^> ")
-               (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))
+  (if (not (and (looking-at "^> ")
+               (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*"))) ; tables
       (funcall #'fill-region-as-paragraph from to justify nosqueeze squeeze-after)
-    ;; else
+    ;; else - next line
     (goto-char to)
     (unless (bolp)
       (forward-line))))
 
-
 (defun oai-block-fill-region (beg end &optional justify)
-  "Ignore code blocks that start with '```sometext' and end with '```'.
+  "Fill region, ignore markdown blocks, quoted lines and tables.
+Used for not streaming one time insertion of response.
 BEG END and JUSTIFY have same as in `fill-region-as-paragraph'.
-TODO: use `forward-paragraph' instead of `forward-line'."
-  (let ((modified-flag (buffer-chars-modified-tick))
-        ;; markdown block range
-        block-start block-end)
-    ;; Content exist?
-    (when (or (not beg)
-              (not end))
-      (error "Empty block"))
-    ;; Ignore code blocks that start with "```sometext" and end with "```"
-    (save-excursion
-      (while (< beg end)
-        (goto-char beg)
-        ;; - search forward for markdkown begining from ai block begining
-        (if (re-search-forward "^[ \t\f]*```\\w" end t) ; ex. "    ```elisp"
-            (progn
-              ;; (setq block-start (copy-marker (line-beginning-position))) ; save markdown block begining
-              (setq block-start (line-beginning-position)) ; save markdown block begining
-              ;; - search forward from current for markdown ending
-              (if (re-search-forward "^[ \t\f]*```[ \t\f]*$" end t) ; ex. "    ```      "
-                  (progn
-                    (setq block-end (copy-marker (line-beginning-position)))
-                    ;; from begining of ai block to begin to markdown block
-                    ;; FILL
-                    (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg block-start justify)
-                    ;; go to the end of markdown block
-                    (goto-char (marker-position block-end))
-                    (set-marker block-end nil)
-                    (forward-line 1)
-                    (setq beg (point)))
-                ;; else - not found end of block
-                ;; FILL
-                (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg block-start justify)
-                ;; (set-marker block-start nil)
-                (setq beg end)))
-          ;; else - no markdown block begining - apply to whole block
-          ;; FILL
-          (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph beg end justify)
-          (setq beg end)))
+TODO: use `forward-paragraph' instead of `forward-line'.
+Return t if text was changed, nil otherwise."
+  (oai--debug "oai-block-fill-region N1 %s" beg end justify)
+  (when (/= beg end)
+    (let* ((modified-flag (buffer-chars-modified-tick))
+           (end (copy-marker end))
+           (cur beg)
+           middle-end)
+      ;; Content exist?
+      (save-excursion
+        (while (< cur end)
+          (goto-char cur)
+          ;; (oai--debug "oai-block-fill-region N2 %s" cur)
+          (setq reg (oai-block--markdown-block-p beg (marker-position end))) ; move pointer to end of markdown footer
+          (if reg ; inside markdown block
+              (progn
+                (goto-char (cdr reg))
+                (forward-line)
+                (setq cur (point))
+                (oai--debug "oai-block-fill-region N21 %s" reg cur))
+            ;; else - not in markdown block
+            (goto-char cur)
+            ;; find next markdown block - middle-end = end or begining of next markdown
+            ;; (oai--debug "oai-block-fill-region N3")
+            (re-search-forward oai-block--markdown-beg-end-re (marker-position end) t)
+            (beginning-of-line)
+            ;; (oai--debug "oai-block-fill-region N4")
+            (setq middle-end (car (oai-block--markdown-block-p beg (marker-position end))))
+            (setq middle-end (if (and middle-end (< middle-end end))
+                                 middle-end
+                               ;; else
+                               end))
+            ;; (oai--debug "oai-block-fill-region N5")
+            (setq cur (marker-position
+                       (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph
+                                                         cur
+                                                         middle-end
+                                                         justify))))))
       (/= (buffer-chars-modified-tick) modified-flag))))
+
+(defun oai-block-fill-insert (&optional pos stream)
+  "Fill ai block for not streaming and for streaming.
+Uses current position in current buffer as the end.
+Full line by line.
+Ignore markdown blocks, quoted text and Org tables.
+If STREAM is non-nil this function called after insertion of a chink of
+ text, use current cursor position and fill current line.
+If STREAM is nil, then region from POS to current position is filled.
+POS is position before insertion."
+  (interactive)
+  ;; (setq _pos _pos) ; for melpazoid
+  (oai--debug "oai-block-fill-insert %s %s" (point) pos stream (region-active-p))
+  (save-excursion
+    (if stream
+        ;; if at current line ``` or we are at begining of markdown block in ai block.
+        (let ((case-fold-search t) ; if nil
+              (end (point)))
+          ;; (with-syntax-table org-mode-transpose-word-syntax-table
+          ;; (let ((beg (re-search-backward oai-block--ai-block-begin-re nil t)
+          (unless
+              ;; not markdown blocks
+              (or (with-syntax-table org-mode-transpose-word-syntax-table
+                    ;; backward for ai block
+                    (when (re-search-backward oai-block--ai-block-begin-re nil t)
+                      (goto-char end)
+                      ;; backward for markdown block "begin". Same logic as in finction `oai-block-tags--is-special'
+                      (when (re-search-backward oai-block--markdown-begin-re (match-end 0) t)
+                        (goto-char end)
+                        ;; backward for markdown block "end" after "begin"
+                        (not (re-search-backward oai-block--markdown-end-re nil t)))))
+                  ;; not quotes and not tables
+                  (progn (goto-char end)
+                         (beginning-of-line)
+                         (or (looking-at "^> ") ; from `oai-block-fill-region-as-paragraph'
+                             (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
+            (goto-char end)
+            (fill-region-as-paragraph (line-beginning-position) (line-end-position))))
+      ;; else not stream, single response.
+      (let ((end (or pos (line-beginning-position))))
+        (oai-block-fill-region end (point))))))
+
+;; (defun my/org-fill-element-advice (orig-fun &optional justify)
+;;   "Advice around `org-fill-element`.
+;; If at headline, skip filling. Otherwise call original function."
+;;   (let ((element (save-excursion (end-of-line) (org-element-at-point))))
+;;     (unless (oai-block-tags--markdown-fenced-code-body-get-range)
+;;       (funcall orig-fun justify))))
+
+;; (advice-add 'org-fill-element :around #'my/org-fill-element-advice)
+
+
+;; (defun oai-restapi--forward-paragraph (arg)
+;;   "Normal with `forward-paragraph' Skipping markdown blocks.
+;; Works for positive ARG now only, negative not supported now."
+;;   (print (list "oai-restapi--forward-paragraph" arg))
+;;   (funcall #'forward-paragraph arg)
+;;   (or arg (setq arg 1))
+;;   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range))
+;;                     (beg (car r)) ; after header
+;;                     (end (cadr r))) ; at end line
+;;     (when (< arg 0) (not (bobp))
+;;           (when (> end (point))
+;;             (goto-char beg)
+;;             (forward-line -1)))
+;;     (when (> arg 0) (not (eobp))
+;;         ;; inside or at the first line? if at first line, do nothin, if in the middle of mardkown, then go to the end
+;;         (unless (save-excursion (forward-line -1) (eq beg (point)))
+;;           (goto-char end)
+;;           (forward-line)))))
+
+;; -=-= Fill-region, paragraph - interactive
 
 (defun oai-block-fill-paragraph (&optional justify region)
   "Fill every line as paragraph in the current AI block.
-
-Optional argument JUSTIFY is parameter of `fill-paragraph'.
-
-The REGION argument is non-nil if called interactively; in that
+Interacive function for ai block, like `org-fill-paragraph', that fill
+ message or whole block.
+Optional arguments:
+- JUSTIFY is parameter of `fill-paragraph'.
+- if REGION is non-nil if called interactively; in that
 case, if Transient Mark mode is enabled and the mark is active,
 fill each of the elements in the active region, instead of just
 filling the current element.
@@ -2455,75 +2533,6 @@ Return t if point at ai block, nil otherwise."
           (oai--debug "oai-block-fill-paragraph2 %s" beg end)
           (oai-block-fill-region beg end)) ; return t
         ))))
-
-
-(defun oai-block-fill-insert (&optional pos stream)
-  "Fill ai block for not streaming and for streaming.
-Ignore markdown blocks, quoted text and Org tables.
-If STREAM is non-nil this function called after insertion of a chink of
- text, use current cursor position and fill current line.
-If STREAM is nil, then region from pos to current position is filled.
-POS is position before insertion."
-  (interactive)
-  ;; (setq _pos _pos) ; for melpazoid
-  (oai--debug "oai-block--fill-insert %s %s" stream (point) (region-active-p))
-  (save-excursion
-    (if stream
-        ;; if at current line ``` or we are at begining of markdown block in ai block.
-        (let ((case-fold-search t) ; if nil
-              (p (point)))
-          (unless
-              ;; not markdown blocks
-              (or (with-syntax-table org-mode-transpose-word-syntax-table
-                    ;; backward for ai block
-                    (when (re-search-backward oai-block--ai-block-begin-re nil t)
-                      (goto-char p)
-                      ;; backward for markdown block "begin". Same logic as in finction `oai-block-tags--is-special'
-                      (when (re-search-backward oai-block--markdown-begin-re (match-end 0) t)
-                        (goto-char p)
-                        ;; backward for markdown block "end" after "begin"
-                        (not (re-search-backward oai-block--markdown-end-re nil t)))))
-                  ;; not quotes and not tables
-                  (progn (goto-char p)
-                         (beginning-of-line)
-                         (or (looking-at "^> ") ; from `oai-block-fill-region-as-paragraph'
-                             (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
-            (goto-char p)
-            (fill-region-as-paragraph (line-beginning-position) (line-end-position))))
-      ;; else not stream, single response. We add hack to skip markdown blocks.
-      (let ((p (or pos (line-beginning-position))))
-        (oai-block-fill-region p (point))))))
-
-;; (defun my/org-fill-element-advice (orig-fun &optional justify)
-;;   "Advice around `org-fill-element`.
-;; If at headline, skip filling. Otherwise call original function."
-;;   (let ((element (save-excursion (end-of-line) (org-element-at-point))))
-;;     (unless (oai-block-tags--markdown-fenced-code-body-get-range)
-;;       (funcall orig-fun justify))))
-
-;; (advice-add 'org-fill-element :around #'my/org-fill-element-advice)
-
-
-;; (defun oai-restapi--forward-paragraph (arg)
-;;   "Normal with `forward-paragraph' Skipping markdown blocks.
-;; Works for positive ARG now only, negative not supported now."
-;;   (print (list "oai-restapi--forward-paragraph" arg))
-;;   (funcall #'forward-paragraph arg)
-;;   (or arg (setq arg 1))
-;;   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range))
-;;                     (beg (car r)) ; after header
-;;                     (end (cadr r))) ; at end line
-;;     (when (< arg 0) (not (bobp))
-;;           (when (> end (point))
-;;             (goto-char beg)
-;;             (forward-line -1)))
-;;     (when (> arg 0) (not (eobp))
-;;         ;; inside or at the first line? if at first line, do nothin, if in the middle of mardkown, then go to the end
-;;         (unless (save-excursion (forward-line -1) (eq beg (point)))
-;;           (goto-char end)
-;;           (forward-line)))))
-
-
 
 
 ;;;; provide

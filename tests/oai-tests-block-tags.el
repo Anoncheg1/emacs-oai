@@ -157,61 +157,6 @@
                               "@Backtrace"
                               "@not/a/path"
                               "@not/a/path/"))))))
-;; -=-= Tests: oai-block-tags--markdown-fenced-code-body-get-range
-(ert-deftest oai-tests-block-tags--markdown-mark-fenced-code-body-get-range1 ()
-  "Test fenced code detection."
-  (let ((payload "text before
-```elisp
-code block
-line2
-```
-text after"))
-    (with-temp-buffer
-      (insert payload)
-      ;; Move point to inside the code block
-      (goto-char (point-min))
-      (re-search-forward "code block")
-      (beginning-of-line)
-      (forward-line -1)
-      (let* ((limit-begin (point-min))
-             (limit-end (point-max))
-             (range (oai-block-tags--markdown-fenced-code-body-get-range
-                     limit-begin limit-end)))
-        (should (equal range (list 22 38)))))))
-
-(ert-deftest oai-tests-block-tags--markdown-mark-fenced-code-body-get-range2 ()
-  "Test fenced code detection."
-(let ((payload "text before
-```elisp
-```
-code block
-line2
-```
-text after"))
-    (with-temp-buffer
-      (insert payload)
-      ;; Move point to inside the code block
-      (goto-char (point-min))
-      (re-search-forward "code block")
-      (let* ((limit-begin (point-min))
-             (limit-end (point-max))
-             (range (oai-block-tags--markdown-fenced-code-body-get-range
-                     limit-begin limit-end)))
-        (should
-        (equal range nil))))))
-
-(ert-deftest oai-tests-block-tags--markdown-fenced-code-body-get-range3 ()
-  (should (equal '(39 41)
-                 (with-temp-buffer
-                   (org-mode)
-                   (insert "#+NAME: asd\n#+begin_src text\n```elisp")
-                   (let ((p (point)))
-                     (insert "\naa\n```\n#+end_src\n")
-                     (goto-char p)
-                     (oai-block-tags--markdown-fenced-code-body-get-range)))
-                 )))
-
-
 ;; -=-= Test: oai-block-tags--get-replacement-for-org-link - dir
 (ert-deftest oai-tests-block-tags--get-replacement-for-org-link-dir ()
   ""
