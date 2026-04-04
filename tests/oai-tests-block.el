@@ -1205,7 +1205,7 @@ This version avoids rectangles and uses only text-based branches and nodes. This
 
 (ert-deftest oai-tests-block--fill-insert ()
   ;; (with-current-buffer (generate-new-buffer "test")
-    (with-temp-buffer
+  (with-temp-buffer
     (org-mode)
     ;; insert text and fill region
     (oai-tests-block-insert-block)
@@ -1235,10 +1235,16 @@ This version avoids rectangles and uses only text-based branches and nodes. This
              (mb-sub2 (substring bs (1- (nth 2 range)) (1- (nth 3 range)))))
         (should (string-equal m-sub1 mb-sub1))
         (should (string-equal m-sub2 mb-sub2)))
-      ;; 3) check that middle line is not as i was
+      ;; 3) check that middle line is not as it was
       (goto-char (point-min))
       (should (not (re-search-forward "ote**: This is a simplified and educational ASCII tree showing key hominin ancestors leading to *Homo sapiens*. The actual evolutionary path involves many species, migrations, and overlapping lineages. Modern *Homo sapiens* evolved in Africa around 300,000 years ago and spread globally. This is a simplified and educational ASCII tree showing key hominin ancestors leading to *Homo sapiens*. The actual evolutionary path involves many species, migrations, and overlapping lineages. Modern *Homo sapiens* evolved in Africa ar" nil t)
-      )))))
+                   ))
+      ;; 4) check that first and end line is not as they was
+      (goto-char (point-min))
+      (should (not (re-search-forward "Homo sapiens do not evolve in a tree structure in the way one might think—evolution is a branching process" nil t)))
+      (goto-char (point-min))
+      (should (not (re-search-forward "This version avoids rectangles and uses only text-based branches and nodes. This version avoids rectangles and uses" nil t)))
+      )))
 ;; -=-= provide
 (provide 'oai-tests-block)
 
