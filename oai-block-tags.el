@@ -520,7 +520,7 @@ Return cons with begining of lines for markdown block header and footer
   ;;                      (org-element-property :begin element)))
 
 (defun oai-block-tags--markdown-block-regions (str)
-  "Same as `oai-block--markdown-block-regions', but for string.
+  "Same as `oai-block--markdown-block-regions', but for STR string.
 Return list of integers or nil."
   (save-match-data
     (let ((search-pos 0)
