@@ -493,51 +493,14 @@ Return string with expanded content."
         (oai-block-tags--clear-properties
          (oai-block-tags-replace (caddr (org-src--contents-area element)))))))))
 
-;; -=-= help functions: markdown-fenced-code-body-get-range, markdown-block-range
+;; -=-= help functions: markdown-block-p, markdown in string
 
-(defun oai-block-tags--markdown-fenced-code-body-get-range (&optional limit-begin limit-end)
-  "Return (begin end) if point is inside a Markdown fenced language block.
-Blocks without language not supported
-Markdown block with language specified.
-Search for begining and end of block limited by LIMIT-BEGIN and
-LIMIT-END optional parameters.
-Begin in return at first line after header, end is last line.
-Return nil if begin or end of markdown block was not found or block is
- empty."
-  (save-excursion
-    (beginning-of-line)
-    (let ((point-pos (point))
-          begin end)
-      ;; fix limits
-      (when (and limit-begin (< point-pos limit-begin))
-          (setq limit-begin point-pos))
-      (when (and limit-end (> point-pos limit-end))
-          (setq limit-end point-pos))
-
-      ;; Find nearest header backward
-      (when (or (when (looking-at oai-block--markdown-begin-re nil)
-                  (forward-line)
-                  (setq point-pos (point)))
-                (re-search-backward oai-block--markdown-begin-re (or limit-begin nil) t))
-        (setq begin (match-end 0))
-        ;; Check there is no block footer between begin and point
-        (let ((inter-fence-pos nil))
-          (save-excursion
-            (when (re-search-forward oai-block--markdown-end-re point-pos t)
-              (setq inter-fence-pos t)))
-          (unless inter-fence-pos
-            ;; From header, find next closing fence
-            (goto-char begin)
-            (when (re-search-forward oai-block--markdown-end-re (or limit-end nil) t)
-              (setq end (match-beginning 0))
-              (when (and (>= point-pos begin) (< point-pos end))
-                (list (1+ begin) (1- end))))))))))
-
-
-(defun oai-block-tags--markdown-block-range ()
+(defun oai-block-tags--markdown-block-p ()
   "Return range if current position in current buffer in markdown block.
 Caution: move pointer.
 Execution in not `org-mode' is supported.
+Wrap `oai-block--markdown-block-p' to work with Org blocks, not only ai
+ block.
 Return cons with begining of lines for markdown block header and footer
  or nil."
   ;; check that we are in Org block
@@ -549,14 +512,46 @@ Return cons with begining of lines for markdown block header and footer
            (beg (car region))
            (end (cdr region))
            (ret (oai-block--markdown-block-p beg end)))
-      (oai--debug "oai-block-tags--markdown-block-range %s %s" beg end)
+      (oai--debug "oai-block-tags--markdown-block-p %s %s" beg end)
       ret)))
   ;;             (beg (or (org-element-property :contents-begin element)
   ;;                      (org-element-property :begin element))
   ;;             (end (or (org-element-property :contents-end element)
   ;;                      (org-element-property :begin element)))
 
+(defun oai-block-tags--markdown-block-regions (str)
+  "Same as `oai-block--markdown-block-regions', but for string.
+Return list of integers or nil."
+  (save-match-data
+    (let ((search-pos 0)
+          (block-boundaries '()))
+      ;; Find all the '```' positions
+      (while (string-match "```" str search-pos)
+        (push (match-beginning 0) block-boundaries)
+        (setq search-pos (match-end 0)))
+      ;; Sort and pair boundaries
+      (sort block-boundaries #'<))))
+
+(defun oai-block-tags--markdown-block-string-p (str pos)
+  "Check if POS is inside markdown block and return its positions.
+Substring '```content' without last '```'.
+Don't count new lines and don't language markdown block begining from
+ end.
+Used in `oai-block-tags--replace-last-regex-smart'.
+Return list range if POS (an index) is inside a '```' code block in STR,
+ otherwise return nil."
+  (save-match-data
+    (let ((block-boundaries (oai-block-tags--markdown-block-regions str)))
+      (catch 'inside
+        (let ((bounds block-boundaries))
+          (while bounds
+            (let ((start (pop bounds))
+                  (end (and bounds (pop bounds))))
+              (when (and end (>= pos start) (< pos end))
+                (throw 'inside (list start end))))))
+        nil))))
 ;; -=-= help functions: get content for blocks
+
 (defun oai-block-tags--get-content-org-block-at-point (&optional element ai-block-markers inner)
   "Return markdown block for supported Org blocks at current position.
 Works only supported blocks in `oai-block-tags-org-blocks-types' and ai
@@ -597,33 +592,6 @@ Return full content of block or nil."
 ;;     (push current-block-marker ai-block-markers)
 
 
-; TODO: rewrite as `oai-block-tags--markdown-fenced-code-body-get-range' to return range or implement new.
-(defun oai-block-tags--markdown-block-string-p (str pos)
-  "Check if POS is inside markdown block and return its positions.
-Substring '```content' without last '```'.
-Don't count new lines and don't language markdown block begining from
- end.
-Used in `oai-block-tags--replace-last-regex-smart'.
-Return list range if POS (an index) is inside a '```' code block in STR,
- otherwise return nil."
-  (save-match-data
-    (let ((search-pos 0)
-          (block-boundaries '()))
-      ;; Find all the '```' positions
-      (while (string-match "```" str search-pos)
-        (push (match-beginning 0) block-boundaries)
-        (setq search-pos (match-end 0)))
-      ;; Sort and pair boundaries
-      (setq block-boundaries (sort block-boundaries #'<))
-      (catch 'inside
-        (let ((bounds block-boundaries))
-          (while bounds
-            (let ((start (pop bounds))
-                  (end (and bounds (pop bounds))))
-              (when (and end (>= pos start) (< pos end))
-                (throw 'inside (list start end))))))
-        nil))))
-
 (defun oai-block-tags--get-m-block-at-point ()
   "Get language markdown block or inline markdown block at current line.
 Pointer should be at markdown header or inside qutoes on line.
@@ -646,7 +614,7 @@ Return non-nil string of markdown block with header if exist at current
     ;; else - looking at header of block?
     (beginning-of-line)
     (when (looking-at oai-block--markdown-beg-end-re)
-      (when-let* ((range (oai-block-tags--markdown-block-range))
+      (when-let* ((range (oai-block-tags--markdown-block-p))
                   (beg (car range))
                   (end (save-excursion (goto-char (cdr range))
                                        (line-end-position))))
@@ -664,7 +632,7 @@ Return string or nil."
          ;; at message?
          (looking-at oai-block--chat-prefixes-re)
          ;; not in markdown?
-         (not (oai-block-tags--markdown-block-range)))
+         (not (oai-block-tags--markdown-block-p)))
     (when-let* ((regions (oai-block--chat-role-regions))
                 (reg (car (oai-block--find-region-with-position regions (point))))
                 (beg (car reg))

@@ -457,6 +457,13 @@ oai-block-tags--get-content-at-point-not-org called from:
 - oai-block-tags--get-content-at-point - used in:
   - oai-block-tags--get-org-links-content - num1
   - oai-block-tags--get-replacement-for-org-link -
+* fill - oai-block-fill-function
+- oai-block-fill-insert
+  - fill-region-as-paragraph - stream
+  - oai-block-fill-region - not stream, check markdown blocks
+    - oai-block-fill-region-as-paragraph - check “^> ” and tables.
+      - fill-region-as-paragraph
+org-fill-paragraph = oai-block-fill-paragraph
 * global Emacs variables that keep infor about file extensions and modes
 - auto-mode-alist - (file-extension . major-mode) - used in `oai-block-tags--filepath-to-language'
 - org-src-lang-modes - used by `oai-block-tags--filepath-to-language'. In Org, used by org-src-get-lang-mode in org-src-font-lock-fontify-block.

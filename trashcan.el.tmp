@@ -727,3 +727,96 @@ With optional prefix argument ARG, jump backward ARG many source blocks."
 ;;      (string-trim
 ;;       (oai-block-get-content element))))
 ;;    default-system-prompt persistant-sys-prompts max-token-recommendation separator))
+
+
+(defun oai-block-tags--markdown-fenced-code-body-get-range (&optional limit-begin limit-end)
+  "Return (begin end) if point is inside a Markdown fenced language block.
+Blocks without language not supported
+Markdown block with language specified.
+Search for begining and end of block limited by LIMIT-BEGIN and
+LIMIT-END optional parameters.
+Begin in return at first line after header, end is last line.
+Return nil if begin or end of markdown block was not found or block is
+ empty."
+  (save-excursion
+    (beginning-of-line)
+    (let ((point-pos (point))
+          begin end)
+      ;; fix limits
+      (when (and limit-begin (< point-pos limit-begin))
+          (setq limit-begin point-pos))
+      (when (and limit-end (> point-pos limit-end))
+          (setq limit-end point-pos))
+
+      ;; Find nearest header backward
+      (when (or (when (looking-at oai-block--markdown-begin-re nil)
+                  (forward-line)
+                  (setq point-pos (point)))
+                (re-search-backward oai-block--markdown-begin-re (or limit-begin nil) t))
+        (setq begin (match-end 0))
+        ;; Check there is no block footer between begin and point
+        (let ((inter-fence-pos nil))
+          (save-excursion
+            (when (re-search-forward oai-block--markdown-end-re point-pos t)
+              (setq inter-fence-pos t)))
+          (unless inter-fence-pos
+            ;; From header, find next closing fence
+            (goto-char begin)
+            (when (re-search-forward oai-block--markdown-end-re (or limit-end nil) t)
+              (setq end (match-beginning 0))
+              (when (and (>= point-pos begin) (< point-pos end))
+                (list (1+ begin) (1- end))))))))))
+
+                ;; -=-= Tests: oai-block-tags--markdown-fenced-code-body-get-range
+(ert-deftest oai-tests-block-tags--markdown-mark-fenced-code-body-get-range1 ()
+  "Test fenced code detection."
+  (let ((payload "text before
+```elisp
+code block
+line2
+```
+text after"))
+    (with-temp-buffer
+      (insert payload)
+      ;; Move point to inside the code block
+      (goto-char (point-min))
+      (re-search-forward "code block")
+      (beginning-of-line)
+      (forward-line -1)
+      (let* ((limit-begin (point-min))
+             (limit-end (point-max))
+             (range (oai-block-tags--markdown-fenced-code-body-get-range
+                     limit-begin limit-end)))
+        (should (equal range (list 22 38)))))))
+
+(ert-deftest oai-tests-block-tags--markdown-mark-fenced-code-body-get-range2 ()
+  "Test fenced code detection."
+(let ((payload "text before
+```elisp
+```
+code block
+line2
+```
+text after"))
+    (with-temp-buffer
+      (insert payload)
+      ;; Move point to inside the code block
+      (goto-char (point-min))
+      (re-search-forward "code block")
+      (let* ((limit-begin (point-min))
+             (limit-end (point-max))
+             (range (oai-block-tags--markdown-fenced-code-body-get-range
+                     limit-begin limit-end)))
+        (should
+        (equal range nil))))))
+
+(ert-deftest oai-tests-block-tags--markdown-fenced-code-body-get-range3 ()
+  (should (equal '(39 41)
+                 (with-temp-buffer
+                   (org-mode)
+                   (insert "#+NAME: asd\n#+begin_src text\n```elisp")
+                   (let ((p (point)))
+                     (insert "\naa\n```\n#+end_src\n")
+                     (goto-char p)
+                     (oai-block-tags--markdown-fenced-code-body-get-range)))
+                 )))

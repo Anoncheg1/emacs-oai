@@ -906,7 +906,7 @@ On current line or at quote itself."
       (setq res (oai-block--chat-role-regions))
     (should (equal res '(1 12 22 35))))))
 
-;; -=-= Test: `oai-block--markdown-block-p'
+;; -=-= Test: `oai-block--markdown-block-p1'
 (ert-deftest oai-tests-block--pos-in-markdown-block-p-org ()
   (with-temp-buffer
     ;; (setq ert-enabled nil)
@@ -914,17 +914,19 @@ On current line or at quote itself."
     ;; (oai-mode)
     (transient-mark-mode)
     (oai-tests-block-insert-block)
-    (let (p1 p2 p3 p4 p5 res)
+    (let (p1 p2 p3 p4 p5 p6 res)
       (insert "Test")
       (setq p1 (point))
       (insert "\n[AI]: \n```elisp\n")
       (setq p2 (point))
       (insert "asd1\n```\n")
       (setq p3 (point))
-      (insert "[ME]: aaa\n```elisp\na")
+      (insert "[ME]: aaa\n```\na")
       (setq p4 (point))
-      (insert "sd1\n```\nvvv\n")
+      (insert "sd1\n```\n")
       (setq p5 (point))
+      (insert "vvv\n")
+      (setq p6 (point))
       (insert "sd1\n```\nvvv")
       (goto-char (point-min))
       (should (equal (oai-block--markdown-block-p) nil))
@@ -939,7 +941,7 @@ On current line or at quote itself."
       (should (equal res nil))
       (goto-char p4)
       (setq res (oai-block--markdown-block-p))
-      (should (equal res '(52 . 66)))
+      (should (equal res '(52 . 61)))
       (goto-char p5)
       (setq res (oai-block--markdown-block-p))
       (should (equal res nil))
@@ -1041,6 +1043,64 @@ On current line or at quote itself."
         (should-not res)))))
 
 
+;; -=-= Test: `oai-block--markdown-block-p2'
+(ert-deftest oai-tests--oai-block--markdown-block-p2-range1 ()
+  "Test fenced code detection."
+  (let ((payload "text before
+```elisp
+code block
+line2
+```
+text after"))
+    (with-temp-buffer
+      (insert payload)
+      ;; Move point to inside the code block
+      (goto-char (point-min))
+      (re-search-forward "code block")
+      (beginning-of-line)
+      (forward-line -1)
+      (let ((limit-begin (point-min))
+            (limit-end (point-max))
+            range)
+        (setq range (oai-block--markdown-block-p
+                     limit-begin limit-end))
+        (should (equal range (cons 13 39)))))))
+
+(ert-deftest oai-tests--oai-block--markdown-block-p2-range2 ()
+  "Test fenced code detection."
+(let ((payload "text before
+```elisp
+```
+code block
+line2
+```
+text after"))
+    (with-temp-buffer
+      (insert payload)
+      ;; Move point to inside the code block
+      (goto-char (point-min))
+      (re-search-forward "code block")
+      (let* ((limit-begin (point-min))
+             (limit-end (point-max))
+             range)
+        (setq range (oai-block--markdown-block-p
+                     limit-begin limit-end))
+        (should
+        (equal range nil))))))
+
+;; (ert-deftest oai-tests--oai-block--markdown-block-p2-range3 ()
+;;   (should (equal '(39 41)
+;;                  (with-temp-buffer
+;;                    (org-mode)
+;;                    (insert "#+NAME: asd\n#+begin_src text\n```elisp")
+;;                    (let ((p (point)))
+;;                      (insert "\naa\n```\n#+end_src\n")
+;;                      (goto-char p)
+;;                      (oai-block--markdown-block-p)))
+;;                  )))
+
+
+
 ;; -=-= Test: `oai-block--apply-noweb'
 (ert-deftest oai-tests-block--apply-noweb ()
   (let (kill-buffer-query-functions
@@ -1064,11 +1124,11 @@ test
  bb" 0 5 (face region) 9 14 (face region)))
       ))))
 
-;; -=-= Test: `oai-block--markdown-subblocks-regions'
+;; -=-= Test: `oai-block--markdown-block-regions'
 (ert-deftest oai-tests-block--markdown-subblocks-regions1 ()
   (should
    (equal
-    '(2 26 30 43)
+    '(2 26 30 39)
     (with-temp-buffer
       (insert "
   ```elisp
@@ -1077,7 +1137,7 @@ test
 ```
 ```elisp
 ```\n")
-      (oai-block--markdown-subblocks-regions (point-min) (point-max))))))
+      (oai-block--markdown-block-regions (point-min) (point-max))))))
 
 (ert-deftest oai-tests-block--markdown-subblocks-regions2 ()
   (should
@@ -1089,7 +1149,7 @@ test
 ```
 as
 ```")
-      (let ((reg (oai-block--markdown-subblocks-regions (point-min) (point-max))))
+      (let ((reg (oai-block--markdown-block-regions (point-min) (point-max))))
         (buffer-substring (car reg) (cadr reg))))
     "```elisp
 ```text
@@ -1108,7 +1168,7 @@ test
 ```
 ```elisp
 sasd\n")
-      (oai-block--markdown-subblocks-regions (point-min) (point-max))))))
+      (oai-block--markdown-block-regions (point-min) (point-max))))))
 
 (ert-deftest oai-tests-block--markdown-subblocks-regions4 ()
   (should
@@ -1122,8 +1182,63 @@ test
 ```
 ```
 sasd\n")
-      (oai-block--markdown-subblocks-regions (point-min) (point-max))))))
+      (oai-block--markdown-block-regions (point-min) (point-max))))))
 
+;; -=-= Test: `oai-block-fill-insert'
+(defvar oai-tests-block--fill-insert-insert-text "Give ASCII tree representing the evolution of Homo sapiens.
+
+
+[ai]:
+Homo sapiens do not evolve in a tree structure in the way one might think—evolution is a branching process, and \"ASCII tree\" representations are typically used for data structures or phylogenies. However, if we interpret your request as asking for an **ASCII representation of the phylogenetic tree** showing the evolutionary lineage of *Homo sapiens*, then here's a simplified, accurate, and visually clear ASCII tree—without rectangles:
+```
+         |                           |
+     Paranthropus                 Homo habilis
+```
+**Note**: This is a simplified and educational ASCII tree showing key hominin ancestors leading to *Homo sapiens*. The actual evolutionary path involves many species, migrations, and overlapping lineages. Modern *Homo sapiens* evolved in Africa around 300,000 years ago and spread globally. This is a simplified and educational ASCII tree showing key hominin ancestors leading to *Homo sapiens*. The actual evolutionary path involves many species, migrations, and overlapping lineages. Modern *Homo sapiens* evolved in Africa around 300,000 years ago and spread globally.
+
+```elisp
+         |                           |
+     Paranthropus                 Homo habilis
+```
+This version avoids rectangles and uses only text-based branches and nodes. This version avoids rectangles and uses only text-based branches and nodes.
+")
+
+(ert-deftest oai-tests-block--fill-insert ()
+  ;; (with-current-buffer (generate-new-buffer "test")
+    (with-temp-buffer
+    (org-mode)
+    ;; insert text and fill region
+    (oai-tests-block-insert-block)
+    (forward-line)
+    (insert oai-tests-block--fill-insert-insert-text)
+    (let ((fill-column 30)
+          (m-range '(507 597 1174 1269))
+          ;; (oai-block-tags--markdown-block-regions
+          ;;  oai-tests-block--fill-insert-insert-text)
+          (m-sub1 (substring oai-tests-block--fill-insert-insert-text
+                             507 597))
+          (m-sub2 (substring oai-tests-block--fill-insert-insert-text
+                             1174 1269))
+          )
+      ;; m-sub1))
+      (oai-block-fill-insert 84)
+
+      ;; check that everthing is correct.
+      ;; 1) check that first line not modified.
+      (goto-char (point-min))
+      (should (= 76 (re-search-forward "Give ASCII tree representing the evolution of Homo sapiens." nil t)))
+      ;; 2) check if both markdown is not touched.
+      (goto-char (point-min))
+      (let* ((range (oai-block--markdown-block-regions (point-min) (point-max)))
+             (bs (buffer-substring-no-properties (point-min) (point-max)))
+             (mb-sub1 (substring bs (1- (nth 0 range)) (1- (nth 1 range))))
+             (mb-sub2 (substring bs (1- (nth 2 range)) (1- (nth 3 range)))))
+        (should (string-equal m-sub1 mb-sub1))
+        (should (string-equal m-sub2 mb-sub2)))
+      ;; 3) check that middle line is not as i was
+      (goto-char (point-min))
+      (should (not (re-search-forward "ote**: This is a simplified and educational ASCII tree showing key hominin ancestors leading to *Homo sapiens*. The actual evolutionary path involves many species, migrations, and overlapping lineages. Modern *Homo sapiens* evolved in Africa around 300,000 years ago and spread globally. This is a simplified and educational ASCII tree showing key hominin ancestors leading to *Homo sapiens*. The actual evolutionary path involves many species, migrations, and overlapping lineages. Modern *Homo sapiens* evolved in Africa ar" nil t)
+      )))))
 ;; -=-= provide
 (provide 'oai-tests-block)
 
