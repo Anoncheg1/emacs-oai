@@ -264,6 +264,13 @@ Or provide your own function."
   :options '(oai-block-insert-result-message oai-restapi--show-error)
   :group 'oai)
 
+(defcustom oai-restapi-links-only-last t
+  "If non-nil, expand links  only in the last user message, otherwise in all.
+Used in `oai-restapi-request-prepare'."
+  :type 'boolean
+  :group 'oai)
+
+
 (defvar-local oai-restapi--current-url-request-callback nil
   "Internal var that stores the current request callback.
 Called within url request buffer, should know about target position,
@@ -645,7 +652,7 @@ STREAM string - as bool, indicates whether to stream the response."
             (oai-block-tags-get-content-ai-messages
              element
              noweb-control
-             nil ; links-only-last
+             oai-restapi-links-only-last ; links-only-last
              nil ; not-clear-properties
              nil ; ai-block-markers
              nil ; disable-tags

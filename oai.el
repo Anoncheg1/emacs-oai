@@ -387,16 +387,7 @@ block was found, otherwise nil."
             (error nil)))))))
 
 ;; -=-= interactive fn: M-x oai-toggle-debug
-(defun oai-toggle-debug ()
-  "Enable/disable debug."
-  (interactive)
-  (if oai-debug-buffer
-      (progn
-        (setq oai-debug-buffer nil)
-        (message "Disable oai debugging"))
-    ;; else
-    (setq oai-debug-buffer   "*debug-oai*")
-    (message "Enable oai debugging")))
+(defalias 'oai-toggle-debug #'oai-debug-toggle)
 
 ;; -=-= fn: Help function to rebind major mode with chaining
 (defun oai--call-next-remap-protected (command &optional seen)
@@ -529,24 +520,6 @@ ARG may be positive or nil."
         (oai--call-next-remap-protected #'org-previous-visible-heading))
     ;; else - not org mode
     (oai-block-previous-item arg)))
-
-;; -=-= interactive fn: Summarize *TODO:*
-;; (defun oai-summarize ()
-;;   "Jump to header of ai block and set max-tokens."
-;;   (interactive)
-;;   (let ((element (oai-block-p)))
-;;       (when element
-;;         ;; Determine the boundaries of the content
-;;         (let ( ;; ai block range
-;;               (beg (org-element-property :contents-begin element)) ; first line of content
-;;               (end (org-element-property :contents-end element))) ; end line of ai block
-;;           ;; Content exist?
-;;           (when (or (not beg)
-;;                     (not end))
-;;             (error "Empty block"))
-;;           ;; format
-;;           (while
-
 
 ;; -=-= Minor mode: keymap
 ;;;###autoload

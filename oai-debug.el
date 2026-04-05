@@ -23,6 +23,7 @@
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
 ;;; Commentary:
+;; To disable debugging, set oai-debug-buffer to nil.
 ;; Used as a help function `oai--debug' for conditional output of
 ;; debug messages.
 
@@ -31,17 +32,27 @@
 (require 'backtrace) ; for `oai-debug--get-caller' (not used now)
 
 ;; -=-= customization and function
+(defgroup oai-debug nil
+  "OAI package customization."
+  :group 'oai)
+
 (defcustom oai-debug-buffer nil
   "If non-nil, enable debuging to a new buffer with such name.
 Set to something like *debug-oai*.  to enable debugging."
   :type '(choice (const :tag "No debugging" nil)
                  (string :tag "Name of buffer"))
-  :group 'oai)
+  :group 'oai-debug)
 
 (defcustom oai-debug-timestamp-flag t
   "Non-nil means add timestamp to every debug message."
   :type 'boolean
-  :group 'oai)
+  :group 'oai-debug)
+
+(defcustom oai-debug-filter nil
+  "If non-nil output only strings that contains this string."
+  :type '(choice (const :tag "No filter" nil)
+                 (string :tag "Regex string for filter"))
+  :group 'oai-debug)
 
 
 (defun oai-debug--get-caller ()
@@ -70,11 +81,6 @@ Heavy to execute."
           (cdr (string-split bt "\n" t)))
          caller))
 
-(defcustom oai-debug-filter nil
-  "If non-nil output only strings that contains this string."
-  :type '(choice (const :tag "No filter" nil)
-                 (string :tag "Regex string for filter"))
-  :group 'oai)
 
 (defun oai-debug--format-argument (args)
   "Convert ARGS to a string.
@@ -217,6 +223,19 @@ Argument JSON-STRING string with json."
 
 ;; (oai--debug "test %s" 2)
 ;; (oai--debug "test" 2 3 "sd")
+
+;; -=-= interactive toggle
+(defun oai-debug-toggle ()
+  "Enable/disable debug."
+  (interactive)
+  (if oai-debug-buffer
+      (progn
+        (setq oai-debug-buffer nil)
+        (message "Disable oai debugging"))
+    ;; else
+    (setq oai-debug-buffer   "*debug-oai*")
+    (message "Enable oai debugging")))
+
 
 (provide 'oai-debug)
 ;;; oai-debug.el ends here
