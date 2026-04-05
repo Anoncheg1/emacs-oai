@@ -1885,9 +1885,10 @@ Optional argument HASH not used."
   t)
 
 (defun oai-block-where-is-result (&optional insert _info hash)
-  "Modified `org-babel-where-is-src-block-result' function.
-If Optional  argument INSERT is  non-nil just enshure that  result field
-exist.
+  "Find a result block strictly related to CURRENT src block.
+Modified `org-babel-where-is-src-block-result' function.
+If Optional argument INSERT is non-nil just enshure that result field
+ exist.
 For _INFO HASH check `org-babel-where-is-src-block-result' function."
   (oai--debug "oai-block-where-is-result %s %s" insert hash)
   (let ((context (oai-block-p)))
@@ -1896,43 +1897,30 @@ For _INFO HASH check `org-babel-where-is-src-block-result' function."
        (let* ((name (org-element-property :name context))
               (named-results (and name (org-babel-find-named-result name))))
          (goto-char (or named-results (org-element-property :end context)))
+         ;; Named result: Use as before.
          (cond
-          ;; Existing results named after the current source.
           (named-results
            (when (org-babel--clear-results-maybe hash)
              (org-babel--insert-results-keyword name hash))
            (throw :found (point)))
-          ;; Named results expect but none to be found.
+          ;; If named but no result, fall-through.
           (name)
-          ;; No possible anonymous results at the very end of
-          ;; buffer or outside CONTEXT parent.
-          ((eq (point)
-               (or (pcase (org-element-type (org-element-property :parent context))
-                     ((or `section `org-data)
-                      (org-element-property :end (org-element-property :parent context)))
-                     (_ (org-element-property :contents-end
-                         (org-element-property :parent context))))
-                   (point-max))))
-          ;; Check if next element is an anonymous result below
-          ;; the current block.
-          ((let* ((next (org-element-at-point))
-                  (end (save-excursion
-                         (goto-char
-                          (org-element-property :end next))
-                         (line-end-position)))
+          ;; Anonymous result: Check only immediately after block.
+          ((let* ((after-src (org-element-property :end context))
                   (empty-result-re (concat org-babel-result-regexp "$"))
                   (case-fold-search t))
-             (re-search-forward empty-result-re end t))
-           (forward-line 0)
-           (when (org-babel--clear-results-maybe hash)
-             (org-babel--insert-results-keyword nil hash))
-           (throw :found (point)))))
-     ;; ;; Ignore other elements.
-     ;; (_ (throw :found nil))
-       )
-      ;; No result found.  Insert a RESULTS keyword below element, if
-      ;; appropriate.  In this case, ensure there is an empty line
-      ;; after the previous element.
+             ;; Step 1: Skip whitespace directly after src block.
+             (goto-char after-src)
+             (skip-chars-forward " \t\n")
+             ;; Step 2: Check if current point is a result keyword.
+             (when (looking-at empty-result-re)
+               (forward-line 0) ;; Move to beginning of line.
+               (when (org-babel--clear-results-maybe hash)
+                 (org-babel--insert-results-keyword nil hash))
+               (throw :found (point)))))
+          ;; No result found in correct scope.
+          ))
+       ;; Insert a new result keyword if requested and none present.
       (when insert
         (save-excursion
           (goto-char (min (org-element-property :end context) (point-max)))
@@ -1942,7 +1930,8 @@ For _INFO HASH check `org-babel-where-is-src-block-result' function."
           (insert "\n")
           (org-babel--insert-results-keyword
            (org-element-property :name context) hash)
-          (point))))))
+          (point)))))))
+
 
 (defun oai-block-remove-result (&optional info keep-keyword)
   "Remove the result of the current source block.
