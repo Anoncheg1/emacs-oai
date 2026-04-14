@@ -785,8 +785,7 @@ Return string or nil."
                   (prog1 (concat "\n" (make-string (org-element-property :level el) ?#) " " (org-element-property :raw-value el))
                     ;; - MOVE!
                     (while (progn (forward-line) (end-of-line) (bolp)))
-                    (beginning-of-line)
-                    ))
+                    (beginning-of-line)))
                  ;; 1. Sub: Block
                  ((member type  oai-block-tags-org-blocks-types)
                   (concat "\n"
