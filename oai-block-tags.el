@@ -783,7 +783,10 @@ Return string or nil."
                  ((eq type 'headline)
                   ;; make string: #*level + title
                   (prog1 (concat "\n" (make-string (org-element-property :level el) ?#) " " (org-element-property :raw-value el))
-                    (forward-line))) ; MOVE!
+                    ;; - MOVE!
+                    (while (progn (forward-line) (end-of-line) (bolp)))
+                    (beginning-of-line)
+                    ))
                  ;; 1. Sub: Block
                  ((member type  oai-block-tags-org-blocks-types)
                   (concat "\n"
@@ -946,7 +949,9 @@ Called for file type.
     (when (listp value)
       (setq value (car value)))
     (with-current-buffer value
-      (oai-block-tags--get-replacement-for-org-link (concat "[[" option "]]")))))
+      (oai-block-tags--get-replacement-for-org-link (org-link-make-string option)))))
+
+;; (oai-block-tags--get-replacement-for-org-file-link-in-other-file "~/docsmy_short/modified/mastodon" "5466::*[2024-03-05 Tue]")
 
 (defun oai-block-tags--string-is-integer (str)
   "Return num if STR is an integer, nil otherwise."
@@ -975,7 +980,7 @@ Return replacement string or nil."
   ;; `org-link-open' for type and opening,  `org-link-search' for search in current buffer.
   ;; from `org-link-open-from-string'
   ;; - - 1) convert string to Org element
-  (oai--debug "oai-block-tags--get-replacement-for-org-link %s" link-string (point))
+  (oai--debug "oai-block-tags--get-replacement-for-org-link %s %s %s" link-string (point) (current-buffer))
   (let ((link-el (with-temp-buffer
                    (let ((org-inhibit-startup nil))
                      (insert link-string)
@@ -983,7 +988,7 @@ Return replacement string or nil."
                      (goto-char (point-min))
                      (org-element-link-parser)))))
     (if (not link-el)
-      (user-error "No valid link in %S" link-string))
+      (user-error "No valid link in %s" link-string))
     ;; from `org-link-open'
     ;; - - 2) extract path and type
     (let ((type (org-element-property :type link-el))
@@ -1004,13 +1009,14 @@ Return replacement string or nil."
 
            (if (and option
                     (not (string-empty-p option)))
+               ;; PATH and OPTION
                (if (oai-block-tags--path-is-current-buffer-p path)
                    (if-let ((num (oai-block-tags--string-is-integer option)))
                        ;; case 2) PATH::NUM
                        (progn (org-goto-line num) (oai-block-tags--get-content-at-point ai-block-markers))
-                     ;; else case 3) recursion call without path
-                     (oai-block-tags--get-replacement-for-org-link (concat "[[" option "]]") ai-block-markers)) ; recursive call
-                 ;; - else case 4) <other-file>
+                     ;; else case 3) *recursion call*! without path
+                     (oai-block-tags--get-replacement-for-org-link  (org-link-make-string option) ai-block-markers)) ; recursive call
+                 ;; - else case 4) <other-file> - *recursive call*!
                  (oai-block-tags--get-replacement-for-org-file-link-in-other-file path option))
              ;; else case 1) - no ::, only path
              (oai-block-tags--compose-block-for-path-full path))))

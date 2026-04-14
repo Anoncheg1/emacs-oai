@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 github.com/Anoncheg1,codeberg.org/Anoncheg
 ;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
 ;; Keywords: org, comm, url, link
-;; URL: https://github.com/Anoncheg1/emacs-oai
+;; URL: https://codeberg.org/Anoncheg/emacs-oai
 ;; Version: 0.3
 ;; Created: 27 dec 2025
 ;; Package-Requires: ((emacs "29.1"))
@@ -56,10 +56,10 @@
 
 ;; (add-to-list 'load-path "path/to/oai") ; (optional)
 ;; (require 'oai)
-;; (add-hook 'org-mode-hook #'oai-mode) ; oai.el
 ;; (setq oai-restapi-con-token "xxx") ; oai-restapi.el (optional)
-
-;; Configuration, optional hooks:
+;; (add-hook 'org-mode-hook #'oai-mode) ; oai.el
+;;
+;; ;; Optional hooks:
 ;; (add-hook 'oai-block-after-chat-insertion-hook
 ;;   #'oai-optional-remove-distant-empty-lines-hook-function)
 ;; (add-hook 'oai-block-after-chat-insertion-hook
@@ -182,6 +182,7 @@
 ;;   includes: oai-block -> oai-block-chat -> oai-restapi
 ;; - add optional function to put text in markdown language block to the
 ;;  begining of the line by removing indentation
+;; - support "C-c '" (call-interactively 'org-edit-special)
 
 ;;; Code:
 

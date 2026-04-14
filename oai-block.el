@@ -360,7 +360,6 @@ DEFAULT is a string with default system prompt for LLM."
 KEY is keyword as in header specified.
 PROP is keyword without column first character converted to string.
 Return new value."
-  (print (list "aaa" prop))
   (let* ((entry (assoc key info))
          ;; 1. Value sourcing: Priority (Header Alist > Org Prop > Default)
          (v (cond (entry (or (cdr entry) t))
@@ -1951,7 +1950,6 @@ the rest of the result."
 	       (skip-chars-backward " \r\t\n")
 	       (line-beginning-position 2)))
 	   (progn (forward-line) (org-babel-result-end))))))))
-
 
 
 ;; -=-= Fontify: help functions
