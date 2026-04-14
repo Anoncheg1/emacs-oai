@@ -175,6 +175,50 @@
     (setq res (string-match "Here . folder" res))
     (should (eq 1 res))))
 
+(when (require 'org-links nil 'noerror)
+  (ert-deftest oai-tests-block-tags--get-replacement-for-org-link-header1 ()
+    ""
+    (let ((res))
+      (setq res (with-temp-buffer
+                  (setq-local  buffer-file-name "/mock/org.org")
+                  (org-mode)
+                  (insert "* n [2026-04-14 Tue]\n\nas\n\n* vv")
+                  (set-buffer-modified-p nil)
+                  (with-temp-buffer
+                    (org-mode)
+                    (oai-block-tags--get-replacement-for-org-link
+                     "[[file:/mock/org.org::1::*n \\[2026-04-14 Tue\\]][n [2026-04-14 Tue]​]]")
+                    )))
+      (should (string-equal res "
+```text
+# n [2026-04-14 Tue]
+as
+
+
+```
+"))))
+
+  (ert-deftest oai-tests-block-tags--get-replacement-for-org-link-header2 ()
+
+    (let ((res))
+      (setq res (with-temp-buffer
+                  (setq-local  buffer-file-name "/mock/org.org")
+                  (org-mode)
+                  (insert "* n [2026-04-14 Tue]\n\nas\n\n* vv")
+                  (set-buffer-modified-p nil)
+                    (oai-block-tags--get-replacement-for-org-link
+                     "[[file:/mock/org.org::1::*n \\[2026-04-14 Tue\\]][n [2026-04-14 Tue]​]]")
+                    ))
+      (should (string-equal res "
+```text
+# n [2026-04-14 Tue]
+as
+
+
+```
+")))
+    ))
+
 ;; -=-= Test: oai-block-tags-replace
 (ert-deftest oai-tests-block-tags--replace-org-links-norm-header ()
   (let ((kill-buffer-query-functions)
@@ -182,7 +226,7 @@
         target)
     (with-temp-buffer
       (org-mode)
-      (setq buffer-file-name "/mock/org.org")
+      (setq-local buffer-file-name "/mock/org.org")
       (insert "* headline\nasdas\n** sub-headline\n asd")
       (setq res1 (oai-block-tags-replace  "11[[file:/mock/org.org::* headline]]4444"))
       (setq target
@@ -321,6 +365,7 @@ asdas
         (setq buffer-file-name "/mock/org.org")
         (read-only-mode)
         (set-buffer-modified-p nil)
+    ;; (print (buffer-substring-no-properties (point-min) (point-max)))))
         (setq res1 (oai-block-tags--get-replacement-for-org-file-link-in-other-file
                       "/mock/org.org" "2-3"))
 
