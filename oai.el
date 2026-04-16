@@ -276,7 +276,7 @@ Return list of arguments args."
                             (stream t :type bool))
                            ;; body
                            (unless model
-                             (user-error "Model not specified nor in ai block nor in oai-restapi-con-model. To disable model completely set it to \"nil\""))
+                             (user-error "Model not specified nor in ai block nor in oai-restapi-con-model.  To disable model completely set it to \"nil\""))
                            (when (string-equal-ignore-case model "nil")
                              (setq model nil)) ; if specified as "nil" string explicitly, to disable.
                            (list element noweb-control sys-prompt sys-prompt-for-all-messages ; message

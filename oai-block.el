@@ -283,12 +283,12 @@ Return element or nil."
            (string-equal "ai" (org-element-property :type element)))
       element
     ;; else
-    (oai-block--org-element-with-disabled-cache ;; with cache enabled we get weird Cached element is incorrect warnings
-      (let* ((org-element-use-cache nil)
-             (sel (org-element-lineage
-                   (save-match-data (org-element-context)) (list 'special-block) t)))
-        (when (and sel (string-equal "ai" (org-element-property :type sel)))
-          sel)))))
+    ;; (oai-block--org-element-with-disabled-cache ;; with cache enabled we get weird Cached element is incorrect warnings
+    (let* ((org-element-use-cache nil)
+           (sel (org-element-lineage
+                 (save-match-data (org-element-context)) (list 'special-block) t)))
+      (when (and sel (string-equal "ai" (org-element-property :type sel)))
+        sel))))
 
 
 ;; -=-= info fn: get-info, get-request-type, get-sys
