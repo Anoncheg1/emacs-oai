@@ -332,11 +332,13 @@ Return string or nil or raise user-error."
 ;; (oai-block-tags--compose-block-for-path-full "/home/g/sources/nongnu/Makefile")
 ;; -=-= help functions:  block-at-point, contents-area, get-content
 
- (defun oai-block-tags--block-at-point (&optional element)
+(defun oai-block-tags--block-at-point (&optional element)
   "Get Org block if point at one of `oai-block-tags-org-blocks-types'.
+Point should be at header of block.
 Otherwise return nil.
 Optional argument ELEMENT is any Org element."
-  (let ((context (or element (org-element-context))))
+  (let* ((org-element-use-cache nil)
+         (context (or element (org-element-context))))
     (while (and context
                 (not (member (org-element-type context) oai-block-tags-org-blocks-types)))
       (setq context (org-element-property :parent context)))
