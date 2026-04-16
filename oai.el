@@ -164,13 +164,8 @@
 ;; - fix highlight to highlight when there is only "#+end_ai"
 ;; - create function that insert :max-token and any for given int or value, like
 ;;  `org-babel-insert-header-arg'
-;; - Check that C-c C-n respect markdown blocks
-;; - make key to remove all messages and left only the last
-;; - write tests for `oai-block-tags--compose-m-block'
-
 ;; - remove bound to Org mode from oai-block-tags for more support for
 ;;  .ai file extension without ai block
-;; - (org-mark-element) replace with implementation that respect markdown code blocks as one element
 ;; - pre-call: and post-call: for preparation and postprocessing and
 ;;  pre-/post-service and model. or guide for hooks
 ;; - implement my/org-execute-in-source-block for markdown that use
@@ -182,6 +177,7 @@
 ;;   includes: oai-block -> oai-block-chat -> oai-restapi
 ;; - add optional function to put text in markdown language block to the
 ;;  begining of the line by removing indentation
+;; - make key to remove all messages and left only the last
 ;; - support "C-c '" (call-interactively 'org-edit-special)
 
 ;;; Code:

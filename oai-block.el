@@ -247,6 +247,28 @@ You can customize this font with `set-face-attribute'."
   `(cl-letf (((symbol-function #'org-element--cache-active-p) (lambda (&rest _) nil)))
      ,@body))
 
+;; (defun oai-block-p (&optional element)
+;;   "Check if point at ai block or ELEMENT is ai block if provided.
+;; Optional argument ELEMENT is returned by `org-element-at-point', when
+;;  non-nil, checked if it is ai block, if not nil is retuned.
+;; If ELEMENT is not provider, current position in buffer used to get ai
+;;  block.
+;; Raise error if ELEMENT is not ai block or there is no ai block at
+;;  current position.
+;; Like `org-in-src-block-p'.
+;; Return element or nil."
+;;   (if (and element
+;;            (string-equal "ai" (org-element-property :type element)))
+;;       element
+;;     ;; else
+;;     (oai-block--org-element-with-disabled-cache ;; with cache enabled we get weird Cached element is incorrect warnings
+;;       (cl-loop with context = (org-element-at-point)
+;;                while (and context
+;;                           (not (equal 'special-block (org-element-type context)))
+;;                           (not (string-equal "ai" (org-element-property :type context))))
+;;                do (setq context (org-element-property :parent context))
+;;                finally return context))))
+
 (defun oai-block-p (&optional element)
   "Check if point at ai block or ELEMENT is ai block if provided.
 Optional argument ELEMENT is returned by `org-element-at-point', when
@@ -262,12 +284,12 @@ Return element or nil."
       element
     ;; else
     (oai-block--org-element-with-disabled-cache ;; with cache enabled we get weird Cached element is incorrect warnings
-      (cl-loop with context = (org-element-at-point)
-               while (and context
-                          (not (equal 'special-block (org-element-type context)))
-                          (not (string-equal "ai" (org-element-property :type context))))
-               do (setq context (org-element-property :parent context))
-               finally return context))))
+      (let* ((org-element-use-cache nil)
+             (sel (org-element-lineage
+                   (save-match-data (org-element-context)) (list 'special-block) t)))
+        (when (and sel (string-equal "ai" (org-element-property :type sel)))
+          sel)))))
+
 
 ;; -=-= info fn: get-info, get-request-type, get-sys
 (defun oai-block-get-info (&optional element no-eval)
@@ -1747,26 +1769,33 @@ If universal argument ARG is non-nil, mark content of ai block."
 ;; -=-= fn: set-block-parameter
 
 (defun oai-block-set-block-parameter (parameter &optional value not-jump-back)
-  "Set PARAMETER in ai block header.
+  "Set PARAMETER in ai or src block header.
 Uses marker for original position.
 Removes next word after PARAMETER if it doesn't start with ':'.
 If VALUE is provided and NOT-JUMP-BACK is nil, restores cursor."
-  (if-let ((element (oai-block-p)))
+  (if-let ((element (or (oai-block-p)
+                        (org-element-lineage
+                         (save-match-data (org-element-context)) (list 'src-block) t)
+                        )))
       (let ((param-str (if (symbolp parameter) (symbol-name parameter) parameter))
-            (orig-marker (copy-marker (point))))
-        (goto-char (car (oai-block--region)))
+            (orig-marker (copy-marker (point)))
+            ;; Force case-insensitive.
+            (case-fold-search t))
+        (goto-char (org-element-property :begin element)) ; (goto-char (car (oai-block--region)))
+        ;; (goto-char (car (oai-block--region)))
         ;; Find parameter or insert it if missing
-        (unless (search-forward param-str (line-end-position) t)
-          (forward-char 10) ;; length of "#+begin_ai"
-          (insert " " param-str " ")
-          (forward-char -1))
-        ;; Remove next word if not starts with ":"
-        (let ((p (point)))
-          (skip-chars-forward " \t")
-          (let ((wn (thing-at-point 'word)))
-            (unless (string-prefix-p ":" wn)
-              (delete-region p (+ p (1+ (length wn)))))
-            (goto-char p)))
+        (if (search-forward param-str (line-end-position) t)
+            ;; Remove next word if not starts with ":"
+            (let ((p (point)))
+              (skip-chars-forward " \t")
+              (let ((wn (thing-at-point 'word)))
+                (unless (string-prefix-p ":" wn)
+                  (delete-region p (+ p (1+ (length wn)))))
+                (goto-char p)))
+            ;; else - not found
+          (re-search-forward "_\\(src\\|ai\\)\\s-*\\(\\w+\\)?" (line-end-position) t)
+          (insert " " param-str))
+
         ;; Insert value if provided
         (if value
             (progn
