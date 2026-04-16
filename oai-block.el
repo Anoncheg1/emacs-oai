@@ -1775,8 +1775,7 @@ Removes next word after PARAMETER if it doesn't start with ':'.
 If VALUE is provided and NOT-JUMP-BACK is nil, restores cursor."
   (if-let ((element (or (oai-block-p)
                         (org-element-lineage
-                         (save-match-data (org-element-context)) (list 'src-block) t)
-                        )))
+                         (save-match-data (org-element-context)) (list 'src-block) t))))
       (let ((param-str (if (symbolp parameter) (symbol-name parameter) parameter))
             (orig-marker (copy-marker (point)))
             ;; Force case-insensitive.
