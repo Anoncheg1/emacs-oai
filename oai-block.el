@@ -2456,7 +2456,10 @@ POS is position before insertion."
                          (or (looking-at "^> ") ; from `oai-block-fill-region-as-paragraph'
                              (looking-at "^[ \t]*\\(|\\|\\+-[-+]\\).*")))) ; skip tables
             (goto-char end)
-            (fill-region-as-paragraph (line-beginning-position) (line-end-position))))
+            (fill-region-as-paragraph (line-beginning-position) (line-end-position)
+                                      nil
+                                      stream ; nosqueeze - dont remove space " " for stream
+                                      )))
       ;; else not stream, single response.
       (let ((end (or pos (line-beginning-position))))
         (oai-block-fill-region end (point))))))
