@@ -562,7 +562,7 @@ Useful for small max-tokens.
              (< max-tokens 900))
     (if (< max-tokens 100)
         (format "Output this before answer: My answer is should be in %d-tokens." (- max-tokens 10))
-        (format "Output this line before answer: My output have limit of %d-tokens." (* 1.2 max-tokens)))))
+        (format "Output this line before answer: I will answer in less than %d-tokens." max-tokens))))
       ;; (cond ((< max-tokens 75)
     ;;        (format "Answer very short with %d words or less." (* max-tokens 0.75)))
     ;;       ((and (>= max-tokens 75)
@@ -639,7 +639,7 @@ PRESENCE-PENALTY integer - -2-2, lower less repeat concepts.
 SERVICE symbol or string - is the AI cloud service such as openai or
   azure-openai.
 STREAM string - as bool, indicates whether to stream the response."
-  (oai--debug "oai-restapi-request-prepare %s" model sys-prompt-for-all-messages)
+  (oai--debug "oai-restapi-request-prepare %s" model sys-prompt-for-all-messages stream)
   (let* (
          ;; disable-tags ai-block-markers links-only-last not-clear-properties ; nil, for get-content call
          (max-tokens-string
@@ -666,13 +666,13 @@ STREAM string - as bool, indicates whether to stream the response."
          (callback (if (eql req-type 'completion) ; chat - ; set to oai-restapi--current-url-request-callback
                        ;; completion mode
                        (lambda (result) (oai-block--insert-single-response end-marker
-                                                                             (oai-restapi--get-single-response-text result)
-                                                                             nil))
-                     ;; else - chat mode - RESULT is JSON in plist format
+                                                                           (oai-restapi--get-single-response-text result)
+                                                                           nil))
+                     ;; else - chat mode - RESULT is JSON in plist format (decoded by `oai-restapi--json-safe-decoding')
                      (if stream
                          (lambda (result) (oai-block--insert-stream-response end-marker
-                                                                               (oai-restapi--normalize-response result) ; [DONE] is ignored. we use "finish_reason":"stop" instead.
-                                                                                t))
+                                                                             (oai-restapi--normalize-response result) ; [DONE] is ignored. we use "finish_reason":"stop" instead.
+                                                                             t))
                        ;; else - not stream
                        (lambda (result) (oai-block--insert-single-response end-marker
                                                                            (oai-restapi--get-single-response-text result)
@@ -926,7 +926,7 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
                           (goto-char url-http-end-of-headers)
                           ;; insert [ME]
                           (funcall oai-restapi--current-url-request-callback
-                                   (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max))))
+                                   (oai-restapi--json-safe-decoding (buffer-substring-no-properties (point) (point-max))))
                           ;; (funcall oai-restapi--current-url-request-callback nil)
                           )))
 
@@ -1008,7 +1008,7 @@ see `oai-restapi-request-prepare'."
            (goto-char url-http-end-of-headers)
            (oai--debug "oai-restapi-request-llm 7) " url-http-end-of-headers)
 
-           (let ((data (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max)))))
+           (let ((data (oai-restapi--json-safe-decoding (buffer-substring-no-properties (point) (point-max)))))
              (when data
                (funcall callback (oai-restapi--get-single-response-text data))))))))))
             ;; - Done or Error
@@ -1321,28 +1321,29 @@ Argument STR unicode multi-byte string."
   (apply #'string
          (seq-filter
           (lambda (ch)
-            ;; (or
-             (>= ch 32)                ; Unicode (including emoji, CJK, etc.) and printable ASCII
-             ;; (memq ch '(?\t ?\n ?\r))
-             ) ; Allow tab, linefeed, CR
-          (string-to-list str))))
+            (or (>= ch 32) ; ; Unicode (including emoji, CJK, etc.) and printable ASCII
+                ;; (memq ch '(?\t ?\n ?\r)) ; forbit tab, linefeed, CR
+                ))
+          (string-to-list
+           (replace-regexp-in-string "\r.*?\r" "" str))))) ; removes content between pairs of CRs, which may be too aggressive.
 
-(defun oai-restapi--json-decode-not-streamed (string)
+(defun oai-restapi--json-safe-decoding (string)
   "Decode JSON STRING to plist.
 This is slow version compared to `json-read', because
 `json-read-from-string' create temp buffer.
+Used for stream and not stream.
 Return nil if error."
+  (oai--debug "oai-restapi--json-safe-decoding")
+  (condition-case _err
+      (let ((json-object-type 'plist)
+            (json-key-type 'symbol)
+            (json-array-type 'vector)
+            (clean-text (oai-restapi--clean-unicode-text
+                         (decode-coding-string
+                          (encode-coding-string string 'utf-8 t) 'utf-8))))
 
-  (let ((json-object-type 'plist)
-        (json-key-type 'symbol)
-        (json-array-type 'vector))
-    (condition-case _err
-        (json-read-from-string
-         (oai-restapi--clean-unicode-text
-          (decode-coding-string (encode-coding-string
-                                 (replace-regexp-in-string "\r.*?\r" "" string)
-                                 'utf-8 't) 'utf-8))) ; just in case
-      (error nil))))
+        (json-read-from-string clean-text))
+    (error nil)))
 
 
 (defun oai-restapi--url-request-on-change-function (_beg _end _len)
@@ -1386,7 +1387,7 @@ Return JSOIN in plist format."
                 psave
                 line1) ; simple line
             (set-buffer-multibyte t) ; force UTF-8 for url-buffer
-            (oai--debug "oai-restapi--url-request-on-change-function 3) %s %s" (point) (point-max))
+            (oai--debug "oai-restapi--url-request-on-change-function 3) %s %s %s" errored (point) (point-max))
             ;; loop per chunks separated by empty line
             (while (and (not errored) ; we decode chunks until unable to decode one, this mean that chunk should be received first.
                         (search-forward "data: " nil t)) ; set cursor after "data: {" on "{"
@@ -1448,7 +1449,7 @@ Return JSOIN in plist format."
                       ;;   (forward-line -1))
 
                       (oai--debug "oai-restapi--url-request-on-change-function 7) - Decoding attempt 2: %s" line)
-                      (setq data (oai-restapi--json-decode-not-streamed line))
+                      (setq data (oai-restapi--json-safe-decoding line))
                       (if data
                           (setq errored nil)))
                     (oai--debug "oai-restapi--url-request-on-change-function 8) data? %s" data)
@@ -1464,7 +1465,7 @@ Return JSOIN in plist format."
         ;; response is a single JSON object, no "data: " prefix. {"choices":[...
         ;; (when (not oai-restapi--current-request-is-streamed)
         ;;   (oai--debug "oai-restapi--url-request-on-change-function NOT-STREAM: %s %s" (point) (point-max))
-        ;;   (let ((data (oai-restapi--json-decode-not-streamed (buffer-substring-no-properties (point) (point-max)))))
+        ;;   (let ((data (oai-restapi--json-safe-decoding (buffer-substring-no-properties (point) (point-max)))))
         ;;     (when data
         ;;       (funcall oai-restapi--current-url-request-callback data))
         ;;     ;; - Done or Error
