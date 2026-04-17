@@ -125,14 +125,16 @@ and INFO-ALIST is the parameters from its header."
   "Test when all parameters are provided in the block header (info alist)."
   (with-temp-buffer
     (org-mode)
-    (let* ((test-block "#+begin_ai :stream t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\n#+end_ai\n")
+    (let* ((test-block "#+begin_ai :stream t :stream1 t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\n#+end_ai\n")
            (element (oai-test-setup-buffer test-block))
            (info (progn (goto-char (org-element-property :begin element)) (oai-block-get-info))))
       ;; (unwind-protect
       ;; Position point inside the block for correct context, though not strictly needed for info directly.
 
 
-      (oai-block--let-params info ((stream) (stream2 0 :type number)
+      (oai-block--let-params info ((stream)
+                                   (stream1 t :type bool)
+                                   (stream2 0 :type number)
                                    (stream3 1 :type number) (sys)
                                    (max-tokens :type integer)
                                    (max-tokens2 10 :type integer) (model)
@@ -142,7 +144,8 @@ and INFO-ALIST is the parameters from its header."
                              ;; (print (list "stream3" (type-of stream3) stream3 ))
                              ;; (print (list "max-tokens" (type-of max-tokens) max-tokens ))
                              ;; (print (list "max-tokens2" (type-of max-tokens2) max-tokens2 ))
-
+                             ;; (print (list "stream1" stream1))
+                             (should (eq stream1 t))
                              (should (= stream3 1))
                              (should (eq stream2 nil))
                              (should (eq max-tokens2 t))

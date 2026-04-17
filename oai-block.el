@@ -393,9 +393,10 @@ Return new value."
                      ((stringp v) (string-to-number v))
                      ((numberp v) v)
                      (t (user-error "Invalid number: %s" v))))
-      ('bool   (and v (or (eq v t)
+      ('bool   (when (and v (or (eq v t)
                           (and (stringp v)
-                               (member (downcase v) '("t" "true" "yes" "on" "1"))))))
+                               (member (downcase v) '("t" "true" "yes" "on" "1")))))
+                 t))
       ('string (if (eq v t) ; empty
                    nil
                  ;; else
