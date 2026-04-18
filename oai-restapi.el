@@ -1322,7 +1322,7 @@ Argument STR unicode multi-byte string."
          (seq-filter
           (lambda (ch)
             (or (>= ch 32) ; ; Unicode (including emoji, CJK, etc.) and printable ASCII
-                ;; (memq ch '(?\t ?\n ?\r)) ; forbit tab, linefeed, CR
+                (memq ch '(?\t ?\n)) ; allow  tab, linefeed, forbid: ?\r CR
                 ))
           (string-to-list
            (replace-regexp-in-string "\r.*?\r" "" str))))) ; removes content between pairs of CRs, which may be too aggressive.
