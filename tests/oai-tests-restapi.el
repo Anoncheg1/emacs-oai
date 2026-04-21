@@ -556,7 +556,13 @@
             (:role user :content "How to make coffe1?")
             (:role assistant :content "IDK.")
             (:role user :content "How to make coffe2? w11")
-            (:role system :content "other")])))
+            (:role system :content "other")]))
+  (let (res)
+    (setq res (oai-restapi--modify-vector-last-user-content '[(:role system :content "ad") (:role user :content "ad\n[ai:] Asd")] (lambda (x) x) ))
+    (should (equal res '[(:role system :content "ad") (:role user :content "ad\n[ai:] Asd")])))
+  (let (res)
+    (setq res (oai-restapi--modify-vector-last-user-content '[(:role system :content "ad") (:role user :content "vvb") (:role user :content "ad\n[ai:] Asd")] (lambda (x) (concat x "b")) ))
+    (should (equal res '[(:role system :content "ad") (:role user :content "vvb\nad") (:role assistant :content "Asdb")]))))
 
 ;; -=-= For: `oai-restapi--modify-vector-content'
 (ert-deftest oai-tests-restapi--modify-vector-content1 ()
@@ -655,5 +661,43 @@
                            (:role user :content "sys-all2 tthh2")])))))
       ;; (should (string-equal "sys-all2 sshh2hh1" (plist-get (aref res 1) :content)))))
       ;; (should (string-equal "sys-all2 tthh2hh1" (plist-get (aref res 3) :content))))))
+
+;; -=-= For `oai-restapi--vector-split-by-chat-prefix'
+(ert-deftest oai-tests-restapi--vector-split-by-chat-prefix ()
+  (let ((v1 [(:role 'user :content "foo\n[me:]bar")
+             (:role 'assistant :content "baz")
+             (:role 'user :content "qux\n[ai:]\nquux")
+             (:role 'user :content "\ncorge")])
+        (idxs '(0 2))
+        res)
+    (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
+    (should (equal res
+                   '((:role 'user :content "foo") (:role user :content "bar")
+                     (:role 'assistant :content "baz")
+                     (:role 'user :content "qux") (:role assistant :content "quux")
+                     (:role 'user :content "\ncorge")))))
+
+  ;; (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
+  ;; (setq idxs '(2 0))
+  ;; (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
+  ;; (when (not (equal res
+  ;;                   ["foo\n" "[me:]bar" "baz" "qux\n" "[ai:]\nquux" "\ncorge"]))
+;;     (error "Test:oai-restapi--vector-split-by-chat-prefix1"))
+;;   (setq idxs '(0 1))
+;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
+;;   (when (not (equal res
+;;                     ["foo\n" "[me:]bar" "baz" "qux\n[ai:]\nquux" "\ncorge"]))
+;;              (error "Test:oai-restapi--vector-split-by-chat-prefix2")))
+
+  (should (equal
+   (oai-restapi--vector-split-by-chat-prefix '[(:role system :content "ad")
+                                               (:role user :content "adb\n[ai:] bb")] '(1))
+   '((:role system :content "ad") (:role user :content "adb") (:role assistant :content "bb"))))
+
+  (should (equal
+           (oai-restapi--vector-split-by-chat-prefix '[(:role system :content "ad")
+                                                       (:role assistant :content "adb\n[ai:] bb")] '(1))
+           '((:role system :content "ad") (:role assistant :content "adb") (:role assistant :content "bb")))))
+
 
 ;;; oai-tests-restapi.el ends here

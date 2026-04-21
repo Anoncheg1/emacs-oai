@@ -820,3 +820,16 @@ text after"))
                      (goto-char p)
                      (oai-block-tags--markdown-fenced-code-body-get-range)))
                  )))
+
+;; (defmacro oai-restapi--get-value-or-string (var key) ; old
+;;   "Retrieve value from VAR using KEY if VAR is a plist, or return VAR if it's a string.
+;; VAR is the variable name to evaluate.
+;; KEY is a string (without :) or keyword (leading with :) used as a key if
+;; VAR is a plist."
+;;   `(cond ((plistp ,var)
+;;           (plist-get ,var (if (stringp ,key)
+;;                               (intern (concat ":" ,key))
+;;                             ,key)))
+;;           ((stringp ,var)
+;;            ,var)
+;;           (t nil)))

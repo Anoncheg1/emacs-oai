@@ -373,6 +373,39 @@ and INFO-ALIST is the parameters from its header."
               (equal res
                      '(:role user :content "zz"))))))
 
+;; -=-=  Test Markdown header regex oai-block--markdown-header-re
+(ert-deftest oai-tests-block--markdown-header-re ()
+  (equal
+   (with-temp-buffer
+     (let ((str "## Core Concepts"))
+       (with-temp-buffer
+         (insert str)
+         (goto-char (point-min))
+         (when (re-search-forward oai-block--markdown-header-re nil t)
+           (list (match-string 1) (match-string 2) (match-string 3) (match-beginning 2))))))
+   (list "##" nil "Core Concepts" nil))
+
+  (equal
+   (with-temp-buffer
+     (let ((str "## 1. Core Concepts"))
+       (with-temp-buffer
+         (insert str)
+         (goto-char (point-min))
+         (when (re-search-forward oai-block--markdown-header-re nil t)
+           (list (match-string 1) (match-string 2) (match-string 3))))))
+   (list "##" "1." "Core Concepts"))
+
+  (equal
+   (with-temp-buffer
+     (let ((str "## a)"))
+       (with-temp-buffer
+         (insert str)
+         (goto-char (point-min))
+         (when (re-search-forward oai-block--markdown-header-re nil t)
+           (list (match-string 1) (match-string 2) (match-string 3))))))
+   (list "##" "a)" "")))
+;; ;; ;; returns: ("##" "a)" "")
+
 ;; -=-= Test: `oai-block--get-chat-messages-positions', `oai-block--collect-chat-messages-from-string'
 (ert-deftest oai-tests-block--chat-messages-tests ()
   (let ((payload "text before

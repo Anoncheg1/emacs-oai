@@ -289,11 +289,9 @@ Return list of arguments args."
 Return list of strings to print."
   (seq-let (element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream info) (oai-parse-org-header)
     (let* ((req-type (oai-block--get-request-type info))
-           ;; (req-type-completion (not (eq 'x (alist-get :completion info 'x))))
-           ;; disable-tags ai-block-markers links-only-last not-clear-properties ; nil
-           (max-tokens-string
-            (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
-              (oai-restapi--get-length-recommendation max-tokens)))
+           (max-tokens-string (when (and max-tokens
+                                         oai-restapi-add-max-tokens-recommendation)
+                                (oai-restapi--get-length-recommendation max-tokens)))
            (messages (unless (eql req-type 'completion)
                        ;; - split content to messages
                        (oai-block-tags-get-content-ai-messages
@@ -303,16 +301,7 @@ Return list of strings to print."
                         nil ; not-clear-properties
                         nil ; ai-block-markers
                         nil ; disable-tags
-                        req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)
-                       ; old
-                       ;; (oai-restapi-prepare-content
-                       ;;  element noweb-control 'chat sys-prompt sys-prompt-for-all-messages max-tokens)
-                       ;; (oai-restapi--collect-chat-messages-at-point element
-                       ;;                                              sys-prompt
-                       ;;                                              sys-prompt-for-all-messages
-                       ;;                                              (if oai-restapi-add-max-tokens-recommendation
-                       ;;                                                  (oai-restapi--get-lenght-recommendation max-tokens)))
-                       )))
+                        req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)))) ; for else see :prompt
       (list
        (oai-restapi--get-endpoint messages service)
        (oai-restapi--get-headers service)
@@ -460,18 +449,7 @@ If optional argument ARG is non-nil, mark whole content of ai block."
   (if (oai-block-p)
       (oai-block-mark-at-point arg)
     ;; else
-    (oai--call-next-remap-protected #'org-mark-element)))
-
-;; (defun oai-mark-at-point-not-org (&optional arg)
-;;   "Call `org-mark-element' if cant mark element of ai block.
-;; Works if cursor in ai block.
-;; Increase region at next execution.
-;; If optional argument ARG is non-nil, mark current message of chat."
-;;   (interactive "P")
-;;   (if (oai-block-p)
-;;       (oai-block-mark-at-point arg)
-;;     ;; else
-;;     (oai--call-next-remap-protected #'mark-paragraph)))
+    (oai--call-next-remap-protected #'org-mark-element))) ; #'mark-paragraph
 
 (defun oai-fill-paragraph ()
   "Call `org-fill-paragraph' to selected item in ai block.
@@ -563,12 +541,9 @@ ARG may be positive or nil."
 Return caontent with help of `oai-block-get-content',
  `oai-block-tags-get-content' DATUM is not optional here.
 If NO-EVAL is non-nil, do not evaluate Lisp in parameters."
-  ;; (when-let* ((datum (or datum (oai-block-p))))
   (oai--debug "oai--org-babel-get-src-block-info" no-eval datum)
   (let* ((lang "ai")
-         ;; (lang-headers (intern
-	 ;;      	  (concat "org-babel-default-header-args:ai" lang)))
-	 (name (org-element-property :name datum))
+         (name (org-element-property :name datum))
          ;;
          (info
 	  (list
@@ -577,12 +552,6 @@ If NO-EVAL is non-nil, do not evaluate Lisp in parameters."
            (oai-block-tags--clear-properties
             (oai-block-tags-replace (oai-block-get-content datum nil :tangle nil)
                                     (oai-block-get-header-marker datum)))
-           ;; (oai-block-tags-get-content
-           ;;  ;; element
-           ;;  datum
-           ;;  ;; noweb-and-tags:
-           ;;  (or (org-babel-noweb-p (oai-block-get-info datum) :tangle)
-           ;;      (org-entry-get (point) "oai-noweb" t)))
            ;; 2) org-babel-default-header-args + default "lang" parameters:
            (apply #'org-babel-merge-params
 		  org-babel-default-header-args
@@ -664,12 +633,18 @@ ORIG-FUN is `oai--org-babel-get-src-block-info-advice' and its ARGS."
       (advice-remove 'org-babel-get-src-block-info #'oai--org-babel-get-src-block-info-advice)
       (advice-remove 'org-babel-where-is-src-block-head #'oai--org-babel-where-is-src-block-head-advice))))
 
+(defun oai--get-buffers-for-element (&optional element)
+  "Simplify getting url buffers associated with ai block ELEMENT.
+Or for ai block at current position in current buffer.
+Used in `oai-open-request-buffer'."
+  (when-let ((element (or element (oai-block-p))))
+      (oai-timers--get-keys-for-variable (oai-block-get-header-marker element))))
 
 (defun oai-open-request-buffer ()
   "Opens the url request buffer for ai block at current position."
   (interactive)
   (if-let ((element (oai-block-p)))
-      (if-let* ((url-buffer (car (oai-restapi-get-buffers-for-element element)))
+      (if-let* ((url-buffer (car (oai--get-buffers-for-element element)))
                 (display-buffer-base-action
                  (list '(
                          ;; display-buffer--maybe-same-window  ;FIXME: why isn't this redundant?

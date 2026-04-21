@@ -214,10 +214,6 @@ messages."
                  (const :tag "Don't add" nil))
   :group 'oai)
 
-;; (make-obsolete-variable 'oai-restapi-default-inject-sys-prompt-for-all-messages
-;;                         "With newer ChatGPT versions this is no longer necessary."
-;;                         "2023-12-26")
-
 
 ;; Azure-Openai specific variables
 
@@ -307,16 +303,6 @@ Argument SOURCE-BUF url-http response buffer."
 
 ;; -=-= Show error
 
-;; (defun oai-restapi-insert-result-error (message url-buffer)
-;;     (oai-block-insert-result-message message
-;;                                      (oai-timers--get-variable url-buffer)))
-
-;; (defcustom oai-restapi-show-error-in-result t
-;;   "If non-nil, show error in #+RESULTS of block, otherwise in a buffer."
-;;   :type 'boolean
-;;   :group 'oai)
-
-
 (defun oai-restapi--show-error (error-message &optional _header-marker)
   "Show an error message in a buffer.
 ERROR-MESSAGE is the error message to show.
@@ -372,23 +358,6 @@ If SERVICE is not a string, just return it."
     ;; else
     service))
 
-;; (defmacro oai-restapi--get-value-or-string (var key) ; old
-;;   "Retrieve value from VAR using KEY if VAR is a plist, or return VAR if it's a string.
-;; VAR is the variable name to evaluate.
-;; KEY is a string (without :) or keyword (leading with :) used as a key if
-;; VAR is a plist."
-;;   `(cond ((plistp ,var)
-;;           (plist-get ,var (if (stringp ,key)
-;;                               (intern (concat ":" ,key))
-;;                             ,key)))
-;;           ((stringp ,var)
-;;            ,var)
-;;           (t nil)))
-
-;; ;; ;; (oai-restapi--get-value-or-string oai-restapi-con-endpoints "openai")
-;; ;; ;; (oai-restapi--get-value-or-string oai-restapi-con-endpoints :openai)
-;; ;; (oai-restapi--get-value-or-string oai-restapi-con-token "local")
-;; ;; (oai-restapi--get-value-or-string oai-restapi-con-token "github")
 
 (defun oai-restapi--ensure-keyword (sym)
   "Return keyword version of SYM suitable for plist keys.
@@ -562,59 +531,9 @@ Useful for small max-tokens.
              (< max-tokens 900))
     (if (< max-tokens 100)
         (format "Output this before answer: My answer is should be in %d-tokens." (- max-tokens 10))
-        (format "Output this line before answer: I will answer in less than %d-tokens." max-tokens))))
-      ;; (cond ((< max-tokens 75)
-    ;;        (format "Answer very short with %d words or less." (* max-tokens 0.75)))
-    ;;       ((and (>= max-tokens 75)
-    ;;             (< max-tokens 500))
-    ;;        (format "Answer very short with in %d sentences or %d lines or less." (/ max-tokens 29) (* (/ max-tokens 29) 3) ))
-    ;;       ((and (>= max-tokens 500)
-    ;;             (< max-tokens 900))
-    ;;        (format "Answer short in %d paragraphs or %d pages or less." (/ max-tokens 200) (ceiling (/ max-tokens 600.0)))))
-    ;; )
+      (format "Output this line before answer: I will answer in less than %d-tokens." max-tokens))))
 
 ;; -=-= Prepare content
-;; old
-;; (defun oai-restapi-prepare-content (element &optional noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens)
-;;   "Get content of ai block of element in current buffer.
-;; Handle Tags, two types of REQ-TYPE and separation of PROMPT and MESSAGES.
-;; Return:
-;; - vector with messages for chat REQ-TYPE.
-;; - string for completion REQ-TYPE.
-;; ELEMENT is result of `oai-block-p'.
-;; Optional arguments:
-;; If NOWEB-CONTROL is not-nil, activate expansion of noweb links in all
-;; user messages.
-;; If MAX-TOKENS is not-nil, and
-;;  `oai-restapi-add-max-tokens-recommendation' is set, recommendation
-;;  about MAX-TOKENS added to first system message.
-;; REQ-TYPE is completion, return string, otherwise prcess body for chat.
-;; Parameters REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES described in
-;; `oai-restapi-request-prepare', used only if non-nil.
-;; Return vector or string for completion REQ-TYPE."
-;;   (oai--debug "oai-restapi-prepare-content" noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens oai-restapi-add-max-tokens-recommendation)
-;;   ;; (let ((content (oai-block-get-content element))) ; string - is block content
-;;   (if (eql req-type 'completion)
-;;       ;; - *Completion*
-;;       (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
-;;     ;; - else - *Chat*
-;;     (let* ((messages (oai-block-collect-chat-messages-at-point element
-;;                                                                sys-prompt
-;;                                                                sys-prompt-for-all-messages
-;;                                                                (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
-;;                                                                  (oai-restapi--get-length-recommendation max-tokens))))
-;;            (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
-;;            (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties))
-;;            (messages (if noweb-control
-;;                          (oai-restapi--modify-vector-content messages
-;;                                                              #'oai-block--apply-noweb
-;;                                                              'user)
-;;                        messages)) ; noweb
-;;            (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
-;;       messages))) ; return vector
-
-
-;; -=-= Main
 (defun oai-restapi-request-prepare (req-type element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional _info)
   "Compose API request from data and start a server-sent event stream.
 Call `oai-restapi-request' function as a next step.
@@ -1011,50 +930,6 @@ see `oai-restapi-request-prepare'."
            (let ((data (oai-restapi--json-safe-decoding (buffer-substring-no-properties (point) (point-max)))))
              (when data
                (funcall callback (oai-restapi--get-single-response-text data))))))))))
-            ;; - Done or Error
-            ;; (oai--debug "on change 2)")
-            ;; (funcall oai-restapi--current-url-request-callback nil))
-
-            ;;       (let ((json-object-type 'plist)
-            ;;             (json-key-type 'symbol)
-            ;;             (json-array-type 'vector)
-            ;;             (line (buffer-substring-no-properties (point) (point-max))))
-            ;;         (oai--debug "oai-restapi-request-llm 8) " line)
-            ;;         ;; (condition-case _err
-            ;;             ;; (let* ((res1 (buffer-substring-no-properties (point) (point-max)))
-            ;;             ;;       (res2 (json-read-from-string res1))
-            ;;             ;;       (res3 (oai-restapi--normalize-response res2))
-            ;;             ;;       (res4 (nth 1 res3))
-            ;;             ;;       (res5 (oai-block--response-payload res4))
-            ;;             ;;       (res (decode-coding-string res5 'utf-8))
-            ;;             ;;       )
-            ;;             ;;   (print (list "HERE6" res3 ))
-            ;;             ;;   (print (list "HERE6h7" callback))
-            ;;             ;;   ;; to prevent catching error to here
-            ;;             ;;   (run-at-time 0 nil callback res)
-            ;;             ;;   )
-            ;;             ;; (message "no HERE7 error")
-            ;;             ;; (oai--debug "oai-restapi-request-llm 6) normalize: %s"
-            ;;             ;;             (oai-restapi--normalize-response
-            ;;             ;;              (json-read-from-string
-            ;;             ;;               (buffer-substring-no-properties (point) (point-max)))))
-            ;;             (oai--debug "oai-restapi-request-llm 9) decoded: %s"
-            ;;                         (oai-restapi--normalize-response (json-read-from-string line)))
-            ;;                                               'utf-8))
-            ;;             (funcall callback (decode-coding-string (oai-block--response-payload (oai-restapi--normalize-response
-            ;;                                                                                     (json-read-from-string
-            ;;                                                                                      line)))
-            ;;                                                     'utf-8))
-            ;;           ;; (error
-            ;;           ;;  nil
-            ;;           ;;  ;; (message "HERE7 error")
-            ;;           ;;  ;; (funcall callback nil) ; signal error to callback
-            ;;           ;;  )
-            ;;           ))))))
-           ;; (timeout (or timeout oai-timers-duration))
-           ;; (waiter (run-with-timer 3 0 (lambda(b) (print b)) b))
-
-      ;; url-request-buffer))
 
 ;; - Test!
 ;; (let ((service 'together)
@@ -1079,9 +954,6 @@ see `oai-restapi-request-prepare'."
 ;;                            :frequency-penalty frequency-penalty
 ;;                            :presence-penalty presence-penalty)))
 
-;; (defvar oai-restapi-request-llm-retries  nil
-;;   "Save url-buffer in temp buffer in which timer have been started.")
-;; (make-variable-buffer-local 'oai-restapi-request-llm-retries)
 
 (cl-defun oai-restapi-request-llm-retries (service model timeout callback &optional &key retries prompt messages header-marker max-tokens temperature top-p frequency-penalty presence-penalty)
   "`oai-restapi-request-llm' function with TIMEOUT and RETRIES.
@@ -1108,7 +980,6 @@ We store url-buf with marker of header in oai-timers.el"
         (oai--debug "oai-restapi-request-llm-retries1 %s" (current-buffer))
         ;; - 1) run timer
         (let* ((left-retries (if retries (1- retries) 3))
-               ;; (tmp-buf (current-buffer))
                ;; run timer in temp buffer - to limit request by timeout, and kill url-buffer
                ;; we start timer first because we pass it to callback to stop timer itself
                (timer (run-with-timer timeout
@@ -1187,10 +1058,7 @@ We store url-buf with marker of header in oai-timers.el"
 
                                                  (oai-timers--update-global-progress-reporter)))
 
-                                             ;; (funcall callback result-llm)
-                                             (oai--debug "oai-restapi-request-llm  callback4")
-                                             ;; )
-                                             )
+                                             (oai--debug "oai-restapi-request-llm  callback4"))
                                            :prompt prompt
                                            :messages  messages
                                            :max-tokens max-tokens
@@ -1247,14 +1115,13 @@ Should be executed in url-buffer only."
                                (err (or (alist-get 'error body)
                                         (plist-get body 'error)))
                                (mes (or (alist-get 'message err)
-                                            (plist-get err 'message)))
+                                        (plist-get err 'message)))
                                (mes (if (and mes (not (string-blank-p mes)))
-                                            mes
-                                          (json-encode err))))
+                                        mes
+                                      (json-encode err))))
                      (funcall oai-restapi-show-error-function (concat (format "%s\n" http-header-first-line)
                                                                       "Error from the service API:\n\t" mes)
-                              (oai-timers--get-variable (current-buffer))) ; header-marker
-                     )
+                              (oai-timers--get-variable (current-buffer)))) ; header-marker
                  (error nil)))))
       (oai--debug "oai-restapi--maybe-show-openai-request-error3 %s" ret)
       ret)))
@@ -1313,8 +1180,6 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
         (setq data (append data `((system . ,extra-system-prompt)))))
       data)))
 
-     ;; (encode-coding-string (json-encode data) 'utf-8))))
-
 (defun oai-restapi--clean-unicode-text (str)
   "Remove ASCII control chars except tab, newline, and carriage return.
 Argument STR unicode multi-byte string."
@@ -1365,18 +1230,12 @@ Return JSOIN in plist format."
                t))
     (save-excursion
       (save-match-data ; without it cause error integer-or-marker-p nil in 'url-http-chunked-encoding-after-change-function`
-        ;; (save-restriction
         (if oai-restapi--url-buffer-last-position-marker
             (goto-char oai-restapi--url-buffer-last-position-marker)
           ;; else
           (goto-char url-http-end-of-headers)
           (setq oai-restapi--url-buffer-last-position-marker (point-marker)))
         (oai--debug "oai-restapi--url-request-on-change-function 1) %s" (- (point-max) (point)))
-        ;; Avoid a bug where we skip responses because url has modified the http
-        ;; buffer and we are not where we think we are.
-        ;; TODO this might break
-        ;; (unless (eolp)
-        ;;   (beginning-of-line))
         (oai--debug "oai-restapi--url-request-on-change-function 2) streaming? %s" oai-restapi--current-request-is-streamed)
         ;; - Streamed
         ;; multiple JSON objects prefixed with "data: " separated by empty line
@@ -1405,9 +1264,7 @@ Return JSOIN in plist format."
                       (remove-hook 'after-change-functions #'oai-restapi--url-request-on-change-function t)
 
                       (funcall oai-restapi--current-url-request-callback nil) ; INSERT CALLBACK! - no do nothing
-                      (oai--debug "oai-restapi--url-request-on-change-function 11) DONE")
-                      ;; (oai-timers--interrupt-current-request (current-buffer) #'oai-restapi--stop-tracking-url-request)
-                      )
+                      (oai--debug "oai-restapi--url-request-on-change-function 11) DONE"))
                   ;; - else not DONE
                   (let ((json-object-type 'plist)
                         (json-key-type 'symbol)
@@ -1416,10 +1273,7 @@ Return JSOIN in plist format."
                         ;;              (setq oai-restapi--tmp-buf (generate-new-buffer " *temp*" t))))
                         data
                         line) ; multi-line if splitted
-                    ;;     ;;   (oai--debug "oai-restapi--url-request-on-change-function 5) \"%s\"" line1)
-                    ;;     ;;   ;; (data (json-read-from-string line)) ; (setq data
-                    ;;     ;;   ;; (with-current-buffer tmp-buf ; faster
-                    ;;     ;;     ;; - Decoding attempt 1.
+                    ;; - Decoding attempt 1.
                     (condition-case _err
                         (progn
                           ;; (erase-buffer)
@@ -1445,9 +1299,6 @@ Return JSOIN in plist format."
                                               (unless (string-empty-p line-cur)
                                                 (push line-cur lines)))))
                                 lines)))) ; stop at empty next line.
-                      ;; (when (string-empty-p line-cur) ; return -1 line
-                      ;;   (forward-line -1))
-
                       (oai--debug "oai-restapi--url-request-on-change-function 7) - Decoding attempt 2: %s" line)
                       (setq data (oai-restapi--json-safe-decoding line))
                       (if data
@@ -1461,15 +1312,7 @@ Return JSOIN in plist format."
                       (funcall oai-restapi--current-url-request-callback data) ; INSERT CALLBACK!
                       )))))))
 
-        ;; - Not-streamed
-        ;; response is a single JSON object, no "data: " prefix. {"choices":[...
-        ;; (when (not oai-restapi--current-request-is-streamed)
-        ;;   (oai--debug "oai-restapi--url-request-on-change-function NOT-STREAM: %s %s" (point) (point-max))
-        ;;   (let ((data (oai-restapi--json-safe-decoding (buffer-substring-no-properties (point) (point-max)))))
-        ;;     (when data
-        ;;       (funcall oai-restapi--current-url-request-callback data))
-        ;;     ;; - Done or Error
-        ;;     (funcall oai-restapi--current-url-request-callback nil)))
+        ;; - Not-streamed - handled in url-retrieve event
         ))))
 
 
@@ -1550,11 +1393,9 @@ Called from `oai-timers--progress-reporter-run'."
                        url-buffers)
         (oai-timers--interrupt-current-request url-buffers #'oai-restapi--interrupt-url-request)
         t)
-    ;; ;; else - called not at from some block, but from elsewhere
+    ;; else - called not at from some block, but from elsewhere
     ;; (oai--debug "oai-restapi-stop-url-request all %s" (oai-timers--get-keys-for-variable (oai-block-get-header-marker element)))
-    (oai-restapi-stop-all-url-requests) ; kill all
-    ;; else - nil
-    ))
+    (oai-restapi-stop-all-url-requests))) ; kill all
 
 ;;;###autoload
 (cl-defun oai-restapi-stop-all-url-requests (&optional &key failed)
@@ -1566,75 +1407,8 @@ over."
   (oai-timers--interrupt-all-requests #'oai-restapi--interrupt-url-request failed))
 
 
-;; -=-= chat-messages: collect/stringify
-;; (oai-restapi--normalize-response '(id "o3fA4D4-62bZhn-9617f44f6d399d91" object "chat.completion" created 1752904364 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 819567834314233700 logprobs nil index 0 message (role "assistant" content "It works: `(2 3 1)` is returned." tool_calls []))] usage (prompt_tokens 131 completion_tokens 14 total_tokens 145 cached_tokens 0)))
-;; (#s(oai-block--response role "assistant") #s(oai-block--response text "It works: `(2 3 1)` is returned.") #s(oai-block--response stop "stop"))
-;; (oai-restapi--normalize-response '(id "o3f9cZv-4Yz4kd-9617f234fd6f9d91" object "chat.completion" created 1752904277 model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" prompt [] choices [(finish_reason "stop" seed 589067420664432000 logprobs nil index 0 message (role "assistant" content "`(mapcar 'cdr '((a . 2) (x . 3) (2 . 1)))` returns `(2 3 1)`." tool_calls []))] usage (prompt_tokens 84 completion_tokens 34 total_tokens 118 cached_tokens 0)))
-;; (#s(oai-block--response role "assistant") #s(oai-block--response text "`(mapcar 'cdr '((a . 2) (x . 3) (2 . 1)))` returns `(2 3 1)`.") #s(oai-block--response stop "stop"))
 
-;; (cl-defun oai-restapi--stringify-chat-messages (messages &optional &key
-;;                                                     default-system-prompt
-;;                                                     (system-prefix "[SYS]: ")
-;;                                                     (user-prefix "[ME]: ")
-;;                                                     (assistant-prefix "[AI]: "))
-;;   "Convert a chat message to a string.
-;; MESSAGES is a vector of (:role :content) pairs.  :role can be
-;; \='system, \='user or \='assistant.  If DEFAULT-SYSTEM-PROMPT is
-;; non-nil, a [SYS] prompt is prepended if the first message is not
-;; a system message.  SYSTEM-PREFIX, USER-PREFIX and
-;; ASSISTANT-PREFIX are the prefixes for the respective roles
-;; inside the assembled prompt string."
-;;   (let ((messages (if (and default-system-prompt
-;;                            (not (eql (plist-get (aref messages 0) :role) 'system)))
-;;                       (cl-concatenate 'vector (vector (list :role 'system :content default-system-prompt)) messages)
-;;                     messages)))
-;;     (cl-loop for (_ role _ content) across messages
-;;              collect (cond ((eql role 'system) (concat system-prefix content))
-;;                            ((eql role 'user) (concat user-prefix content))
-;;                            ((eql role 'assistant) (concat assistant-prefix content)))
-;;              into result
-;;              finally return (string-join result "\n\n"))))
-
-;; -=-= chat-messages: (old) split messages by chat-prefixes
-;; (defun oai-restapi---regex-substring-list (regex str)
-;;   "Returns list: text before first match, substrings at each match up to next or end.
-;; Or original string"
-;;   (let ((result '())
-;;         (pos 0)
-;;         (last-end 0))
-;;     (while (string-match regex str pos)
-;;       (push (substring str last-end (match-beginning 0)) result)
-;;       (setq last-end (match-beginning 0))
-;;       (setq pos (match-end 0)))
-;;     (push (substring str last-end) result)
-;;     (nreverse (remove "" result))))
-
-;; (when (not (equal (oai-restapi---regex-substring-list "foo" "barfooquxfoozip")
-;;                          '("bar" "fooqux" "foozip")))
-;;   (error "Test:oai-restapi---regex-substring-list test1"))
-
-;; (when (not (equal (oai-restapi---regex-substring-list "baz" "barfooquxfoozip")
-;;                          '("barfooquxfoozip")))
-;;   (error "Test:oai-restapi---regex-substring-list test2"))
-
-;; (defun oai-restapi--collect-chat-messages-from-string (string &optional first-chat-role)
-;;   ;; 3) collect
-;;   (mapcar (lambda (str)
-;;             (let (c) ; ((c (copy-sequence)))
-;;               ;; 2) parse
-;;               (oai-block--parse-part-from-string str first-chat-role)))
-;;           ;; 1) split
-;;           (oai-restapi---regex-substring-list oai-block--chat-prefixes-re string)))
 ;; -=-= chat-messages: split messages by chat-prefixes
-
-;; (defun oai-restapi--collect-chat-messages-from-string (string &optional first-chat-role)
-;;   (with-temp-buffer
-;;     (insert string)
-;;     ; default-system-prompt persistant-sys-prompts max-token-recommendation)
-;;     (oai-block-collect-messages-from-buffer (point-min) (point-max) nil nil nil first-chat-role)))
-
-;; (oai-restapi--collect-chat-messages-from-string "ad\n[ai:] Asd" 'system) ; [(:role system :content system) (:role user :content "ad") (:role assistant :content "Asd")]
-;; (oai-restapi--collect-chat-messages-from-string "[ai:]ad\n[ai:] Asd" 'system) ; [(:role assistant :content "ad\nAsd")]
 
 (defun oai-restapi--vector-split-by-chat-prefix (vec idxs)
   "Replace elements of VEC at IDXS with their split by chat prefix.
@@ -1658,29 +1432,6 @@ Return a list of messages."
     (oai--debug "oai-restapi--vector-split-by-chat-prefix N2" lst)
     lst))
 
-;; (let ((v1 ["foo\n[me:]bar" "baz" "qux\n[ai:]\nquux" "\ncorge"])
-;;       (idxs '(0 2))
-;;       res)
-;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
-;;   (when (not (equal res
-;;                     ["foo\n" "[me:]bar" "baz" "qux\n" "[ai:]\nquux" "\ncorge"]))
-;;              (error "Test:oai-restapi--vector-split-by-chat-prefix1"))
-;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
-;;   (setq idxs '(2 0))
-;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
-;;   (when (not (equal res
-;;                     ["foo\n" "[me:]bar" "baz" "qux\n" "[ai:]\nquux" "\ncorge"]))
-;;     (error "Test:oai-restapi--vector-split-by-chat-prefix1"))
-;;   (setq idxs '(0 1))
-;;   (setq res (oai-restapi--vector-split-by-chat-prefix v1 idxs))
-;;   (when (not (equal res
-;;                     ["foo\n" "[me:]bar" "baz" "qux\n[ai:]\nquux" "\ncorge"]))
-;;              (error "Test:oai-restapi--vector-split-by-chat-prefix2")))
-
-;; (oai-restapi--vector-split-by-chat-prefix '[(:role system :content "ad") (:role user :content "adb\n[ai:] bb")] '(1))
-;; ; [(:role system :content "ad") (:role user :content "adb") (:role assistant :content "bb")]
-;; (oai-restapi--vector-split-by-chat-prefix '[(:role system :content "ad") (:role assistant :content "adb\n[ai:] bb")] '(1))
-;; ; [(:role system :content "ad") (:role assistant :content "adb\nbb")]
 
 ;; -=-= chat-messages: modify content
 (defun oai-restapi--find-last-user-index (vec)
@@ -1698,7 +1449,7 @@ Return a list of messages."
 
 (defun oai-restapi--modify-vector-content (vec applicant &optional role &rest rest)
   "Modify content of messages in VEC by role.
-Side effect function.
+Side effect function for VEC variable!
 When ROLE is non-nil, it used to filter all such messages, right part of
  `oai-block-roles-prefixes'.
 If ROLES is nil, modify all messages with APPLICANT.
@@ -1776,37 +1527,6 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
                (oai-restapi--vector-split-by-chat-prefix newvec (list idx))))))) ; return
        vec)))
 
-
-;; (oai-block--collect-chat-messages-from-string "ad\n[ai:] Asd")
-(let (res)
- (setq res (oai-restapi--modify-vector-last-user-content '[(:role system :content "ad") (:role user :content "ad\n[ai:] Asd")] (lambda (x) x) ))
- (unless (equal res '[(:role system :content "ad") (:role user :content "ad\n[ai:] Asd")])
-   (error "oai-restapi--modify-vector-last-user-content 1")))
-(let (res)
-  (setq res (oai-restapi--modify-vector-last-user-content '[(:role system :content "ad") (:role user :content "vvb") (:role user :content "ad\n[ai:] Asd")] (lambda (x) (concat x "b")) ))
-  (unless (equal res '[(:role system :content "ad") (:role user :content "vvb\nad") (:role assistant :content "Asdb")])
-    (error "oai-restapi--modify-vector-last-user-content 2")))
 ;; -=-= Others
-
-;; not used
-;; (defun oai-restapi-switch-chat-model ()
-;;   "Change `oai-restapi-con-model'."
-;;   (interactive)
-;;   (let ((model (completing-read "Model: "
-;;                                 (append oai-restapi-openai-known-chat-models
-;;                                         '("claude-3-opus-latest" "claude-3-5-sonnet-latest" "claude-3-7-sonnet-latest"
-;;                                           "gemini-2.5-pro-preview-03-25" "gemini-2.5-flash-preview-04-17" "gemini-2.0-flash" "gemini-2.0-pro-exp"
-;;                                           "deepseek-chat" "deepseek-reasoner"))
-;;                                 nil t)))
-;;     (setq oai-restapi-con-model model)))
-
-
-(defun oai-restapi-get-buffers-for-element (&optional element)
-  "Simplify getting url buffers associated with ai block ELEMENT.
-Used in `oai-open-request-buffer'."
-  (if-let ((element (or element (oai-block-p))))
-      (oai-timers--get-keys-for-variable (oai-block-get-header-marker element))
-    nil))
-
 (provide 'oai-restapi)
 ;;; oai-restapi.el ends here

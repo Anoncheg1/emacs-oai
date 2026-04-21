@@ -65,7 +65,6 @@ Heavy to execute."
           ;; (with-output-to-string (backtrace))
           (backtrace-to-string (backtrace-get-frames 'backtrace)))
          (caller))
-         ;; (print bt)
          (seq-find
           ; - predicate
           (lambda (line)
@@ -99,8 +98,6 @@ Formats by removing all '%s' from FMT and appending ' %s' for each ARGS."
   (let* ((fmt (replace-regexp-in-string " ?%s" "" fmt))
          (num-args (length args))
          (fmt (concat fmt " "
-                   ;; (apply #'concat (make-list num-args " %s"))
-                   ;; (mapconcat #'identity (make-list num-args " %s") "")
                    (string-join (make-list num-args "%s") " ")
                    "\n")))
     (apply #'format fmt args)))
@@ -149,12 +146,7 @@ Return last argument, but should not be used for return value."
            ;; - scroll debug buffer down
           (when (and bu-window (not (bound-and-true-p ert-enabled)))
               (with-selected-window (get-buffer-window bu)
-                ;; (with-no-warnings
-                   (goto-char (point-max))
-                   ;; (end-of-buffer nil)
-                  ;; )
-                ;; (recenter '(t))
-                ))
+                   (goto-char (point-max))))
           ;; ;; - output caller function ( working, but too heavy)
           ;; (let ((caller
           ;;        (oai-debug--get-caller)))
@@ -186,9 +178,6 @@ Return last argument, but should not be used for return value."
               (if (bound-and-true-p ert-enabled)
                   (princ (concat timestamp result-string "\n"))
                 ;; else
-                ;; (insert-text-button "eval-expression"
-                ;;                     'type 'help-function-def
-                ;;                     'help-args '(eval-expression nil))
                 ;; first word insert as a link
                 (when timestamp (insert timestamp))
                 (if (string-match "[\s\n]+" result-string)

@@ -337,12 +337,12 @@ Return string or nil or raise user-error."
 Point should be at header of block.
 Otherwise return nil.
 Optional argument ELEMENT is any Org element."
-  (let* ((org-element-use-cache nil)
-         (context (or element (org-element-context))))
-    (while (and context
-                (not (member (org-element-type context) oai-block-tags-org-blocks-types)))
-      (setq context (org-element-property :parent context)))
-    context))
+  (org-element-with-disabled-cache
+    (let ((context (or element (org-element-context))))
+      (while (and context
+                  (not (member (org-element-type context) oai-block-tags-org-blocks-types)))
+        (setq context (org-element-property :parent context)))
+      context)))
 
 (defun oai-block-tags--contents-area (&optional element)
   "Return cons with start and end position of content.
