@@ -877,3 +877,28 @@ text after"))
 ;;            ((char-equal c ?\n) (setq pos len)))  ; break
 ;;           (setq pos (+ pos step))))
 ;;       count)))
+
+
+;; (defun oai-timers--stop-current-timer (url-buffer &optional failed)
+;;   (oai--debug "oai-timers--stop-current-timer")
+;;   ;; - Remove variable
+;;   (oai-timers--remove-variable url-buffer)
+
+;;   (if (eq (current-buffer) url-buffer)
+;;       (progn
+;;         (oai--debug "oai-timers--stop-current-timer if1")
+;;         (when oai-timers--current-timer
+;;           (cancel-timer oai-timers--current-timer)
+;;           (setq oai-timers--current-timer nil)
+;;           (setq oai-timers--current-timer-remaining-ticks 0)))
+;;     ;; else
+;;     (oai--debug "oai-timers--stop-current-timer if2")
+;;     ;; - Clear time and kill buffer
+;;     (when (and url-buffer (buffer-live-p url-buffer))
+;;       (with-current-buffer url-buffer
+;;         ;; - Stop url-buffer timer
+;;         (when oai-timers--current-timer
+;;           (cancel-timer oai-timers--current-timer)
+;;           (setq oai-timers--current-timer nil)
+;;           (setq oai-timers--current-timer-remaining-ticks 0)))))
+;;   (oai-timers--update-global-progress-reporter failed))

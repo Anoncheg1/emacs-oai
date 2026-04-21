@@ -141,7 +141,6 @@ Argument VALUE is Header-marker."
 ;; (setq c (copy-marker a))
 ;; (eq a c)
 
-
 (defun oai-timers--remove-key (key)
   "Remove buffer.  Use `eq' to find KEY, for buffer eq is ok."
   (setq oai-timers--element-marker-variable-dict
@@ -169,10 +168,6 @@ Argument VALUE is Header-marker."
 (defun oai-timers--get-all-keys ()
   "Get all url-buffers."
   (seq-uniq (mapcar #'car oai-timers--element-marker-variable-dict)))
-  ;; (seq-uniq
-  ;;  (mapcar #'cdr (seq-filter (lambda (entry)
-  ;;                              (buffer-live-p (car entry)))
-  ;;                            oai-timers--element-marker-variable-dict))))
 
 ;; (defun oai-timers--clear-variables () ; too simple
 ;;   (setq oai-timers--element-marker-variable-dict nil))
@@ -246,7 +241,6 @@ about failure."
   (when-let ((buffers (oai-timers--get-all-keys)))
     (oai--debug "oai-timers--interrupt-all-requests2 %s" buffers)
     ;; stop requests
-    ;; (unwind-protect
     (mapc (lambda (url-buffer)
             (funcall interrupt-request-func url-buffer))
           buffers))
@@ -258,32 +252,7 @@ about failure."
   (oai--debug "oai-timers--interrupt-all-requests4")
   (oai-timers--update-global-progress-reporter failed)
   ;; (oai--debug "oai-timers--interrupt-all-requests5")
-  ;; (oai-timers--stop-global-progress-reporter failed)
   )
-
-;; (defun oai-timers--stop-current-timer (url-buffer &optional failed)
-;;   (oai--debug "oai-timers--stop-current-timer")
-;;   ;; - Remove variable
-;;   (oai-timers--remove-variable url-buffer)
-
-;;   (if (eq (current-buffer) url-buffer)
-;;       (progn
-;;         (oai--debug "oai-timers--stop-current-timer if1")
-;;         (when oai-timers--current-timer
-;;           (cancel-timer oai-timers--current-timer)
-;;           (setq oai-timers--current-timer nil)
-;;           (setq oai-timers--current-timer-remaining-ticks 0)))
-;;     ;; else
-;;     (oai--debug "oai-timers--stop-current-timer if2")
-;;     ;; - Clear time and kill buffer
-;;     (when (and url-buffer (buffer-live-p url-buffer))
-;;       (with-current-buffer url-buffer
-;;         ;; - Stop url-buffer timer
-;;         (when oai-timers--current-timer
-;;           (cancel-timer oai-timers--current-timer)
-;;           (setq oai-timers--current-timer nil)
-;;           (setq oai-timers--current-timer-remaining-ticks 0)))))
-;;   (oai-timers--update-global-progress-reporter failed))
 
 ;; -=-= Timers Local
 (defun oai-timers--interrupt-current-request (url-buffer interrupt-request-func)
@@ -307,35 +276,8 @@ Called from
     ;; else - if one
     ;; - Remove variable
     (oai-timers--remove-key url-buffer)
-    ;; ;; else
-    ;; (oai-timers--set-variable nil :element element))
     ;; - Clear time and kill buffer
     (funcall interrupt-request-func url-buffer))
-  ;; (if (or (eq (current-buffer) url-buffer)
-  ;;         (not (buffer-live-p url-buffer)))
-  ;;     (progn
-  ;;       (oai--debug "oai-timers--interrupt-current-request if1" oai-timers--current-timer)
-  ;;       ;; (when oai-timers--current-timer
-  ;;       ;;   (cancel-timer oai-timers--current-timer)
-  ;;       ;;   (setq oai-timers--current-timer nil)
-  ;;       ;;   (setq oai-timers--current-timer-remaining-ticks 0))
-  ;;       (when interrupt-request-func
-  ;;         (funcall interrupt-request-func url-buffer)))
-  ;;   ;; - else
-
-  ;;   (oai--debug "oai-timers--interrupt-current-request if2")
-  ;;   (when (and url-buffer (buffer-live-p url-buffer))
-  ;;     (with-current-buffer url-buffer
-  ;;       ;; - Stop url-buffer timer
-  ;;       ;; (when oai-timers--current-timer
-  ;;       ;;   (cancel-timer oai-timers--current-timer)
-  ;;       ;;   (setq oai-timers--current-timer nil)
-  ;;       ;;   (setq oai-timers--current-timer-remaining-ticks 0))
-  ;;       )
-  ;;       ;; - Kill buffer
-  ;;       (when interrupt-request-func
-  ;;         (funcall interrupt-request-func url-buffer))
-  ;;       ))
     ;; - Update global timer
     (oai-timers--update-global-progress-reporter))
 
@@ -359,7 +301,6 @@ Optional argument DURATION may be used to replace `oai-timers-duration'
 value."
   (oai--debug "oai-timers--progress-reporter-run %s %s" (length (oai-timers--get-all-keys)) oai-timers--element-marker-variable-dict)
   ;; - update mode-line
-  ;; (oai-timers--update-global-progress-reporter)
   ;; We make delay because this function run after url-retrieve and url-buffer may be not saved.
   (run-with-timer 1.0 nil (lambda () (funcall oai-timers--oai-update-mode-line (length (oai-timers--get-all-keys)))))
 
@@ -393,55 +334,8 @@ value."
                (setq oai-timers--global-progress-timer-remaining-ticks
                      (1- oai-timers--global-progress-timer-remaining-ticks))
                (progress-reporter-update oai-timers--global-progress-reporter)))))
-    (oai--debug "oai-timers--progress-reporter-run4"))
+    (oai--debug "oai-timers--progress-reporter-run4")))
 
-  ;; timer2 - request killer
-  ;; (with-current-buffer url-buffer
-  ;;   (setq-local oai-timers--current-timer-remaining-ticks
-  ;;               oai-timers--global-progress-timer-remaining-ticks)
-  ;;   (oai--debug "oai-timers--progress-reporter-run timer2 oai-timers--current-timer-remaining-ticks" (current-buffer) oai-timers--current-timer-remaining-ticks)
-  ;;   (setq-local oai-timers--current-timer
-  ;;         (run-with-timer
-  ;;          1.0 oai-timers-echo-gap ; start after 1 sec
-  ;;          (lambda ()
-  ;;            "timer2 in current buffer"
-  ;;            ;; expired?
-  ;;            (if (<= oai-timers--current-timer-remaining-ticks 0)
-  ;;                (progn
-  ;;                  (oai--debug "oai-timers--progress-reporter-run timer2 is expired" (current-buffer) oai-timers--current-timer-remaining-ticks)
-  ;;                  (oai-timers--interrupt-current-request url-buffer interrupt-request-func 'failed))
-
-  ;;              ;; else -  ticks -= 1
-  ;;              (setq oai-timers--current-timer-remaining-ticks
-  ;;                    (1- oai-timers--current-timer-remaining-ticks))))
-  ;;          )))
-  )
-
-;; (defun oai-timers--with-retry-run (url-buffer recreate-func interrupt-func)
-;;   "Create a timer in the current Emacs buffer.
-;; Kill URL-BUFFER after timeout, recreate request?."
-;;   ;; - precalculate ticks based on duration, 25/ 0.2 = 125 ticks
-;;   (setq oai-timers--current-timer-remaining-ticks
-;;               (fround (/ oai-timers-duration oai-timers-echo-gap)))
-
-;;   ;; - killer timer
-;;   (setq-local oai-timers--current-timer
-;;               (run-with-timer
-;;            1.0 oai-timers-echo-gap ; start after 1 sec
-;;            (lambda ()
-;;              "timer2 in current buffer"
-;;              ;; expired?
-;;              (if (<= oai-timers--current-timer-remaining-ticks 0)
-;;                  (progn
-;;                    (oai--debug "oai-timers--progress-reporter-run timer2 is expired" (current-buffer) oai-timers--current-timer-remaining-ticks)
-;;                    (oai-timers--interrupt-current-request url-buffer interrupt-request-func 'failed))
-
-;;                ;; else -  ticks -= 1
-;;                (setq oai-timers--current-timer-remaining-ticks
-;;                      (1- oai-timers--current-timer-remaining-ticks))))
-;;            )
-
-;;   )
 
 (provide 'oai-timers)
 ;;; oai-timers.el ends here

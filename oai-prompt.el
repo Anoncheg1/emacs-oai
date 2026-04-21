@@ -121,10 +121,6 @@ SYS-PROMPT-FOR-ALL-MESSAGES, MODEL, MAX-TOKENS, TOP-P, TEMPERATURE,
 FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
 `oai-restapi-request-prepare'."
   (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
-  ;; (setq req-type req-type
-  ;;       sys-prompt-for-all-messages sys-prompt-for-all-messages
-  ;;       stream stream)
-
   ;; (if (not (eql 'x (alist-get :chain (oai-block-get-info element) 'x))) ; check if :my exist
   ;; - My request
   (let ((service (or service 'github))
@@ -143,41 +139,32 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
                     (oai--debug "oai-prompt-request-chain1 max-tokens %s header-marker %s sys-prompt %s" max-tokens header-marker sys-prompt)
 
                     ;; also save request for timer
-                    ;; (condition-case err ; for `oai-block-tags-replace'
-                        (oai-restapi-request-llm-retries service
-                                                         model
-                                                         oai-timers-duration-copy ; use current-buffer
-                                                         callback
-                                                         :retries oai-timers-retries-copy ; use current-buffer
-                                                         :messages
-                                                         (oai-prompt-collect-chat-research-steps-prompt oai-prompt-chain-list
-                                                                                                        step
-                                                                                                        (with-current-buffer (marker-buffer header-marker)
-                                                                                                          ;; get messages vector
-                                                                                                          ;; (oai-restapi-prepare-content (oai-block-element-by-marker header-marker)
-                                                                                                          ;;                              noweb-control
-                                                                                                          ;;                              'chat)
-                                                                                                          (oai-block-tags-get-content-ai-messages (oai-block-element-by-marker header-marker)
-                                                                                                                                                  noweb-control
-                                                                                                                                                  nil ; links-only-last
-                                                                                                                                                  nil ; not-clear-properties
-                                                                                                                                                  nil ; ai-block-markers
-                                                                                                                                                  nil ; disable-tags
-                                                                                                                                                  'chat)
-                                                                                                          ;; (oai-restapi--collect-chat-messages-at-point (oai-block-element-by-marker header-marker))
-                                                                                                          )
-                                                                                                                                                            ;; (oai-block-get-content (oai-block-element-by-marker header-marker)))
-                                                                                                        sys-prompt
-                                                                                                        max-tokens)
-                                                         :max-tokens max-tokens
-                                                         :header-marker header-marker
-                                                         :temperature temperature
-                                                         :top-p top-p
-                                                         :frequency-penalty frequency-penalty
-                                                         :presence-penalty presence-penalty)
-                      ;; (user-error
-                      ;;  (funcall oai-restapi-show-error-function (error-message-string err)
-                      ;;           header-marker)))
+                    (oai-restapi-request-llm-retries service
+                                                     model
+                                                     oai-timers-duration-copy ; use current-buffer
+                                                     callback
+                                                     :retries oai-timers-retries-copy ; use current-buffer
+                                                     :messages
+                                                     (oai-prompt-collect-chat-research-steps-prompt oai-prompt-chain-list
+                                                                                                    step
+                                                                                                    (with-current-buffer (marker-buffer header-marker)
+                                                                                                      ;; get messages vector
+                                                                                                      (oai-block-tags-get-content-ai-messages (oai-block-element-by-marker header-marker)
+                                                                                                                                              noweb-control
+                                                                                                                                              nil ; links-only-last
+                                                                                                                                              nil ; not-clear-properties
+                                                                                                                                              nil ; ai-block-markers
+                                                                                                                                              nil ; disable-tags
+                                                                                                                                              'chat)
+                                                                                                      )
+                                                                                                    sys-prompt
+                                                                                                    max-tokens)
+                                                     :max-tokens max-tokens
+                                                     :header-marker header-marker
+                                                     :temperature temperature
+                                                     :top-p top-p
+                                                     :frequency-penalty frequency-penalty
+                                                     :presence-penalty presence-penalty)
                   )))
           (callbackmy (lambda (data callback)
                         "Called in (current-buffer)."
