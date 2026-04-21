@@ -163,16 +163,16 @@
   (let ((oai-block-tags-use-simple-directory-content-flag t)
                 res)
     (setq res (oai-block-tags--get-replacement-for-org-link "file:./"))
-    (setq res (string-match "Here . folder" res))
+    (setq res (string-match "Here . directory contents" res))
     (should (eq 1 res))
     (setq res (oai-block-tags--get-replacement-for-org-link "[[./]]"))
-    (setq res (string-match "Here . folder" res))
+    (setq res (string-match "Here . directory contents" res))
     (should (eq 1 res))
     (setq res (oai-block-tags--get-replacement-for-org-link "[[file:./]]"))
-    (setq res (string-match "Here . folder" res))
+    (setq res (string-match "Here . directory contents" res))
     (should (eq 1 res))
     (setq res (oai-block-tags--get-replacement-for-org-link "[[file:.]]"))
-    (setq res (string-match "Here . folder" res))
+    (setq res (string-match "Here . directory contents" res))
     (should (eq 1 res))))
 
 (when (require 'org-links nil 'noerror)
@@ -389,6 +389,16 @@ ss2
 
         ))))
 
+;; -=-= Test: oai-block-tags--take-n-lines
+(ert-deftest oai-tests-block-tags--take-n-lines ()
+  (should (string-equal (oai-block-tags--take-n-lines "a\nb\nc\nd" 2) "a\nb"))
+  (should (string-equal (oai-block-tags--take-n-lines "a\nb\nc\nd" 4) "a\nb\nc\nd"))
+  (should (string-equal (oai-block-tags--take-n-lines "a\nb\nc" 10) "a\nb\nc"))
+  (should (string-equal (oai-block-tags--take-n-lines "a\nb\nc" 0) ""))
+  (should (string-equal (oai-block-tags--take-n-lines "a\nb\nc" -3) ""))
+  (should (string-equal (oai-block-tags--take-n-lines "" 4)  ""))
+  (should (string-equal (oai-block-tags--take-n-lines "x\ny\nz\n" 2) "x\ny"))
+  (should-error (oai-block-tags--take-n-lines nil 2) :type 'error))
 ;; -=-= tags tests
 (ert-deftest oai-tests-block-tags--replace-test ()
     (let* ((temp-file (make-temp-file "mytest"))
@@ -434,8 +444,8 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
                      ;; (pp res)))
                      ;; LINES of regex-pattern:
                      (should (string-match-p "^ssvv" (nth 0 res)))
-                     (should (string-match-p "^Here test[^ ]+ folder:" (nth 1 res)))
-                     (should (string-match-p "^```ls-output" (nth 2 res)))
+                     (should (string-match-p "^Here test[^ ]+ directory contents:" (nth 1 res)))
+                     (should (string-match-p "^```shell" (nth 2 res)))
                      (should (string-match-p "^  /\\w*/\\w*[^ ]+:" (nth 3 res)))
                      ;; "  -rw-rw-r-- 1 g 0 Nov  5 21:13 file1.txt"
                      (should (string-match-p "file[12].txt" (nth 4 res)))
@@ -495,7 +505,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
   (should
    (string-equal (oai-block-tags--filepath-to-language "/tmp/a.org") "org"))
   (should
-   (string-equal (oai-block-tags--filepath-to-language "/") "ls-output"))
+   (string-equal (oai-block-tags--filepath-to-language "/") "shell")) ; directory
   (should
    (string-equal (oai-block-tags--filepath-to-language "a.txt") "text"))
   (should
@@ -506,6 +516,21 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
    (string-equal (oai-block-tags--filepath-to-language "aisds") "auto"))
   (should
    (string-equal (oai-block-tags--filepath-to-language nil) "auto")))
+
+;; -=-= Test: oai-block-tags--replace-first-match
+(ert-deftest oai-tests-block-tags--replace-first-match ()
+  (should (string-equal
+           (oai-block-tags--replace-first-match oai-block--chat-prefixes-re "bar1 " "[ai:] foo baz foo")
+           "bar1 foo baz foo"))
+  (should (string-equal
+           (oai-block-tags--replace-first-match oai-block--chat-prefixes-re "bar1 " "[ai:] foo baz foo" t)
+           "[ai:] bar1 foo baz foo"))
+  (should (string-equal
+           (oai-block-tags--replace-first-match oai-block--chat-prefixes-re "wtf " " foo\n[ME]: foo" t)
+          " foo\n[ME]: wtf foo"))
+  (should (string-equal
+           (oai-block-tags--replace-first-match "f[^ ]* " "bar " "foo foo baz foo")
+           "bar foo baz foo")))
 
 ;; -=-= Test: oai-block-tags-replace
 (ert-deftest oai-tests-block-tags--replace ()
@@ -524,19 +549,19 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
     ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)) "\n" ) "\\n"))
     ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
     (setq res (oai-block-tags-replace (format "ssvv @%s bbb" file1)))
-    (should (string-equal res "ssvv\nHere file1.txt:\n```text\nContents for file1\n```\n bbb"))
+    (should (string-equal res "ssvv\nHere file1.txt\n```text\nContents for file1\n```\n bbb"))
     ;; ;; (print (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
     ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)) "\n" ) "\\n"))
     ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)))
     (setq res (oai-block-tags-replace (format "ssvv @%s bbb" file2)))
-    (should (string-equal res "ssvv\nHere file2.el:\n```elisp\n(defun aa() )\n```\n bbb"))
+    (should (string-equal res "ssvv\nHere file2.el\n```elisp\n(defun aa() )\n```\n bbb"))
     ;; (string-join (string-split (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)) "\n" ) "\\n"))
     ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
     ;; "ssvv \\nssssss\\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
     ;;                           "ssvv \n\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"
     ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
     (setq res (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
-    (should (string-equal res "ssvv \nHere file3.py:\n```python\nimport os\n```\n bbb"))))
+    (should (string-equal res "ssvv \nHere file3.py\n```python\nimport os\n```\n bbb"))))
 
 
 ;; -=-= Test: replace-last-regex-smart
@@ -741,7 +766,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
   (should
    (string-equal (oai-block-tags--compose-block-for-path "a.el" "ss")
                  "
-Here a.el:
+Here a.el
 ```elisp
 ss
 ```")))
@@ -1061,6 +1086,7 @@ test
 ;; (name (org-element-property :name (oai-block-p))))
 
 ;; (oai-block-tags-replace (oai-block-get-content))
+
 
 ;; -=-= provide
 (provide 'oai-tests-block-tags)

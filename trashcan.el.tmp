@@ -833,3 +833,47 @@ text after"))
 ;;           ((stringp ,var)
 ;;            ,var)
 ;;           (t nil)))
+
+
+;; (defun oai-block-tags--markdown-mark-fenced-code-body (&optional limit-begin limit-end)
+;;   "Mark content inside Markdown fenced code block (```), excluding header/footer.
+;; LIMIT-BEGIN and LIMIT-END restrict the search region around point.
+;; Returns t if was marked, nil otherwise.
+;; Used in `oai-block-tags-mark-md-block-body'."
+;;   ;; fill limit-begin and limit-end - if they was not profiled
+;;   (when (not (and limit-begin limit-end))
+;;     (when-let* ((region (oai-block-tags--contents-area))) ; maybe use `org-src--contents-area' ?
+;;       (setq limit-begin (car region))
+;;       (setq limit-end (cadr region))))
+
+;;   (when-let* ((r (oai-block-tags--markdown-fenced-code-body-get-range limit-begin limit-end))
+;;               (beg (car r))
+;;               (end (cadr r)))
+;;     (push-mark beg t)
+;;     (goto-char end)
+;;     (forward-line -1)
+;;     (end-of-line)
+;;     (activate-mark)
+;;     t))
+
+;; (defun oai-block-tags--string-count-char-in-direction (string position char direction)
+;;   "Count CHAR in DIRECTION from POSITION on the same line in STRING."
+;;   ;; Special case: Cursor is at or after newline, nothing to count.
+;;   (if (or (and (eq direction 'left)
+;;                (> position 0)
+;;                (char-equal (aref string (1- position)) ?\n))
+;;           (and (eq direction 'right)
+;;                (char-equal (aref string position) ?\n)))
+;;       0
+;;     ;; Normal case
+;;     (let* ((count 0)
+;;            (step (if (eq direction 'right) 1 -1))
+;;            (pos (+ position step))
+;;            (len (length string)))
+;;       (while (and (>= pos 0) (< pos len))
+;;         (let ((c (aref string pos)))
+;;           (cond
+;;            ((char-equal c char) (setq count (1+ count)))
+;;            ((char-equal c ?\n) (setq pos len)))  ; break
+;;           (setq pos (+ pos step))))
+;;       count)))
