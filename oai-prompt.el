@@ -155,8 +155,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
                                                                                                                                               nil ; not-clear-properties
                                                                                                                                               nil ; ai-block-markers
                                                                                                                                               nil ; disable-tags
-                                                                                                                                              'chat)
-                                                                                                      )
+                                                                                                                                              'chat))
                                                                                                     sys-prompt
                                                                                                     max-tokens)
                                                      :max-tokens max-tokens
@@ -164,8 +163,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
                                                      :temperature temperature
                                                      :top-p top-p
                                                      :frequency-penalty frequency-penalty
-                                                     :presence-penalty presence-penalty)
-                  )))
+                                                     :presence-penalty presence-penalty))))
           (callbackmy (lambda (data callback)
                         "Called in (current-buffer)."
                         (when data ; if not data it is fail

@@ -727,28 +727,22 @@ Return string or nil."
                  ((eq type 'headline)
                   ;; make string: #*level + title
                   (prog1 (concat "\n" (make-string (org-element-property :level el) ?#) " " (org-element-property :raw-value el))
-                    ;; - MOVE!
+                    ;; MOVE!
                     (while (progn (forward-line) (end-of-line) (bolp)))
                     (beginning-of-line)))
                  ;; 1. Sub: Block
                  ((member type  oai-block-tags-org-blocks-types)
                   (concat "\n"
                   (prog1 (oai-block-tags--get-content-org-block-at-point el ai-block-markers t) ; noweb issue
-                    ;; (condition-case nil
-                    (org-forward-element)))) ; MOVE!
+                     ;; MOVE!
+                    (org-forward-element))))
 
                  (t ; others
-                  ;; (oai--debug "AAA1 %s" (buffer-substring-no-properties (line-beginning-position) (point-max)))
                   (prog1
                       (concat "\n" (buffer-substring-no-properties (line-beginning-position) (org-element-property :end el)))
-                    ;; (oai--debug "oai-block-tags--get-content-at-point-org t %s" (org-element-property :value el))
-                    ;; (condition-case nil
-                    (org-forward-element) ; MOVE!
-                    ;; (org-next-item)
-                    ;; (error nil))
-                    )))
-                replacement-list)
-          ) ; push to
+                    ;; MOVE!
+                    (org-forward-element))))
+                replacement-list)) ; push to
         (push "\n```\n" replacement-list)
         (apply #'concat (reverse replacement-list))))
      ;; - (2) case - at first line of Markdown block one line or multiline - in org block
