@@ -434,7 +434,7 @@ This macro constructs a single `let*` block by mapping over the
 Add text property around replaced part to highlight it.
 Used as argument for `oai-restapi--modify-vector-last-user-content' and
  `oai-restapi--modify-vector-content'."
-  (oai--debug "oai-block-tags--apply-noweb"  string)
+  (oai--debug "oai-block--apply-noweb"  string)
   ;; (org-babel-expand-noweb-references (list "markdown" string))
   (let ((pos 0) beg end replacement)
     (while (string-match "<<\\([^\n]+?\\)>>" string pos)

@@ -406,6 +406,14 @@ How? We keep trace of all ai blocks that was pros a list of header markers. Do i
 -`oai-block-tags-get-content-ai-messages'
 
 * Tags and Links: get content
+** Principles
+
+Links are expanded in chain, loops prevented.
+
+Noweb dont expanded in links targets. Expansion happend in steps: 1) noweb 2) links&tags
+
+“.ai” blocks extended by splitting chat and enrich it with messages.
+** Implementation notes
 Main: ~oai-block-tags--get-content-at-point~
 
 get ai block in Org

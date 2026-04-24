@@ -30,7 +30,7 @@
 (require 'oai-block-tags)
 ;; (print (list "vvvvvvvvvvvvvvvvvvvvvv1" (bound-and-true-p debug)))
 (require 'ert)
-(defvar ert-enabled nil)
+(defvar ert-enabled t)
 ; org-links - is optional dependency
 
 ;; (eval-buffer) or (load-file "path/to/async-tests.el")
@@ -410,7 +410,7 @@ ss2
                 (delete-file temp-file))))
        (res (string-split res "\n")))
       ;; (pp res))
-      (should (string-equal "aas" (nth 0 res)))
+      (should (string-equal "aas " (nth 0 res)))
       (should (string-equal "```auto" (nth 2 res)))
       (should (string-equal "Hello, world test!" (nth 3 res)))
       (should (string-equal "```" (nth 4 res)))
@@ -435,23 +435,27 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
        ;; Cleanup
        (delete-directory temp-dir t nil))))
 
+;; (let ((string "ssvv @/asd/asvv.txt bbb"))
+;;   (string-match oai-block-tags--regexes-path string 0)
+;;     (cons (match-string 1 string) (match-beginning 0)))
+
 (ert-deftest oai-tests-block-tags--oai-block-tags-replace ()
   (with-temp-files '("file1.txt" "file2.txt")
-                   (let ((res (string-split (oai-block-tags-replace (format "ssvv @%s bbb" temp-dir)) "\n"))
-                         (regex-pattern "ssvv \nHere test[^ ]+ folder:\n```ls-output\n  /tmp/test[^ ]+:\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file1.txt\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file2.txt\n\n```\n bbb")
-                         ;; (dired-listing-switches "-AlthG")
-                         )
-                     ;; (pp res)))
-                     ;; LINES of regex-pattern:
-                     (should (string-match-p "^ssvv" (nth 0 res)))
-                     (should (string-match-p "^Here test[^ ]+ directory contents:" (nth 1 res)))
-                     (should (string-match-p "^```shell" (nth 2 res)))
-                     (should (string-match-p "^  /\\w*/\\w*[^ ]+:" (nth 3 res)))
-                     ;; "  -rw-rw-r-- 1 g 0 Nov  5 21:13 file1.txt"
-                     (should (string-match-p "file[12].txt" (nth 4 res)))
-                     (should (string-match-p "file[12].txt" (nth 5 res)))
-                     (should (string-match-p "^```$" (nth 7 res)))
-                     (should (string-match-p "^ bbb$" (nth 8 res))))))
+    (let ((res (string-split (oai-block-tags-replace (format "ssvv @%s bbb" temp-dir)) "\n"))
+          (regex-pattern "ssvv \nHere test[^ ]+ folder:\n```ls-output\n  /tmp/test[^ ]+:\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file1.txt\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file2.txt\n\n```\n bbb")
+          ;; (dired-listing-switches "-AlthG")
+          )
+      ;; (pp res)))
+      ;; LINES of regex-pattern:
+      (should (string-match-p "^ssvv" (nth 0 res)))
+      (should (string-match-p "^Here test[^ ]+ directory contents:" (nth 1 res)))
+      (should (string-match-p "^```shell" (nth 2 res)))
+      (should (string-match-p "^  /\\w*/\\w*[^ ]+:" (nth 3 res)))
+      ;; "  -rw-rw-r-- 1 g 0 Nov  5 21:13 file1.txt"
+      (should (string-match-p "file[12].txt" (nth 4 res)))
+      (should (string-match-p "file[12].txt" (nth 5 res)))
+      (should (string-match-p "^```$" (nth 7 res)))
+      (should (string-match-p "^ bbb$" (nth 8 res))))))
 
 
 ;; -=-= Test: oai-block-tags--contents-area
@@ -511,6 +515,8 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
   (should
    (string-equal (oai-block-tags--filepath-to-language "as/a.ai") "ai"))
   (should
+   (string-equal (oai-block-tags--filepath-to-language "/tmp/emacs-file2026-04-22.ai") "ai"))
+  (should
    (string-equal (oai-block-tags--filepath-to-language "as/a.aisds") "auto"))
   (should
    (string-equal (oai-block-tags--filepath-to-language "aisds") "auto"))
@@ -549,12 +555,12 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
     ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)) "\n" ) "\\n"))
     ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file1)))
     (setq res (oai-block-tags-replace (format "ssvv @%s bbb" file1)))
-    (should (string-equal res "ssvv\nHere file1.txt\n```text\nContents for file1\n```\n bbb"))
+    (should (string-equal res "ssvv \nHere file1.txt\n```text\nContents for file1\n```\n bbb"))
     ;; ;; (print (oai-block-tags-replace (format "ssvv `@%s` bbb" file2))))
     ;; (string-join (string-split (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)) "\n" ) "\\n"))
     ;; (oai-block-tags-replace (format "ssvv `@%s` bbb" file2)))
     (setq res (oai-block-tags-replace (format "ssvv @%s bbb" file2)))
-    (should (string-equal res "ssvv\nHere file2.el\n```elisp\n(defun aa() )\n```\n bbb"))
+    (should (string-equal res "ssvv \nHere file2.el\n```elisp\n(defun aa() )\n```\n bbb"))
     ;; (string-join (string-split (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)) "\n" ) "\\n"))
     ;; (oai-block-tags-replace (format "ssvv [[%s]] bbb" file3)))
     ;; "ssvv \\nssssss\\nHere file3.py:\\n```python\\nimport os\\n```\\n\\n bbb"

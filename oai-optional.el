@@ -46,7 +46,6 @@
 Don't remove empty lines that have more than two lines in a row before
  tham."
   (forward-line -1) ; precaution
-  ;; (beginning-of-line) ; required for loop
   (let ((empty-line)
         (cl 0))
     (while (< beg (point))

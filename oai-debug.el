@@ -26,6 +26,8 @@
 ;; To disable debugging, set oai-debug-buffer to nil.
 ;; Used as a help function `oai--debug' for conditional output of
 ;; debug messages.
+;;
+;; ert-enabled variable if bound enable debugging during ert tests.
 
 ;;; Code:
 

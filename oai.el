@@ -32,11 +32,11 @@
 
 ;;; Commentary:
 
-;; Inspired by Robert Krahn's org-ai package <https://github.com/rksm/org-ai>
-;;
-;; OAI extend Org mode with "ai block" that allows you to interact
-;; with the OpenAI-compatible REST APIs.
-;;
+;; OAI as a minor mode extend Org major mode with "ai block" that
+;;   allows you to interact with the OpenAI-compatible REST APIs.
+
+;; OAI was inspired by org-ai package of Robert Krahn <https://github.com/rksm/org-ai>
+
 ;; It allows you to:
 ;; - Use #+begin_ai..#+end_ai blocks for org-mode
 ;; - Call multiple requests from multiple block and buffers in parallel.
@@ -47,7 +47,7 @@
 ;; - Customization for engineering, there is :chain for sequence of
 ;;   calls out-of-the-box.
 ;;
-;; For the Internet connection used built-in libs: url.el and url-http.el.
+;; The Internet connection uses the built-in libraries url.el and url-http.el.
 ;;
 ;; See see https://github.com/Anoncheg1/emacs-oai for the full set
 ;; of features and setup instructions.
@@ -65,31 +65,28 @@
 ;; (add-hook 'oai-block-after-chat-insertion-hook
 ;;   #'oai-optional-remove-headers-hook-function)
 
-;; One hooks add space “ “ before lines that in ai block that looks
-;; like Org header, that fix confustion for Org logic.
-;; Another hook remove empty lines if there is too much of them in response.
+;; First hook remove empty lines if there is too much of them in response.
+;; Second fix conflict with Org mode when LLM return string starting
+;;  with "*" character.
 
 ;; You will need an OpenAI API key-token.
-;; It can be stored in the format:
+;; It can be stored in variable or in file ~/.authinfo.gpg with format:
 ;;  "machine api.openai.com login oai password <your-api-key>"
-;; in your ~/.authinfo.gpg file (or other auth-source) and will be picked up
-;; when the package is loaded.
+;; The file is picked up when the package is loaded.
 ;;
 ;; Keys binded by default:
-;;
 ;; - In block #+begin_ai..#+end_ai blocks:
 ;;     - C-c C-c - to send the text to the OpenAI API and insert a response
 ;;     - C-c . - to inspect raw data (and C-u C-c .)
 ;;     - C-c C-.  - to see url.el raw HTTP data (working only during request)
-;;     - M-h - mark element in ai block (C-u M-h - mark chat message)
+;;     - M-h - recursive mark element (C-u M-h - mark chat message)
 ;;     - C-c C-t - set :max-tokens
-;; - in buffer with oai-mode enabled:
-;;     - C-g - to stop all requsts.
+;;     - C-g - to stop requst (in debug-buffer - stop all requests).
 
 ;;;; Notes
 
-;; For expanding links to file, if link have extension .ai it will not
-;;  included directly without wrapping in markdown block.
+;; For links pointing to to file with ".ai" extension, they will be
+;;  included directly without wrapping in markdown block as chat extension.
 
 ;;;; Customization:
 
@@ -102,6 +99,10 @@
 ;; - two steps of preparing messages:
 ;;   1) apply additional system messages from info. `oai-block--prepare-chat-messages'
 ;;   2) expand links and noweb references. `oai-block-tags-get-content-ai-messages' and others.
+
+;;;; Known issues:
+
+;; - Exporting dont properly format markdown code blocks and quotes "> "
 
 ;;;; Other packages:
 
@@ -179,6 +180,8 @@
 ;;  begining of the line by removing indentation
 ;; - make key to remove all messages and left only the last
 ;; - support "C-c '" (call-interactively 'org-edit-special)
+;; - expansion of links in oai-block-tags-replace should not happen in
+;;  loop, it should be collect and applied at once. To have control.
 
 ;;; Code:
 

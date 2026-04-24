@@ -101,7 +101,7 @@ Used to set `org-link-search-must-match-exact-headline' before
 
 (defvar oai-block-tags--regexes-backtrace "@\\(Backtrace\\|B\\([\s-]\\|$\\)\\)")
 
-(defvar oai-block-tags--regexes-path "\\(^\\|[\s-]\\)@\\(\\.\\.?\\|\\.\\.?/\\|\\.\\.?\\\\\\|/\\|\\\\\\|[A-Za-z]:\\\\\\|~[a-zA-Z0-9_.-]*/*\\)[a-zA-Z0-9_./\\\\-]*"
+(defvar oai-block-tags--regexes-path "\\(^\\|[\s-]\\)@\\(\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|[A-Za-z]:\\\\\\|~[a-zA-Z0-9_.-]*/*\\|/\\|\\\\\\)[a-zA-Z0-9_./\\\\-]*\\)"
   "Unix Posix and Windows, currently we support Linux only.
 See: .
 [[file:./doc.org::*Regex: file path][Regex: file path]]
@@ -185,6 +185,7 @@ Uses Org babel source block `org-src-lang-modes' names, return left for
 First we check `auto-mode-alist' and then just try to interpret as major
  mode line.
 Return  name of language."
+  (oai--debug "oai-block-tags--filepath-to-language %s" path-or-mode-string)
   ;; symbol - get "emacs-lisp-mode" or "nil"
   (let* ((symb (symbolp path-or-mode-string))
          (mode-symbol-string (if symb
@@ -198,9 +199,16 @@ Return  name of language."
                                  path-or-mode-string ; string with mode name
                                ;; else
                                mode-symbol-string))
-         (mode-string (apply #'mapconcat #'identity (butlast (string-split mode-symbol-string "-")) '("-"))))
+         ;; for "emacs-lisp-mode" - remove mode
+         ;; (string-remove-suffix "-mode" "emacs-lisp-mode")
+         (mode-string (when (string-suffix-p "-mode" mode-symbol-string)
+                          (string-remove-suffix "-mode" mode-symbol-string))))
+
+         ;; (apply #'mapconcat #'identity (butlast (string-split mode-symbol-string "-")) '("-"))))
+    (print mode-symbol-string)
     (cond
-     ((car (rassq (intern mode-string) org-src-lang-modes)))
+     ((and mode-string
+           (car (rassq (intern mode-string) org-src-lang-modes))))
      ((and (not (string-empty-p mode-string))
            mode-string))
      ;; special cases:
@@ -215,7 +223,6 @@ Return  name of language."
              "ai"))))
      (t
       "auto"))))
-
 
 (defun oai-block-tags--replace-first-match (regexp replacement string &optional add)
   "Replace the first occurrence of REGEXP with REPLACEMENT in STRING.
@@ -250,7 +257,7 @@ Optional arguments
  CONTENT dont starts with chat prefix.
 To detect LANG use `oai-block-tags--filepath-to-language'.
 - INNER, if non-nil, ai block wrapped in markdown."
-  (oai--debug "oai-block-tags--compose-m-block N1 %s" inner lang header)
+  (oai--debug "oai-block-tags--compose-m-block N1 inner=%s lang=%s header=%s" inner lang header)
   (oai--debug "oai-block-tags--compose-m-block N2" content)
   (if (or (not content)
           (string-empty-p content))
@@ -362,16 +369,7 @@ Return vector with messages for ai block, or string if REQ-TYPE is
                                                                    sys-prompt-for-all-messages
                                                                    max-tokens-string
                                                                    t)) ; not-merge
-               (_ (oai--debug "t1" messages))
-               ;; 2) tags and links expansion
-               (messages (if (not disable-tags)
-                             (if links-only-last
-                                 (oai-restapi--modify-vector-last-user-content messages #'oai-block-tags-replace ai-block-markers)
-                               ;; else
-                               (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user ai-block-markers))
-                           ;; else
-                           messages))
-               (_ (oai--debug "t2" messages))
+               (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_1" messages))
                ;; 2) noweb expansion
                (messages (if noweb-control
                              (if links-only-last
@@ -380,8 +378,18 @@ Return vector with messages for ai block, or string if REQ-TYPE is
                                (oai-restapi--modify-vector-content messages #'oai-block--apply-noweb 'user))
                            ;; else
                            messages))
-               (_ (oai--debug "t3"))
-               ;; 3) clear properties (for sending to LLM)
+               ;; 3) tags and links expansion
+               (messages (if (not disable-tags)
+                             (if links-only-last
+                                 (oai-restapi--modify-vector-last-user-content messages #'oai-block-tags-replace ai-block-markers)
+                               ;; else
+                               (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user ai-block-markers))
+                           ;; else
+                           messages))
+               (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_2" messages))
+
+               (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_3"))
+               ;; 4) clear properties (for sending to LLM)
                (messages (if not-clear-properties
                              messages
                            ;; else
@@ -1105,24 +1113,53 @@ Return modified string with text properties or the same string."
           (setq string new-string))))
 
   ;; - Path @/path/file.txt - replace the last one only
+  ;; ;; OLD -
   ;; Result will be *Wrapped in markdown*
-  (let ((i 9))
-    (while (and (string-match oai-block-tags--regexes-path string)
-                (not (zerop i)))
-      (setq i (1- i))
-      (oai--debug "oai-block-tags-replace N2 regexes-path %s %s" i (match-string 0 string))
-      (if-let* ((path-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--regexes-path)) ; find the last
-                ;; remove first @ character from link
+  ;; (let ((i 9))
+  ;;   (while (and (string-match oai-block-tags--regexes-path string)
+  ;;               (not (zerop i)))
+  ;;     (setq i (1- i))
+  ;;     (oai--debug "oai-block-tags-replace N2 regexes-path %s %s" i (match-string 0 string))
+  ;;     (if-let* ((path-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--regexes-path)) ; find the last
+  ;;               ;; remove first @ character from link
+  ;;               (path-string (if (> (length path-string) 0)
+  ;;                                (substring path-string 1)
+  ;;                              ""))
+  ;;               (replacement (oai-block-tags--compose-block-for-path-full path-string))
+  ;;               (replacement (concat replacement "\n"))
+  ;;               (new-string (oai-block-tags--replace-last-regex-smart string
+  ;;                                                                     oai-block-tags--regexes-path
+  ;;                                                                     replacement)))
+  ;;         (setq string new-string))))
+  (let ((matches '())
+        (start 0)
+        mbeg)
+    ;; Collect all matches and their positions
+    (while (string-match oai-block-tags--regexes-path string start)
+      (setq mbeg (1- (match-beginning 2))) ; add @
+      (unless (or (oai-block-tags--markdown-block-string-p string mbeg) ; not in ``` multiline markdown block
+                  (oai-block-tags--string-is-quoted-p string mbeg))
+        (push (cons (match-string 2 string) mbeg) matches))
+      (setq start (match-end 2)))
 
-                (path-string (if (> (length path-string) 0)
-                                 (substring path-string 1)
-                               ""))
-                (replacement (oai-block-tags--compose-block-for-path-full path-string))
-                (replacement (concat replacement "\n"))
-                (new-string (oai-block-tags--replace-last-regex-smart string
-                                                                      oai-block-tags--regexes-path
-                                                                      replacement)))
-          (setq string new-string))))
+    ;; Sort in reverse order so replacing substrings doesn't affect positions
+    (setq matches (sort matches (lambda (a b) (> (cdr a) (cdr b)))))
+
+    (dolist (match matches)
+      (let* ((tag-str (car match)) ; no @
+             (pos (cdr match))
+             (end (1+ (+ pos (length tag-str)))) ; and + @
+             ;; Remove the first @ character
+             ;; (tag-str (if (string-prefix-p "@" tag-str)
+             ;;                  (substring tag-str 1)
+             ;;                tag-str))
+             (replacement (oai-block-tags--compose-block-for-path-full tag-str))
+             (replacement (concat replacement "\n")))
+        ;; Replace the substring in string
+        (setq string (concat
+                      (substring string 0 pos)
+                      replacement
+                      (substring string end))))))
 
   ;; - Org links [[link]]
   ;; We search  for link regex,  when found we check  if there
@@ -1130,18 +1167,41 @@ Return modified string with text properties or the same string."
   ;; more exist we skip the first  one that found. if no other
   ;; exist we replace it.
   ;; *Dont Wrap in markdown*
-  (let ((i 9))
-    (while (and (string-match oai-block-tags--org-link-any-re string) ; exist in text?
-                (not (zerop i)))
-      (setq i (1- i))
-      (oai--debug "oai-block-tags-replace N3 link-any-r %s %s" i (match-string 0 string))
-      (if-let* ((link (oai-block-tags--replace-last-regex-smart string oai-block-tags--org-link-any-re)) ; find the last
-                (replacement (oai-block-tags--get-replacement-for-org-link link ai-block-markers))
-                (replacement (concat replacement "\n")) ; add empty line after it.
-                (new-string (oai-block-tags--replace-last-regex-smart string
-                                                                      oai-block-tags--org-link-any-re
-                                                                      replacement)))
-          (setq string new-string))))
+  ;; ;; OLD -
+  ;; (let ((i 9))
+  ;;   (while (and (string-match oai-block-tags--org-link-any-re string) ; exist in text?
+  ;;               (not (zerop i)))
+  ;;     (setq i (1- i))
+  ;;     (oai--debug "oai-block-tags-replace N3 link-any-r %s %s" i (match-string 0 string))
+  ;;     (if-let* ((link (oai-block-tags--replace-last-regex-smart string oai-block-tags--org-link-any-re)) ; find the last
+  ;;               (replacement (oai-block-tags--get-replacement-for-org-link link ai-block-markers))
+  ;;               (replacement (concat replacement "\n")) ; add empty line after it.
+  ;;               (new-string (oai-block-tags--replace-last-regex-smart string
+  ;;                                                                     oai-block-tags--org-link-any-re
+  ;;                                                                     replacement)))
+  ;;         (setq string new-string))))
+  (let ((matches '())
+        (start 0))
+    ;; Collect all matches up front
+    (while (string-match oai-block-tags--org-link-any-re string start)
+      (unless (or (oai-block-tags--markdown-block-string-p string (match-beginning 0)) ; not in ``` multiline markdown block
+                  (oai-block-tags--string-is-quoted-p string (match-beginning 0)))
+        (push (cons (match-string 0 string) (match-beginning 0)) matches))
+      (setq start (match-end 0)))
+    ;; Sort in reverse: safest for substring replacement
+    (setq matches (sort matches (lambda (a b) (> (cdr a) (cdr b)))))
+    (dolist (match matches)
+      (let* ((link (car match))
+             (pos (cdr match))
+             (end (+ pos (length link)))
+             (replacement (oai-block-tags--get-replacement-for-org-link link ai-block-markers))
+             (replacement (concat replacement "\n")))
+        ;; Replace in the string
+        (setq string (concat
+                      (substring string 0 pos)
+                      replacement
+                      (substring string end))))))
+
   (oai--debug "oai-block-tags-replace N4" string)
   string) ; return
 
