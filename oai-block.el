@@ -140,13 +140,6 @@ TODO: for streaming: save and pass begining of paragraph or line."
                  (function :tag "Function"))
   :group 'oai)
 
-(defcustom oai-block-not-check-prefix-in-markdown-block-flag t
-  "Non-nil means respecting markdown subblocks for chat prefixes.
-Enabling ignore chat prefix when it is in markdown subblocks."
-  :type 'boolean
-  :group 'oai)
-
-
 ;; -=-= faces
 (defface oai-block-quote
     '((((class color) (min-colors 88) (background dark)) :background "#282828" :foreground "shadow")
@@ -941,28 +934,33 @@ Argument INSERT-ME insert [ME]: at stop type of message."
         (setq oai-block--current-chat-role c-chat-role)))))
 
 ;; -=-= chat: collect-chat-messages
-(defun oai-block--get-chat-messages-positions (content-start content-end prefix-re)
+(defun oai-block--get-chat-messages-positions (content-start content-end &optional prefix-re markdown-check)
   "Return a flat list of positions for chat messages in current buffer.
 Positions CONTENT-START CONTENT-END used as boundaries.
+If MARKDOWN-CHECK is not-nil, positions counted only if not in markdown
+ block.
 Return positions  as start points  that match PREFIX-RE (normally  it is
 `oai-block--chat-prefixes-re'), and additional positions of content start
 and content end at the beginin and the end of flat list."
   (when (< content-end content-start)
     (error "Point is at wrong position"))
-  (oai--debug "oai-block--get-chat-messages-positions %s" oai-block-not-check-prefix-in-markdown-block-flag)
+  (oai--debug "oai-block--get-chat-messages-positions %s" markdown-check)
+  ;; (oai--debug "oai-block--get-chat-messages-positions N2" (buffer-substring-no-properties content-start content-end))
   (save-excursion
-    (let (positions)
+    (let ((prefix-re (or prefix-re oai-block--chat-prefixes-re))
+          (positions))
       (goto-char content-start)
       ;; Collect all chat header positions
       (while (re-search-forward prefix-re content-end t) ; point at begin of next line or after space
         ;; (oai--debug "messages-positions1 %s" (point))
         ;; check that we are not in markdown subblock
-        (if oai-block-not-check-prefix-in-markdown-block-flag ; if t disable check
-            (push (match-beginning 0) positions)
-          ;; else
+        (if markdown-check ; if t enable markdown check
             (unless (save-match-data
                       (oai-block--markdown-block-p content-start content-end))
-              (push (match-beginning 0) positions)))
+              (push (match-beginning 0) positions))
+          ;; else
+          ;; (print(buffer-substring-no-properties (1- (match-beginning 0)) (match-end 0)))
+          (push (match-beginning 0) positions))
         (goto-char (match-end 0)))
       (setq positions (nreverse positions))
       ;; Ensure content-start is included first
@@ -1087,6 +1085,8 @@ Optional argiments,
 - NOT-CLEAR-PROPERTIES if not-nil, preserve highlighting of replacement
  of links, tags and noweb fererences added by `oai-block-tags-replace',
  for `oai-expand-block'.
+- MARKDOWN-CHECK if not-nil, positions counted only if not in markdown
+ block.
 Return list of plist with :content and :role."
   ;; 1) Positions: for prefixes [ME:], [AI:] in current buffer
   (let ((positions (oai-block--get-chat-messages-positions content-start content-end oai-block--chat-prefixes-re))
@@ -1210,6 +1210,7 @@ Optional argument NOT-CLEAR-PROPERTIES if not-nil, preserve highlighting
  of replacement of links, tags and noweb fererences added by
  `oai-block-tags-replace', for `oai-expand-block'."
   (with-temp-buffer
+  ;; (with-current-buffer (get-buffer-create "test11")
     (insert content-string)
     (let ((content-start (point-min))
           (content-end   (point-max)))

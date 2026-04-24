@@ -1447,15 +1447,18 @@ Return a list of messages."
     idx))
 
 
-(defun oai-restapi--modify-vector-content (vec applicant &optional role &rest rest)
+(defun oai-restapi--modify-vector-content (vec applicant &optional role split-flag &rest rest)
   "Modify content of messages in VEC by role.
 Side effect function for VEC variable!
 When ROLE is non-nil, it used to filter all such messages, right part of
  `oai-block-roles-prefixes'.
-If ROLES is nil, modify all messages with APPLICANT.
 APPLICANT may be string or function.  if function, it is called if a
  string, it replace :content of vector item.  Intened for usage with
  `oai-block-tags-replace'.
+If ROLES is nil, modify all messages with APPLICANT.
+If SPLIT-FLAG is non-nil, split content of replaceed messages if it have
+ prefixes. After splitting messages merged by role if there is a
+ sequence of them with same role.
 REST optional arguments are arguments that will be passed to call of
  applicant if it a function.
 Return modified VEC."
@@ -1490,17 +1493,20 @@ Return modified VEC."
           (push i idxs)))
       (setq i (1- i)))
     (oai--debug "oai-restapi--modify-vector-content N2" idxs vec)
-    (if idxs
+    (if (and split-flag idxs)
         (vconcat
          (oai-block--merge-by-role
           (oai-restapi--vector-split-by-chat-prefix vec idxs)))
       ;; else
       vec)))
 
-(defun oai-restapi--modify-vector-last-user-content (vec applicant &rest rest)
+(defun oai-restapi--modify-vector-last-user-content (vec applicant &optional split-flag &rest rest)
   "Replacing last \='user :content with APPLICANT in VEC.
 APPLICANT is either (string or function of old content), like
 `oai-block-tags-replace'.
+If SPLIT-FLAG is non-nil, split content of replaceed messages if it have
+ prefixes. After splitting messages merged by role if there is a
+ sequence of them with same role.
 Uses `oai-restapi--find-last-user-index`.
 Return new vector based on VEC.
 Used in `oai-restapi-request-prepare' to send history of conversation."
@@ -1518,13 +1524,16 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
                              (funcall applicant content-old))
                          ;; else
                          applicant)))
-         (unless (string-equal content-old content-new)
+         (unless (string-equal content-old content-new) ; was modified?
            (let ((newvec (copy-sequence vec)))
              (aset newvec idx
                    (plist-put elt :content content-new)) ; plist-put return new message plist
-             (vconcat
-              (oai-block--merge-by-role
-               (oai-restapi--vector-split-by-chat-prefix newvec (list idx))))))) ; return
+             (if split-flag
+                 (vconcat
+                  (oai-block--merge-by-role
+                   (oai-restapi--vector-split-by-chat-prefix newvec (list idx))))
+               ;; else
+               newvec)))) ; return
        vec)))
 
 ;; -=-= Others

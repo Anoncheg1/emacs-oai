@@ -99,6 +99,18 @@ Used to set `org-link-search-must-match-exact-headline' before
   :type 'boolean
   :group 'oai)
 
+(defcustom oai-block-tags-noweb-split-messages t
+  "Non-nil means after expansion of noweb message is splitted if changed.
+Used in `oai-block-tags-get-content'."
+  :type 'boolean
+  :group 'oai)
+
+(defcustom oai-block-tags-tagslinks-split-messages t
+  "Non-nil means after expansion of links message is splitted if changed.
+Used in `oai-block-tags-get-content'."
+  :type 'boolean
+  :group 'oai)
+
 (defvar oai-block-tags--regexes-backtrace "@\\(Backtrace\\|B\\([\s-]\\|$\\)\\)")
 
 (defvar oai-block-tags--regexes-path "\\(^\\|[\s-]\\)@\\(\\(\\.\\.?/\\|\\.\\.?\\\\\\|\\.\\.?\\|[A-Za-z]:\\\\\\|~[a-zA-Z0-9_.-]*/*\\|/\\|\\\\\\)[a-zA-Z0-9_./\\\\-]*\\)"
@@ -266,10 +278,15 @@ To detect LANG use `oai-block-tags--filepath-to-language'.
     (if (and lang (string-equal-ignore-case "ai" lang) (not inner))
         content
       ;; else - any bock
-      (concat (when header (concat "\n" header))
-              (when content (concat "\n```" (or lang "auto") "\n"
-                                    (string-replace "```" "\\`\\`\\`" content)
-                                    "\n```"))))))
+      (let ((content (when content
+                       (concat "\n```" (or lang "auto") "\n"
+                               (string-replace "```" "\\`\\`\\`"
+                                               (replace-regexp-in-string oai-block--chat-prefixes-re
+                                                                         "_\\&"
+                                                                         content))
+                               "\n```"))))
+        (oai--debug "oai-block-tags--compose-m-block N3" content)
+      (concat (when header (concat "\n" header)) content))))) ; no error if content is nil
 
 (defun oai-block-tags--compose-block-for-path (path-string content)
   "Return mardown block with description.
@@ -373,22 +390,32 @@ Return vector with messages for ai block, or string if REQ-TYPE is
                ;; 2) noweb expansion
                (messages (if noweb-control
                              (if links-only-last
-                                 (oai-restapi--modify-vector-last-user-content messages #'oai-block--apply-noweb)
+                                 (oai-restapi--modify-vector-last-user-content messages
+                                                                               #'oai-block--apply-noweb
+                                                                               oai-block-tags-noweb-split-messages)
                                ;; else
-                               (oai-restapi--modify-vector-content messages #'oai-block--apply-noweb 'user))
+                               (oai-restapi--modify-vector-content messages
+                                                                   #'oai-block--apply-noweb
+                                                                   'user
+                                                                   oai-block-tags-noweb-split-messages))
                            ;; else
                            messages))
                ;; 3) tags and links expansion
                (messages (if (not disable-tags)
                              (if links-only-last
-                                 (oai-restapi--modify-vector-last-user-content messages #'oai-block-tags-replace ai-block-markers)
+                                 (oai-restapi--modify-vector-last-user-content messages
+                                                                               #'oai-block-tags-replace
+                                                                               oai-block-tags-tagslinks-split-messages
+                                                                               ai-block-markers)
                                ;; else
-                               (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user ai-block-markers))
+                               (oai-restapi--modify-vector-content messages
+                                                                   #'oai-block-tags-replace
+                                                                   'user
+                                                                   oai-block-tags-tagslinks-split-messages
+                                                                   ai-block-markers))
                            ;; else
                            messages))
                (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_2" messages))
-
-               (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_3"))
                ;; 4) clear properties (for sending to LLM)
                (messages (if not-clear-properties
                              messages
@@ -1102,42 +1129,29 @@ Return modified string with text properties or the same string."
   (let ((i 9))
     (while (and (string-match oai-block-tags--regexes-backtrace string)
                 (not (zerop i)))
-      (setq i (1- i))
-      (oai--debug "oai-block-tags-replace N1 backtrace %s %s" (match-string 0 string))
-      (if-let* ((bt (or (oai-block-tags--get-backtrace-buffer-string)
-                        (user-error "No backtrace buffer for @Backtrace tag"))) ; *Backtrace* buffer exist
-                (bt (oai-block-tags--take-n-lines bt oai-block-tags-backtrace-max-lines))
-                (bt (oai-block-tags--compose-m-block bt
-                                                     :lang "backtrace")) ; prepare string
-                (new-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--regexes-backtrace bt))) ; insert backtrace
-          (setq string new-string))))
+      ;; check if not in ``` multiline markdown block
+      (unless (or (oai-block-tags--markdown-block-string-p string (match-beginning 0))
+                  (oai-block-tags--string-is-quoted-p string (match-beginning 0)))
+        (setq i (1- i))
+        (oai--debug "oai-block-tags-replace N1 backtrace %s %s" (match-string 0 string))
+        (if-let* ((bt (or (oai-block-tags--get-backtrace-buffer-string)
+                          (user-error "No backtrace buffer for @Backtrace tag"))) ; *Backtrace* buffer exist
+                  (bt (oai-block-tags--take-n-lines bt oai-block-tags-backtrace-max-lines))
+                  (bt (oai-block-tags--compose-m-block bt
+                                                       :lang "backtrace")) ; prepare string
+                  (new-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--regexes-backtrace bt))) ; insert backtrace
+            (setq string new-string)))))
+
 
   ;; - Path @/path/file.txt - replace the last one only
-  ;; ;; OLD -
-  ;; Result will be *Wrapped in markdown*
-  ;; (let ((i 9))
-  ;;   (while (and (string-match oai-block-tags--regexes-path string)
-  ;;               (not (zerop i)))
-  ;;     (setq i (1- i))
-  ;;     (oai--debug "oai-block-tags-replace N2 regexes-path %s %s" i (match-string 0 string))
-  ;;     (if-let* ((path-string (oai-block-tags--replace-last-regex-smart string oai-block-tags--regexes-path)) ; find the last
-  ;;               ;; remove first @ character from link
-  ;;               (path-string (if (> (length path-string) 0)
-  ;;                                (substring path-string 1)
-  ;;                              ""))
-  ;;               (replacement (oai-block-tags--compose-block-for-path-full path-string))
-  ;;               (replacement (concat replacement "\n"))
-  ;;               (new-string (oai-block-tags--replace-last-regex-smart string
-  ;;                                                                     oai-block-tags--regexes-path
-  ;;                                                                     replacement)))
-  ;;         (setq string new-string))))
   (let ((matches '())
         (start 0)
         mbeg)
     ;; Collect all matches and their positions
     (while (string-match oai-block-tags--regexes-path string start)
       (setq mbeg (1- (match-beginning 2))) ; add @
-      (unless (or (oai-block-tags--markdown-block-string-p string mbeg) ; not in ``` multiline markdown block
+      ;; check if not in ``` multiline markdown block
+      (unless (or (oai-block-tags--markdown-block-string-p string mbeg)
                   (oai-block-tags--string-is-quoted-p string mbeg))
         (push (cons (match-string 2 string) mbeg) matches))
       (setq start (match-end 2)))
@@ -1149,10 +1163,6 @@ Return modified string with text properties or the same string."
       (let* ((tag-str (car match)) ; no @
              (pos (cdr match))
              (end (1+ (+ pos (length tag-str)))) ; and + @
-             ;; Remove the first @ character
-             ;; (tag-str (if (string-prefix-p "@" tag-str)
-             ;;                  (substring tag-str 1)
-             ;;                tag-str))
              (replacement (oai-block-tags--compose-block-for-path-full tag-str))
              (replacement (concat replacement "\n")))
         ;; Replace the substring in string
@@ -1167,24 +1177,12 @@ Return modified string with text properties or the same string."
   ;; more exist we skip the first  one that found. if no other
   ;; exist we replace it.
   ;; *Dont Wrap in markdown*
-  ;; ;; OLD -
-  ;; (let ((i 9))
-  ;;   (while (and (string-match oai-block-tags--org-link-any-re string) ; exist in text?
-  ;;               (not (zerop i)))
-  ;;     (setq i (1- i))
-  ;;     (oai--debug "oai-block-tags-replace N3 link-any-r %s %s" i (match-string 0 string))
-  ;;     (if-let* ((link (oai-block-tags--replace-last-regex-smart string oai-block-tags--org-link-any-re)) ; find the last
-  ;;               (replacement (oai-block-tags--get-replacement-for-org-link link ai-block-markers))
-  ;;               (replacement (concat replacement "\n")) ; add empty line after it.
-  ;;               (new-string (oai-block-tags--replace-last-regex-smart string
-  ;;                                                                     oai-block-tags--org-link-any-re
-  ;;                                                                     replacement)))
-  ;;         (setq string new-string))))
   (let ((matches '())
         (start 0))
     ;; Collect all matches up front
     (while (string-match oai-block-tags--org-link-any-re string start)
-      (unless (or (oai-block-tags--markdown-block-string-p string (match-beginning 0)) ; not in ``` multiline markdown block
+      ;; check if not in ``` multiline markdown block
+      (unless (or (oai-block-tags--markdown-block-string-p string (match-beginning 0))
                   (oai-block-tags--string-is-quoted-p string (match-beginning 0)))
         (push (cons (match-string 0 string) (match-beginning 0)) matches))
       (setq start (match-end 0)))

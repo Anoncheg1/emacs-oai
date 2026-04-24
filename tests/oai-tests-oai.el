@@ -164,6 +164,45 @@ asd2
              (expected (nth 2 case))
              (result (apply 'oai-debug--safe-format fmt args)))
         (should (equal result expected))))))
+;; -=-= Test oai--expand-block-deep-masking-chat
+
+(ert-deftest oai--expand-block-deep-masking-chat () ; for masking chat prefixes
+  (let ((tmpfile (make-temp-file "masking-chat-prefix" nil ".org")))
+    (with-temp-file tmpfile
+      (insert "#+begin_ai\n")
+      (let ((p1 (point)))
+        (insert "\n#+end_ai")
+        (goto-char p1))
+      (insert "test\n\n[ai]:\nblabla\n\n[ME]: vv")
+      )
+
+    (with-temp-buffer
+      (insert "#+begin_ai\n")
+      (let ((p1 (point)))
+        (insert "\n#+end_ai")
+        (goto-char p1))
+      (insert (concat "[[" tmpfile "]]"))
+      ;; (print (buffer-substring-no-properties (point-min) (point-max))))
+      (let ((oai-restapi-con-token "token"))
+        (should (= 2 (length (cdr (car (nth 2 (oai-expand-block-deep))))))))
+      (delete-file tmpfile))))
+
+(ert-deftest oai--expand-block-deep-ai () ; for masking chat prefixes
+  (let ((tmpfile (make-temp-file "masking-chat-prefix" nil ".ai")))
+    (with-temp-file tmpfile
+      (insert "test\n\n[ai]:\nblabla\n\n[ME]: vv")
+      )
+
+    (with-temp-buffer
+      (insert "#+begin_ai\n")
+      (let ((p1 (point)))
+        (insert "\n#+end_ai")
+        (goto-char p1))
+      (insert (concat "[[" tmpfile "]]"))
+      ;; (print (buffer-substring-no-properties (point-min) (point-max))))
+      (let ((oai-restapi-con-token "token"))
+        (should (= 4 (length (cdr (car (nth 2 (oai-expand-block-deep))))))))
+      (delete-file tmpfile))))
 ;; -=-= provide
 (provide 'oai-tests-oai)
 

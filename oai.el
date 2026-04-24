@@ -180,8 +180,6 @@
 ;;  begining of the line by removing indentation
 ;; - make key to remove all messages and left only the last
 ;; - support "C-c '" (call-interactively 'org-edit-special)
-;; - expansion of links in oai-block-tags-replace should not happen in
-;;  loop, it should be collect and applied at once. To have control.
 
 ;;; Code:
 

@@ -248,6 +248,12 @@ We use
 
 * Tangling and Noweb: in Org
 ** Tangling
+Links are expanded in chain, loops prevented.
+
+Noweb dont expanded in links targets. Expansion happend in steps: 1) noweb 2) links&tags
+
+“.ai” files extended by splitting chat and enrich it with messages. Other files inserted with adding “_” before chat prefixes to mask them.
+
 Uses:
 - ~:tangle FILENAME~ or ~:tangle yes~ ( ~:tangle~ is not valid)
 - If your Org file is project.org and the code block is in python, the tangled file will be project.py
@@ -265,7 +271,36 @@ If file extension of link in body is “ai”, we don't wrap code in markdown bl
 
 
 see [[file:~/docsmy_short/modified/emacsh::*tangling <<tangle>>][tangling <<tangle>>]]
+*** Implementation notes
+Main: ~oai-block-tags--get-content-at-point~
+
+get ai block in Org
+- ai block in Org - wrapped in ~oai-block-tags--get-content-org-block-at-point~
+
+in ai file
+- [[file:~/sources/emacs-oai/oai-block-tags.el::706::((string-equal "ai" (oai-block-tags--filepath-to-language (buffer-file-name)))]]
+
+in ai block at point
+- markdown subblock - wrapped in markdown block ~oai-block-tags--get-m-block-at-point~
+- message - without markdown block wrapping [[file:~/sources/emacs-oai/oai-block-tags.el::785::(if (and (looking-at oai-block--chat-prefixes-re)]]
+
+Other modes at point ~oai-block-tags--get-content-at-point-not-org~.
+
+file path:
+- oai-block-tags--compose-block-for-path-full
+
+Simpliest way to get content with full explansion without text properties:
+#+begin_src elisp :lexical t :results none :exports code :eval no
+(let ((element (oai-block-p)))
+  (oai-block-tags--clear-properties
+   (oai-block-tags-replace (oai-block-get-content element nil :tangle nil)
+                           (oai-block-get-header-marker element))))
+#+end_src
+
+
 ** Noweb
+*** get content
+We always split content of message after expanding noweb.
 *** usage
 Expand links on  evaluating, tangling, or exporting.
 - Doc https://orgmode.org/manual/Noweb-Reference-Syntax.html
@@ -404,40 +439,6 @@ If loop detected, we disable ~tangle-control~ and ~noweb-control~.
 
 How? We keep trace of all ai blocks that was pros a list of header markers. Do it in functions:
 -`oai-block-tags-get-content-ai-messages'
-
-* Tags and Links: get content
-** Principles
-
-Links are expanded in chain, loops prevented.
-
-Noweb dont expanded in links targets. Expansion happend in steps: 1) noweb 2) links&tags
-
-“.ai” blocks extended by splitting chat and enrich it with messages.
-** Implementation notes
-Main: ~oai-block-tags--get-content-at-point~
-
-get ai block in Org
-- ai block in Org - wrapped in ~oai-block-tags--get-content-org-block-at-point~
-
-in ai file
-- [[file:~/sources/emacs-oai/oai-block-tags.el::706::((string-equal "ai" (oai-block-tags--filepath-to-language (buffer-file-name)))]]
-
-in ai block at point
-- markdown subblock - wrapped in markdown block ~oai-block-tags--get-m-block-at-point~
-- message - without markdown block wrapping [[file:~/sources/emacs-oai/oai-block-tags.el::785::(if (and (looking-at oai-block--chat-prefixes-re)]]
-
-Other modes at point ~oai-block-tags--get-content-at-point-not-org~.
-
-file path:
-- oai-block-tags--compose-block-for-path-full
-
-Simpliest way to get content with full explansion without text properties:
-#+begin_src elisp :lexical t :results none :exports code :eval no
-(let ((element (oai-block-p)))
-  (oai-block-tags--clear-properties
-   (oai-block-tags-replace (oai-block-get-content element nil :tangle nil)
-                           (oai-block-get-header-marker element))))
-#+end_src
 
 * Markdown: ```blocks
 

@@ -264,6 +264,8 @@ test
 #+end_src
 
 Chain of noweb references is possible, referenced ai blocks evaluated with :tangle context.
+
+“.ai” files as links expanded as new chat messages, other files inserted in markdown block and with masked chat prefixes by adding “_” before chat role.
 * How this works?
 We add “ai” as a type of special block to variables ~org-protecting-blocks~ and ~org-structure-template-alist~.
 

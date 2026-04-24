@@ -546,11 +546,13 @@
 (ert-deftest oai-tests-restapi--modify-last-user-content ()
   (should
    (equal (oai-restapi--modify-vector-last-user-content
+           ;; vec
            (vector (list :role 'system :content "foo")
                    (list :role 'user :content "How to make coffe1?")
                    (list :role 'assistant :content "IDK.")
                    (list :role 'user :content "How to make coffe2?")
                    (list :role 'system :content "other"))
+           ;; applicant
            (lambda (x) (concat x " w11")))
           '[(:role system :content "foo")
             (:role user :content "How to make coffe1?")
@@ -561,8 +563,18 @@
     (setq res (oai-restapi--modify-vector-last-user-content '[(:role system :content "ad") (:role user :content "ad\n[ai:] Asd")] (lambda (x) x) ))
     (should (equal res '[(:role system :content "ad") (:role user :content "ad\n[ai:] Asd")])))
   (let (res)
-    (setq res (oai-restapi--modify-vector-last-user-content '[(:role system :content "ad") (:role user :content "vvb") (:role user :content "ad\n[ai:] Asd")] (lambda (x) (concat x "b")) ))
-    (should (equal res '[(:role system :content "ad") (:role user :content "vvb\nad") (:role assistant :content "Asdb")]))))
+    (setq res (oai-restapi--modify-vector-last-user-content '[(:role system :content "ad") (:role user :content "vvb") (:role user :content "ad\n[ai:] Asd")]
+                                                            (lambda (x) (concat x "b"))
+                                                            t ; split
+                                                            ))
+    (should (equal res '[(:role system :content "ad") (:role user :content "vvb\nad") (:role assistant :content "Asdb")])))
+
+  (let (res)
+    (setq res (oai-restapi--modify-vector-last-user-content '[(:role system :content "ad") (:role user :content "vvb") (:role user :content "ad\n[ai:] Asd")]
+                                                            (lambda (x) (concat x "b"))
+                                                            nil ; split
+                                                            ))
+    (should (equal res '[(:role system :content "ad") (:role user :content "vvb") (:role user :content "ad\n[ai:] Asdb")]))))
 
 ;; -=-= For: `oai-restapi--modify-vector-content'
 (ert-deftest oai-tests-restapi--modify-vector-content1 ()
