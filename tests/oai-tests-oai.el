@@ -71,7 +71,7 @@ Please
 
 [ME]: VV"))
         ;; (print (setq res (oai-expand-block-deep)))))
-        (print (setq res (oai-expand-block-deep)))
+        ;; (print (setq res (oai-expand-block-deep)))
         (should (equal
                  (oai-expand-block-deep)
                  '("https://api.openai.com/v1/chat/completions" (("Content-Type" . "application/json") ("Authorization" . "Bearer token"))

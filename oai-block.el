@@ -1101,19 +1101,23 @@ Return list of plist with :content and :role."
 
 
 (defun oai-block--prepare-chat-messages (parts &optional default-system-prompt persistant-sys-prompts max-token-recommendation not-merge separator)
-  "Implement first step of preparation for chat messages.
-PARTS is list of plist with :role and :content.
-`DEFAULT-SYSTEM-PROMPT' used for [SYS] or the first [SYS]
-prompt found in `CONTENT-STRING'.
-If `PERSISTANT-SYS-PROMPTS' is non-nil, [SYS] prompts are
- intercalated.
-When NOT-MERGE is not-nil, don't merge messages after reading.
-SEPARATOR used for merging message with same role.
-Positions CONTENT-START and CONTENT-END used as limits for parsing ai
-block, may be retrieved with :contents-begin and :contents-end
-properties of ai block Org element.
-MAX-TOKEN-RECOMMENDATION is string to add to first system message.
-Return new list with plist with :role and :content."
+  "Prepare a list of chat messages.
+
+PARTS is a list of plists, each with :role and :content keys
+ representing chat messages.
+
+- If DEFAULT-SYSTEM-PROMPT is provided and the first message is not a
+ system prompt, it is inserted at the beginning.
+- If PERSISTANT-SYS-PROMPTS is provided, its value is prepended to the
+ content of each user message.
+- MAX-TOKEN-RECOMMENDATION is appended to the first system message's
+ content.
+- If NOT-MERGE is nil, adjacent messages with the same role are merged
+ using SEPARATOR (defaults to \\n).
+
+Returns a new list of message plists with :role and :content.
+Note: This function modifies the contents of the message plists in
+ PARTS."
   (oai--debug "oai-block--prepare-chat-messages N1" parts)
   (oai--debug "oai-block--prepare-chat-messages N2 %s" default-system-prompt persistant-sys-prompts max-token-recommendation not-merge separator)
   (let* ((parts (if not-merge parts
@@ -1123,21 +1127,20 @@ Return new list with plist with :role and :content."
 
       ;; (oai--debug "oai-block--collect-chat-messages N3" parts)
 
-      ;; 4) Parts: fix [SYS:]
+      ;; 1) Parts: fix [SYS:]
       (when (and default-system-prompt (not starts-with-sys-prompt-p))
-        ;; add
         (setq parts (cons (list :role 'system :content default-system-prompt) parts)))
-      ;; Parts:
+
+      ;; 2) max-token - add string to content or add system message
       (when max-token-recommendation
         (if (or starts-with-sys-prompt-p default-system-prompt)
-            ;; modify content
             (setf (plist-get (car parts) :content)
                   (concat
                    (plist-get (car parts) :content) " " max-token-recommendation))
-          ;; else - add
+          ;; else - add system
           (setq parts (cons (list :role 'system :content max-token-recommendation) parts))))
 
-      ;; Parts: add persistant-sys-prompts as a prefix to every 'user message
+      ;; 3) add persistant-sys-prompts as a prefix to every 'user message
       (when persistant-sys-prompts
         (let ((lst parts)
               cur)

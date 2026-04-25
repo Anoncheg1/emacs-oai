@@ -25,12 +25,20 @@
 ;; <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
 ;;; Commentary:
-;; `oai-block-tags-replace' is main function for replace links.
+
 ;; Link is Org links, tags is AI links in form of @something.
-;;
-;; How this works? (TODO)
+;
+;; Main functions:
+;; - `oai-block-tags-replace' is main function for replace links.
+;; - `oai-block-tags-get-content-ai-messages' is used to prepare ai block for request
+;; - `oai-block-tags-get-content' is used to get content for by links, tags or noweb
+
+;; How this works?
 ;; - for highlighting this add hook to Org with font-lock logic
-;; - for replacing tags we operate at string variable
+;; - for replacing tags we operate at string variable and grab things from buffers
+;; - noweb and links are extended after splitting block to messages
+
+;; Steps:
 ;; 1) find tags/links
 ;; 2) with ol.el we find target of link and compose markdown block as a string
 ;; 3) use `oai-block-tags--replace-last-regex-smart' to replace substring.
@@ -49,15 +57,13 @@
 ;; - [[PATH::NUM-NUM]] - range
 ;; - [[PATH::NUM]] creating
 ;;
-;; To check links use "C-c ?" key, or M-x oai-expand-block.
-;; `oai-block-tags--get-content-at-point' - extract target from
-;;   current position
+;; To check links use "C-c ." key, or M-x oai-expand-block.
+;; - `oai-block-tags--get-content-at-point' - get string
+;;  representation of some position for LLM to add to message
 
 ;; *Position and line number*
 ;; - `line-number-at-pos'
 ;; - `oai-block-tags--line-num-to-positon'
-
-;;; TODO:
 
 ;; -=-= includes
 (require 'org)
@@ -385,7 +391,7 @@ Return vector with messages for ai block, or string if REQ-TYPE is
                                                                    sys-prompt
                                                                    sys-prompt-for-all-messages
                                                                    max-tokens-string
-                                                                   t)) ; not-merge
+                                                                   t)) ; not-merge - user may use links and organize message by self.
                (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_1" messages))
                ;; 2) noweb expansion
                (messages (if noweb-control

@@ -142,14 +142,13 @@
 ;; - add guide to use `oai-restapi-request' and with retries for simple
 ;;   ELisp LLM call and get result for TAB key and some place in buffer.
 ;; - add option for tag to expand only the last user prompt or in all.
-;; - C-c C-k should jump to current begining of message, not next
+;; - C-c C-k should jump to current bexgining of message, not next
 ;; - add buttons: 1) generate button based on LLM answer 2) handle clicking.
 ;; - default requst as one plist configuration
 ;; - support for https://github.com/LionyxML/markdown-ts-mode
 ;; - check big markdown-mode for insights for us.
 ;; - stop previous request if new one called with all equal parameters
 ;; - fill-paragraph should not break markdown quotes and bolds
-;; - add new line before ai answer
 ;; - make font-lock better like in [[file:/usr/share/emacs/30.2/lisp/gnus/message.el
 ;; ::1701::(defun message-font-lock-make-cited-text-matcher (level maxlevel)]]
 ;; - make `oai-expand-block' executed with `org-babel-expand-src-block'.

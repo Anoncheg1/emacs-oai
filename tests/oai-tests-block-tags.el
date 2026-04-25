@@ -30,7 +30,7 @@
 (require 'oai-block-tags)
 ;; (print (list "vvvvvvvvvvvvvvvvvvvvvv1" (bound-and-true-p debug)))
 (require 'ert)
-(defvar ert-enabled t)
+(defvar ert-enabled nil)
 ; org-links - is optional dependency
 
 ;; (eval-buffer) or (load-file "path/to/async-tests.el")
