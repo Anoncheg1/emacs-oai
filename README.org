@@ -99,6 +99,8 @@ Redefine:
 - ~oai-restapi--get-headers~ - If you need some special HTTP headers.
 - ~oai-restapi--get-single-response-text~ and ~oai-restapi--normalize-response~ - if HTTP responses is not standard for ~"stream":false~ and ~"stream":true~ respectively.
 ** Fontification configuration
+By default fintified only major markdown elements: “#headers”, quotes, LaTeX, links&tags.
+
 To enable all Org fintifications in ai blocks:
 : (setq org-protecting-blocks (delete "ai" org-protecting-blocks))
 : (org-restart-font-lock)
@@ -139,12 +141,15 @@ or
 4) Keep token in *encrypted “auth-source” file*. Full decription will be provided later...
 
 ** Optional hooks
+This hooks add space “ “ before lines that in ai block that looks like Org header, that fix confustion for Org logic.
 #+begin_src elisp :lexical t :results none :exports code :eval no
 (add-hook 'oai-block-after-chat-insertion-hook #'oai-optional-remove-distant-empty-lines-hook-function)
+#+end_src
+
+This hook remove empty lines if there is too much of them in response.
+#+begin_src elisp :lexical t :results none :exports code :eval no
 (add-hook 'oai-block-after-chat-insertion-hook #'oai-optional-remove-headers-hook-function)
 #+end_src
-One hooks add space “ “ before lines that in ai block that looks like Org header, that fix confustion for Org logic.
-Another hook remove empty lines if there is too much of them in response.
 
 * Supported “[AI]:” in-text prefixes
 - SYS-EVERYWHERE
@@ -155,14 +160,14 @@ Another hook remove empty lines if there is too much of them in response.
 
 See ~oai-block-roles-prefixes~ in [[.oai-block.el]] for more info.
 * Supported parameteres for #+begin_ai
-- :model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" - string
-- :service <service> - string symbol/string (oai-restapi-con-service)
-- :max-tokens 150 - int
-- :stream - bool
-- :top-p float
-- :temperature float
-- :frequency-penalty float
-- :presence-penalty float
+- :model - string, ex: :model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+- :service - label/string, ex: :service deepseek--1
+- :max-tokens - int, ex: :max-tokens 300
+- :stream - bool, ex: :stream nil
+- :top-p - float, ex: :top-p 12.45
+- :temperature - float
+- :frequency-penalty - float
+- :presence-penalty - float
 - :sys-everywhere - string (persistant-sys-prompts) [[./oai-block.el]]
 - :chat :completion - bool
 - :chain - bool [[./oai-prompt.el]]
