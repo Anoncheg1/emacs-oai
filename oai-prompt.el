@@ -104,7 +104,29 @@ Return t if we replace default call implementation
       (apply #'oai-prompt-request-chain args)
       t))
 
-(defun oai-prompt-request-chain (_req-type element noweb-control sys-prompt _sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service _stream &optional _info)
+(defun oai-prompt-prepare-chain-prepare (step header-marker noweb-control sys-prompt max-tokens)
+  "Prepare messages for request in step of chain.
+Use `oai-prompt-chain-list'."
+  (let* ((messages (with-current-buffer (marker-buffer header-marker)
+                     ;; get messages vector
+                     (oai-block-tags-get-content-ai-messages (oai-block-element-by-marker header-marker)
+                                                             noweb-control
+                                                             nil ; links-only-last
+                                                             nil ; not-clear-properties
+                                                             nil ; ai-block-markers
+                                                             nil ; disable-tags
+                                                             'chat)))
+         (messages (oai-prompt-collect-chat-research-steps-prompt oai-prompt-chain-list
+                                                                  step
+                                                                  messages
+                                                                  sys-prompt
+                                                                  max-tokens))
+         (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
+         (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties 'user))
+         (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
+    messages))
+
+(defun oai-prompt-request-chain (_req-type element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service _stream &optional _info)
   "Use :chain parameter to activate and use :step to execute chain of prompt.
 Aspects:
 1) start and stop reporter at begining and at the end (final callback).
@@ -129,7 +151,8 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
         ;; (gap-between-requests 3) ; TODO
         ;; (step (alist-get :step (oai-block-get-info element))) ; Works? not tested TODO
         (oai-timers-duration-copy oai-timers-duration)
-        (oai-timers-retries-copy oai-timers-retries))
+        (oai-timers-retries-copy oai-timers-retries)
+        )
 
     (let (
           (call (lambda (step) ; called 3 times
@@ -144,20 +167,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
                                                      oai-timers-duration-copy ; use current-buffer
                                                      callback
                                                      :retries oai-timers-retries-copy ; use current-buffer
-                                                     :messages
-                                                     (oai-prompt-collect-chat-research-steps-prompt oai-prompt-chain-list
-                                                                                                    step
-                                                                                                    (with-current-buffer (marker-buffer header-marker)
-                                                                                                      ;; get messages vector
-                                                                                                      (oai-block-tags-get-content-ai-messages (oai-block-element-by-marker header-marker)
-                                                                                                                                              noweb-control
-                                                                                                                                              nil ; links-only-last
-                                                                                                                                              nil ; not-clear-properties
-                                                                                                                                              nil ; ai-block-markers
-                                                                                                                                              nil ; disable-tags
-                                                                                                                                              'chat))
-                                                                                                    sys-prompt
-                                                                                                    max-tokens)
+                                                     :messages (oai-prompt-prepare-chain-prepare step  header-marker noweb-control sys-prompt max-tokens)
                                                      :max-tokens max-tokens
                                                      :header-marker header-marker
                                                      :temperature temperature

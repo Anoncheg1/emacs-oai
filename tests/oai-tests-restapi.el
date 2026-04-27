@@ -665,12 +665,12 @@
            (res (oai-block-tags-get-content-ai-messages
                  element
                  nil nil nil nil nil ; noweb-control links-only-last not-clear-properties ai-block-markers disable-tags
-                 'chat "sys1" "sys-all2" "3")))
+                 'chat "sys1" "3")))
       ;; res))
       (should (equal res '[(:role system :content "sys1 3")
-                           (:role user :content "sys-all2 sshh2")
+                           (:role user :content "sshh2")
                            (:role assistant :content "vvhh2")
-                           (:role user :content "sys-all2 tthh2")])))))
+                           (:role user :content "tthh2")])))))
       ;; (should (string-equal "sys-all2 sshh2hh1" (plist-get (aref res 1) :content)))))
       ;; (should (string-equal "sys-all2 tthh2hh1" (plist-get (aref res 3) :content))))))
 

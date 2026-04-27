@@ -199,20 +199,20 @@ you can override it with: '[SYS]: <your prompt>'."
   :type 'string
   :group 'oai)
 
-(defcustom oai-restapi-default-inject-sys-prompt-for-all-messages nil
-  "Wether to add the system prompt before every user message.
-By default the system prompt is only added before the first
-message.
-Get prompt from `oai-restapi-default-chat-system-prompt'.
-You can set this to true for a single block using the
-:sys-everywhere option on the #+begin_ai block.
-This can be useful to enforce the behavior specified by this
-messages."
-  :type '(choice (const :tag "Before every message" all)
-                 (const :tag "Before first" first)
-                 (const :tag "Before last" last)
-                 (const :tag "Don't add" nil))
-  :group 'oai)
+;; (defcustom oai-restapi-default-inject-sys-prompt-for-all-messages nil
+;;   "Wether to add the system prompt before every user message.
+;; By default the system prompt is only added before the first
+;; message.
+;; Get prompt from `oai-restapi-default-chat-system-prompt'.
+;; You can set this to true for a single block using the
+;; :sys-everywhere option on the #+begin_ai block.
+;; This can be useful to enforce the behavior specified by this
+;; messages."
+;;   :type '(choice (const :tag "Before every message" all)
+;;                  (const :tag "Before first" first)
+;;                  (const :tag "Before last" last)
+;;                  (const :tag "Don't add" nil))
+;;   :group 'oai)
 
 
 ;; Azure-Openai specific variables
@@ -324,6 +324,24 @@ Argument _HEADER-MARKER not used."
     (error nil)))
 
 ;; -=-= Get constant functions
+;; TODO: move to block-chat.el max-tokens recommendation (optional?)
+(defun oai-restapi--get-length-recommendation (max-tokens)
+  "Recomendation to limit yourself if MAX-TOKENS is lower 1000.
+Useful for small max-tokens.
+- words = tokens * 0.75
+- tokens = words * 1.33333
+- token = 4 characters
+- word - 5 characters
+- sentence - 15-25 words = 20 words = 26 tokens (tech/academ larger)
+- paragraph - 6 sentences, 500-750 characters,
+              150-300 words = 150 words = 200 tokens
+- page - around 3-4 paragraphs, 500 words = 600 tokens."
+  (when (and max-tokens
+             (< max-tokens 900))
+    (if (< max-tokens 100)
+        (format "Output this before answer: My answer is should be in %d-tokens." (- max-tokens 10))
+      (format "Output this line before answer: I will answer in less than %d-tokens." max-tokens))))
+
 (defun oai-restapi--check-model (model endpoint)
   "Check if the model name is somehow mistyped.
 MODEL is the model name.  ENDPOINT is the API endpoint."
@@ -516,25 +534,9 @@ If MESSAGES are provided, type of request is chat, otherwise completion."
 
 ;; (oai-restapi--get-headers "local")
 
-(defun oai-restapi--get-length-recommendation (max-tokens)
-  "Recomendation to limit yourself if MAX-TOKENS is lower 1000.
-Useful for small max-tokens.
-- words = tokens * 0.75
-- tokens = words * 1.33333
-- token = 4 characters
-- word - 5 characters
-- sentence - 15-25 words = 20 words = 26 tokens (tech/academ larger)
-- paragraph - 6 sentences, 500-750 characters,
-              150-300 words = 150 words = 200 tokens
-- page - around 3-4 paragraphs, 500 words = 600 tokens."
-  (when (and max-tokens
-             (< max-tokens 900))
-    (if (< max-tokens 100)
-        (format "Output this before answer: My answer is should be in %d-tokens." (- max-tokens 10))
-      (format "Output this line before answer: I will answer in less than %d-tokens." max-tokens))))
-
 ;; -=-= Prepare content
-(defun oai-restapi-request-prepare (req-type element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional _info)
+;; noweb-control sys-prompt sys-prompt-for-all-messages &optional _info
+(defun oai-restapi-request-prepare (req-type content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
   "Compose API request from data and start a server-sent event stream.
 Call `oai-restapi-request' function as a next step.
 Called from `oai-call-block' in main file.
@@ -544,8 +546,6 @@ REQ-TYPE symbol - is completion or chat mostly.  Set
   `oai-req-type-functions'.
 noweb-control - if non-nill, noweb links should be expanded.
 SYS-PROMPT string - first system instruction as a string.
-SYS-PROMPT-FOR-ALL-MESSAGES from
-  `oai-restapi-default-inject-sys-prompt-for-all-messages' variable.
 MODEL string - is the model to use.
 MAX-TOKENS integer - is the maximum number of tokens to generate.
 TEMPERATURE integer - 0-2 lower - low 0.3 high-probability tokens
@@ -558,30 +558,8 @@ PRESENCE-PENALTY integer - -2-2, lower less repeat concepts.
 SERVICE symbol or string - is the AI cloud service such as openai or
   azure-openai.
 STREAM string - as bool, indicates whether to stream the response."
-  (oai--debug "oai-restapi-request-prepare %s" model sys-prompt-for-all-messages stream)
-  (let* (
-         ;; disable-tags ai-block-markers links-only-last not-clear-properties ; nil, for get-content call
-         (max-tokens-string
-           (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
-             (oai-restapi--get-length-recommendation max-tokens)))
-         (content
-          (if (eql req-type 'completion) ; old
-              (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
-            ;; chat - vector
-            (oai-block-tags-get-content-ai-messages
-             element
-             noweb-control
-             oai-restapi-links-only-last ; links-only-last
-             nil ; not-clear-properties
-             nil ; ai-block-markers
-             nil ; disable-tags
-             req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)
-
-            ;; (oai-restapi-prepare-content
-            ;;  element noweb-control req-type sys-prompt sys-prompt-for-all-messages max-tokens)
-            ))
-         (content (oai-block--pipeline oai-restapi-after-prepare-messages-hook content))
-         (end-marker (oai-block--get-content-end-marker element))
+  (oai--debug "oai-restapi-request-prepare %s" model stream)
+  (let* ((end-marker (oai-block--get-content-end-marker element))
          (callback (if (eql req-type 'completion) ; chat - ; set to oai-restapi--current-url-request-callback
                        ;; completion mode
                        (lambda (result) (oai-block--insert-single-response end-marker
@@ -961,7 +939,9 @@ Only one request per ai block is allowed at one time.
 Timer function restart requst and restart timer with attempts-1.
 In callback we add cancel timer function.
 We save and cancel time only in callback.
-TIMER is time to wait for one request.
+- TIMER is time to wait for one request.
+Opetional arguments:
+- MESSAGES - is vector of messages for chat reques type.
 Use argument SERVICE to find endpoint, MODEL as parameter to request.
 How? we restart request if
 1.  url-buffer is alive - hanged - in timer - in timer we check
@@ -970,11 +950,11 @@ url-buffer is alive.
 We store url-buf with marker of header in oai-timers.el"
   (oai--debug "oai-restapi-request-llm-retries0 timeout %s" timeout)
   (with-current-buffer (marker-buffer header-marker)
-    (let* (
-          ;; prepare request - apply tags to message
-          (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
-          (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties 'user))
-          (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
+    ;; (let* (
+    ;;       ;; prepare request - apply tags to message
+    ;;       (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
+    ;;       (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties 'user))
+    ;;       (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
       (when (or (and retries (> retries 0))
                 (not retries))
         (oai--debug "oai-restapi-request-llm-retries1 %s" (current-buffer))
@@ -1069,7 +1049,7 @@ We store url-buf with marker of header in oai-timers.el"
           ;; save url-buffer
           (oai--debug "oai-restapi-request-llm-retries3" oai-timers--element-marker-variable-dict)
           (oai-timers--set url-buffer header-marker)
-          (oai--debug "oai-restapi-request-llm-retries4" oai-timers--element-marker-variable-dict))))))
+          (oai--debug "oai-restapi-request-llm-retries4" oai-timers--element-marker-variable-dict)))))
 
 ;; -=-= error, payload, url-request-on-change-function
 

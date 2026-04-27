@@ -477,7 +477,36 @@ org-fill-paragraph = oai-block-fill-paragraph
 - auto-mode-alist - (file-extension . major-mode) - used in `oai-block-tags--filepath-to-language'
 - org-src-lang-modes - used by `oai-block-tags--filepath-to-language'. In Org, used by org-src-get-lang-mode in org-src-font-lock-fontify-block.
 - org-babel-tangle-lang-exts - used by Org function `org-babel-tangle-single-block' which called from `org-babel-tangle'.
-* block-chat
+* oai-block-chat.el
+** problem of v0.3
+oai-block-tags.el depends on:
+- oai-restapi--modify-vector-last-user-content
+- oai-restapi--modify-vector-content
+- oai-restapi-add-max-tokens-recommendation
+- oai-restapi--get-length-recommendation
+
+oai-restapi.el depends on:
+- oai-block-tags-replace - for old completion in ~oai-restapi-request-prepare~, messages ~oai-restapi-request-llm-retries~
+- oai-block-tags-get-content-ai-messages - in ~oai-restapi-request-prepare~
+- oai-block-tags--clear-properties - in ~oai-restapi-request-llm-retries~
+
+f-s:
+- oai-block-tags-get-content  - used in ~oai-block-tags--get-content-org-block-at-point~ and ~oai-expand-block~
+  - return string
+  - get content of any supported Org block
+- oai-block-tags-get-content-ai-messages -
+  - return vector
+  - get content for ai block
+  - 1) oai-block-collect-chat-messages-at-point 2) apply noweb and tags.
+- oai-restapi-request-prepare - used only in oai.el 1) prepare messages, 2) set callback 3) call REST, 4) set timer
+- oai-restapi-request-llm-retries - used in oai-prompt-request-chain
+
+Solution:
+1) split oai-block-collect-chat-messages-at-point to get messages and apply noweb and tags (not needed)
+2) oai-restapi-request-prepare - split for one in oai.el that prepare messages as vector and second that call REST and set times and set callbacks
+3) oai-restapi-request-llm-retries - move messages preparation code to prompt.el
+4)
+
 * Tests: Not covered staff
 - font-locks
 - fill paragraph

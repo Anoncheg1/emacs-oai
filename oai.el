@@ -206,8 +206,8 @@
   :type 'boolean
   :group 'oai)
 
-(defcustom oai-req-type-functions (list :chat		#'oai-restapi-request-prepare ; at oai-restapi.el
-                                        :completion	#'oai-restapi-request-prepare
+(defcustom oai-req-type-functions (list :chat		#'oai-request-prepare
+                                        :completion	#'oai-request-prepare
                                         :chain		#'oai-prompt-request-chain) ; at oai-prompt.el
   "Custom variants to execute request.
 If you specify :chain at block parameters line, associated function will
@@ -221,14 +221,14 @@ If you specify :chain at block parameters line, associated function will
 ;; -=-= C-c C-c main interface
 
 (defun oai-ctrl-c-ctrl-c ()
-  "Remove result and parse ai block header parameters.
-Returning t is Org requirement."
+  "Remove result and parse ai block header parameters."
   (when (oai-block-p)
     (oai-block-remove-result)
-    (oai-call-this-or-that #'oai-restapi-request-prepare
-                           oai-req-type-functions
-                           (oai-parse-org-header))
-    t))
+    (oai-call-this-or-that #'oai-request-prepare ; default
+                           oai-req-type-functions	; :key #'function pairs
+                           (oai-parse-org-header))	; req-type + parameters
+    t)) ; return, required by Org
+
 
 (defun oai-call-this-or-that (fn-default fn-list args)
   "If you specify :chain in ai block, we call related function.
@@ -252,12 +252,13 @@ ARGS is `oai-parse-org-header' result."
 
 (defun oai-parse-org-header ()
   "Parsing ai block header and parameters.
+Result of this function passed to `oai-req-type-functions'.
 Return list of arguments args."
   (let* ((element (oai-block-p)) ; oai-block.el
          (info (oai-block-get-info element)) ; ((:max-tokens . 150) (:service . "together") (:model . "xxx")) ; oai-block.el
-         (sys-prompt-for-all-messages (or (not (eql 'x (alist-get :sys-everywhere info 'x)))
-                                          (org-entry-get-with-inheritance "SYS-EVERYWHERE") ; org
-                                          oai-restapi-default-inject-sys-prompt-for-all-messages)) ; oai-restapi.el
+         ;; (sys-prompt-for-all-messages (or (not (eql 'x (alist-get :sys-everywhere info 'x)))
+         ;;                                  (org-entry-get-with-inheritance "SYS-EVERYWHERE") ; org
+         ;;                                  oai-restapi-default-inject-sys-prompt-for-all-messages)) ; oai-restapi.el
          (sys-prompt (or (org-entry-get-with-inheritance "SYS") ; org
                          (oai-block--get-sys :info info ; oai-block.el
                                              :default oai-restapi-default-chat-system-prompt)))
@@ -279,15 +280,39 @@ Return list of arguments args."
                              (user-error "Model not specified nor in ai block nor in oai-restapi-con-model.  To disable model completely set it to \"nil\""))
                            (when (string-equal-ignore-case model "nil")
                              (setq model nil)) ; if specified as "nil" string explicitly, to disable.
-                           (list element noweb-control sys-prompt sys-prompt-for-all-messages ; message
+                           (list element noweb-control sys-prompt ; message
                                  model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
                                  info))))
+
+
+(defun oai-request-prepare (req-type element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional _info)
+  "Prepare chat messages for request."
+  (let* ((max-tokens-string
+          (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
+            (oai-restapi--get-length-recommendation max-tokens)))
+         (content ; string or vector
+          (if (eql req-type 'completion) ; old
+              (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
+            ;; else - chat - vector
+            (oai-block-tags-get-content-ai-messages
+             element
+             noweb-control
+             oai-restapi-links-only-last ; links-only-last
+             nil ; not-clear-properties
+             nil ; ai-block-markers
+             nil ; disable-tags
+             req-type sys-prompt max-tokens-string))) ; return vector
+         (content (oai-block--pipeline oai-restapi-after-prepare-messages-hook content)))
+    ;; REST call - set timer and callback for element
+    (oai-restapi-request-prepare ; at oai-restapi.el
+     req-type content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)))
+
 
 ;; -=-= interactive fn: key M-x: oai-expand-block
 (defun oai-expand-block-deep ()
   "Output almost RAW information about request with headers and messages.
 Return list of strings to print."
-  (seq-let (element noweb-control sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream info) (oai-parse-org-header)
+  (seq-let (element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service stream info) (oai-parse-org-header)
     (let* ((req-type (oai-block--get-request-type info))
            (max-tokens-string (when (and max-tokens
                                          oai-restapi-add-max-tokens-recommendation)
@@ -301,7 +326,7 @@ Return list of strings to print."
                         nil ; not-clear-properties
                         nil ; ai-block-markers
                         nil ; disable-tags
-                        req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)))) ; for else see :prompt
+                        req-type sys-prompt max-tokens-string)))) ; for else see :prompt
       (list
        (oai-restapi--get-endpoint messages service)
        (oai-restapi--get-headers service)
@@ -334,10 +359,9 @@ block was found, otherwise nil."
                            (pp-to-string (oai-expand-block-deep))
                          ;; - just content with expanded links:
                          (oai-block-tags-get-content element
-                                                     t  ; noweb-control
-                                                     nil ; links-only-last
-                                                     t ; not-clear-properties
-                                                     ))))
+                                                     t		; noweb-control
+                                                     nil	; links-only-last
+                                                     t))))	; not-clear-properties
     (if (called-interactively-p 'any)
         (let ((buf (get-buffer-create "*OAI Preview*")))
           (with-help-window buf (with-current-buffer buf

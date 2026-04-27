@@ -349,7 +349,8 @@ Start and first line after header, end at of line of the first not empty
         (cons (car res) (cadr res))))))
 
 ;; -=-= functions: get-content, get-content-ai-messages
-(defun oai-block-tags-get-content-ai-messages (&optional element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt sys-prompt-for-all-messages max-tokens-string)
+;; sys-prompt-for-all-messages
+(defun oai-block-tags-get-content-ai-messages (&optional element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt max-tokens-string)
   "Get content of ai block with expansion of links and cleaning.
 Execution in not `org-mode' is supported.
 Same to `oai-restapi-prepare-content'
@@ -358,7 +359,7 @@ Expand links and tags only for :eval context, for :tangle, dont expand.
 If ELEMENT not specified, :begin of current element is used, in not Org
  mode `point-min' is used.
 Optional arguments ELEMENT LINKS-ONLY-LAST
- NOT-CLEAR-PROPERTIES REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES
+ NOT-CLEAR-PROPERTIES REQ-TYPE SYS-PROMPT
  MAX-TOKENS documented at `oai-block-tags-get-content'.
 If DISABLE-TAGS boolen flag is non-nil, links will not be expanded, it
  is like inverse NOWEB-CONTROL.
@@ -389,7 +390,7 @@ Return vector with messages for ai block, or string if REQ-TYPE is
         (let* (;; 1) get messages as vector from content
                (messages (oai-block-collect-chat-messages-at-point element
                                                                    sys-prompt
-                                                                   sys-prompt-for-all-messages
+                                                                   ;; sys-prompt-for-all-messages
                                                                    max-tokens-string
                                                                    t)) ; not-merge - user may use links and organize message by self.
                (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_1" messages))
@@ -444,7 +445,8 @@ Return vector with messages for ai block, or string if REQ-TYPE is
 ;; functions and pass it through the chain to compare target of link
 ;; with `ai-block-markers' before calling
 ;; `oai-block-tags-get-content' `oai-block-tags-replace'.
-(defun oai-block-tags-get-content (&optional element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt sys-prompt-for-all-messages max-tokens)
+;; old: sys-prompt-for-all-messages
+(defun oai-block-tags-get-content (&optional element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt max-tokens-string)
   "Get content of supported blocks in current position in current buffer.
 With properly expansion of tags, links and noweb references.
 For evaluation, tangling, or exporting.
@@ -465,30 +467,32 @@ If NOT-CLEAR-PROPERTIES is not-nil, don't clear region highlighting for
 If LINKS-ONLY-LAST is not-nil, links expansion will be made for last
  user message only, otherwise for all user message.
 Called from `oai-expand-block', goint to use it everywhere.
-REQ-TYPE SYS-PROMPT SYS-PROMPT-FOR-ALL-MESSAGES MAX-TOKENS
+REQ-TYPE SYS-PROMPT MAX-TOKENS
  arguments documented in `oai-restapi-request-prepare'.
 Return string with expanded content."
   (oai--debug "oai-block-tags-get-content N1 %s" ai-block-markers)
   (when-let* ((element (or element (oai-block-p) (oai-block-tags--block-at-point))))
-    (let ((max-tokens-string
-           (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
-             (oai-restapi--get-length-recommendation max-tokens))))
-      (oai--debug "oai-block-tags-get-content N2 %s" element)
-      (cond
-       ((string-equal "ai" (org-element-property :type element))
-        (string-trim
-         (oai-block--stringify-chat-messages
-          (oai-block-tags-get-content-ai-messages element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt sys-prompt-for-all-messages max-tokens-string))))
+    ;; (let (
+    ;;       (max-tokens-string
+    ;;        (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
+    ;;          (oai-restapi--get-length-recommendation max-tokens)))
+    ;;       )
+    (oai--debug "oai-block-tags-get-content N2 %s" element)
+    (cond
+     ((string-equal "ai" (org-element-property :type element))
+      (string-trim
+       (oai-block--stringify-chat-messages
+        (oai-block-tags-get-content-ai-messages element noweb-control links-only-last not-clear-properties ai-block-markers disable-tags req-type sys-prompt max-tokens-string))))
 
-       ((eq (org-element-type element) 'src-block)
-        (goto-char (org-element-property :begin element))
-        (oai-block-tags--clear-properties
-         (oai-block-tags-replace (org-babel--expand-body (org-babel-get-src-block-info))))) ; org-babel-execute-src-block
+     ((eq (org-element-type element) 'src-block)
+      (goto-char (org-element-property :begin element))
+      (oai-block-tags--clear-properties
+       (oai-block-tags-replace (org-babel--expand-body (org-babel-get-src-block-info))))) ; org-babel-execute-src-block
 
-       ((member (org-element-type element) oai-block-tags-org-blocks-types)
-        (oai--debug "oai-block-tags-get-content blocks-types")
-        (oai-block-tags--clear-properties
-         (oai-block-tags-replace (caddr (org-src--contents-area element)))))))))
+     ((member (org-element-type element) oai-block-tags-org-blocks-types)
+      (oai--debug "oai-block-tags-get-content blocks-types")
+      (oai-block-tags--clear-properties
+       (oai-block-tags-replace (caddr (org-src--contents-area element))))))))
 
 ;; -=-= help functions: markdown-block-p, markdown in string
 

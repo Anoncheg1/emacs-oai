@@ -1099,8 +1099,8 @@ Return list of plist with :content and :role."
       (setq positions (cdr positions)))
     (nreverse (remove nil res))))
 
-
-(defun oai-block--prepare-chat-messages (parts &optional default-system-prompt persistant-sys-prompts max-token-recommendation not-merge separator)
+;; persistant-sys-prompts
+(defun oai-block--prepare-chat-messages (parts &optional default-system-prompt max-token-recommendation not-merge separator)
   "Prepare a list of chat messages.
 
 PARTS is a list of plists, each with :role and :content keys
@@ -1108,8 +1108,6 @@ PARTS is a list of plists, each with :role and :content keys
 
 - If DEFAULT-SYSTEM-PROMPT is provided and the first message is not a
  system prompt, it is inserted at the beginning.
-- If PERSISTANT-SYS-PROMPTS is provided, its value is prepended to the
- content of each user message.
 - MAX-TOKEN-RECOMMENDATION is appended to the first system message's
  content.
 - If NOT-MERGE is nil, adjacent messages with the same role are merged
@@ -1119,7 +1117,7 @@ Returns a new list of message plists with :role and :content.
 Note: This function modifies the contents of the message plists in
  PARTS."
   (oai--debug "oai-block--prepare-chat-messages N1" parts)
-  (oai--debug "oai-block--prepare-chat-messages N2 %s" default-system-prompt persistant-sys-prompts max-token-recommendation not-merge separator)
+  (oai--debug "oai-block--prepare-chat-messages N2 %s" default-system-prompt max-token-recommendation not-merge separator)
   (let* ((parts (if not-merge parts
                   ;; else
                   (oai-block--merge-by-role parts (or separator "\n")))) ; Merge messages with same role.
@@ -1141,21 +1139,22 @@ Note: This function modifies the contents of the message plists in
           (setq parts (cons (list :role 'system :content max-token-recommendation) parts))))
 
       ;; 3) add persistant-sys-prompts as a prefix to every 'user message
-      (when persistant-sys-prompts
-        (let ((lst parts)
-              cur)
-          (while lst
-            (setq cur (car lst))
-            (when (eql (plist-get cur :role) 'user)
-              ;; modify content or parts
-              (setf (plist-get cur :content)
-                    (concat
-                     persistant-sys-prompts " "
-                     (plist-get cur :content))))
-            (setq lst (cdr lst)))))
+      ;; (when persistant-sys-prompts
+      ;;   (let ((lst parts)
+      ;;         cur)
+      ;;     (while lst
+      ;;       (setq cur (car lst))
+      ;;       (when (eql (plist-get cur :role) 'user)
+      ;;         ;; modify content or parts
+      ;;         (setf (plist-get cur :content)
+      ;;               (concat
+      ;;                persistant-sys-prompts " "
+      ;;                (plist-get cur :content))))
+      ;;       (setq lst (cdr lst)))))
       parts))
 
-(defun oai-block-collect-chat-messages-at-point (&optional element default-system-prompt persistant-sys-prompts max-token-recommendation not-merge first-chat-role separator)
+;; persistant-sys-prompts
+(defun oai-block-collect-chat-messages-at-point (&optional element default-system-prompt max-token-recommendation not-merge first-chat-role separator)
   "Collect messages for ai block at current positon.
 Execution in not `org-mode' is supported.
 Used for main ai block call.  Should not be used for sub-calls.
@@ -1168,7 +1167,7 @@ Description for SEPARATOR at
 Optional argument FIRST-CHAT-ROLE may be used to change default \='user
  for the first message that may don't have chat prefix.
 When NOT-MERGE is not-nil, don't merge messages after reading.
-Description for DEFAULT-SYSTEM-PROMPT PERSISTANT-SYS-PROMPTS
+Description for DEFAULT-SYSTEM-PROMPT
 MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--prepare-chat-messages'.
 Return vector of plist messages with :role and :content."
   (oai--debug "oai-block-collect-chat-messages-at-point N1 %s" element)
@@ -1196,7 +1195,7 @@ Return vector of plist messages with :role and :content."
             parts)
       ;; - first step of preparation
       ;; (oai--debug "oai-block-collect-chat-messages-at-point N6" parts)
-      (setq parts (oai-block--prepare-chat-messages parts default-system-prompt persistant-sys-prompts max-token-recommendation not-merge separator))
+      (setq parts (oai-block--prepare-chat-messages parts default-system-prompt max-token-recommendation not-merge separator))
       (oai--debug "oai-block-collect-chat-messages-at-point N7" parts)
       (apply #'vector parts))))
 
