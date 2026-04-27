@@ -542,22 +542,22 @@ Call `oai-restapi-request' function as a next step.
 Called from `oai-call-block' in main file.
 ELEMENT org-element - is ai block, should be converted to market at
 once.
-REQ-TYPE symbol - is completion or chat mostly.  Set
-  `oai-req-type-functions'.
-noweb-control - if non-nill, noweb links should be expanded.
-SYS-PROMPT string - first system instruction as a string.
-MODEL string - is the model to use.
-MAX-TOKENS integer - is the maximum number of tokens to generate.
-TEMPERATURE integer - 0-2 lower - low 0.3 high-probability tokens
-  producing predictable outputs.  1.5 diversity by flattening the
-  probability distribution.
-TOP-P integer - 0-1 lower - chooses tokens whose cumulative
-  probability exceeds this threshold, adapting to context.
-FREQUENCY-PENALTY integer - -2-2, lower less repeat words.
-PRESENCE-PENALTY integer - -2-2, lower less repeat concepts.
-SERVICE symbol or string - is the AI cloud service such as openai or
-  azure-openai.
-STREAM string - as bool, indicates whether to stream the response."
+- REQ-TYPE symbol - is completion or chat mostly.  Set by
+ `oai-req-type-functions'.
+- CONTENT - chat messages vector or string for old completion mode.
+- MODEL string - is the model to use.
+- MAX-TOKENS integer - is the maximum number of tokens to generate.
+- TEMPERATURE integer - 0-2 lower - low 0.3 high-probability tokens
+ producing predictable outputs.  1.5 diversity by flattening the
+ probability distribution.
+- TOP-P integer - 0-1 lower - chooses tokens whose cumulative
+ probability exceeds this threshold, adapting to context.
+- FREQUENCY-PENALTY integer - -2-2, lower less repeat words.
+- PRESENCE-PENALTY integer - -2-2, lower less repeat concepts.
+- SERVICE symbol or string - is the AI cloud service such as openai or
+ azure-openai.
+- STREAM string - as bool, indicates whether to stream the response.
+"
   (oai--debug "oai-restapi-request-prepare %s" model stream)
   (let* ((end-marker (oai-block--get-content-end-marker element))
          (callback (if (eql req-type 'completion) ; chat - ; set to oai-restapi--current-url-request-callback

@@ -105,8 +105,13 @@ Return t if we replace default call implementation
       t))
 
 (defun oai-prompt-prepare-chain-prepare (step header-marker noweb-control sys-prompt max-tokens)
-  "Prepare messages for request in step of chain.
-Use `oai-prompt-chain-list'."
+  "Prepare messages for request in STEP of chain.
+Use `oai-prompt-chain-list'.
+Arguments
+- HEADER-MARKER is a result of `oai-block-get-header-marker' function
+ for ai block.
+- NOWEB-CONTROL SYS-PROMPT MAX-TOKENS, explained in
+ `oai-restapi-request-prepare' function."
   (let* ((messages (with-current-buffer (marker-buffer header-marker)
                      ;; get messages vector
                      (oai-block-tags-get-content-ai-messages (oai-block-element-by-marker header-marker)
@@ -151,8 +156,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
         ;; (gap-between-requests 3) ; TODO
         ;; (step (alist-get :step (oai-block-get-info element))) ; Works? not tested TODO
         (oai-timers-duration-copy oai-timers-duration)
-        (oai-timers-retries-copy oai-timers-retries)
-        )
+        (oai-timers-retries-copy oai-timers-retries))
 
     (let (
           (call (lambda (step) ; called 3 times

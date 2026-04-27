@@ -286,7 +286,15 @@ Return list of arguments args."
 
 
 (defun oai-request-prepare (req-type element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional _info)
-  "Prepare chat messages for request."
+  "Prepare chat messages for request.
+Arguments
+- REQ-TYPE symbol - is completion or chat mostly.  Set by
+  `oai-req-type-functions'.
+- ELEMENT - ai block.
+- NOWEB-CONTROL - if non-nill, noweb links should be expanded.
+- SYS-PROMPT string - first system instruction as a string.
+- MODEL MAX-TOKENS TOP-P TEMPERATURE FREQUENCY-PENALTY PRESENCE-PENALTY
+ SERVICE STREAM, explained in `oai-restapi-request-prepare'."
   (let* ((max-tokens-string
           (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
             (oai-restapi--get-length-recommendation max-tokens)))
