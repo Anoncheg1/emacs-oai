@@ -477,6 +477,7 @@ org-fill-paragraph = oai-block-fill-paragraph
 - auto-mode-alist - (file-extension . major-mode) - used in `oai-block-tags--filepath-to-language'
 - org-src-lang-modes - used by `oai-block-tags--filepath-to-language'. In Org, used by org-src-get-lang-mode in org-src-font-lock-fontify-block.
 - org-babel-tangle-lang-exts - used by Org function `org-babel-tangle-single-block' which called from `org-babel-tangle'.
+* block-chat
 * Tests: Not covered staff
 - font-locks
 - fill paragraph

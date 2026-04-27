@@ -1,0 +1,37 @@
+# -*- mode: org -*-
+* v4.4    UNRELEASED
+
+- Added CHANGELOG file
+
+* v0.3 [2026-04-26 Sun]
+
+Work on stabilization and fixes, refactoring and renames.
+
+** Functional changes:
+
+- Noweb and link expansion refactoring, more robust handling.
+
+- Improved chat-role masking and file expansion for .ai, .org.
+
+- Fill-paragraph functions: several fixes, tests, and enhancements.
+
+** Improvements:
+
+- Better handling of edge cases (zero-length links, timestamps).
+
+- Robust UTF-8 stream processing.
+
+- Test and dependency fixes for more reliable CI runs.
+
+
+* v0.2 [2026-02-22 Sun]
+
+- Refactoring in block and block-tags.
+
+- Moving insert commands from restapi to block.el
+
+- Better highlighting, LaTeX fontification.
+
+- Better noweb links
+
+- Rewritin mark-at-point function
