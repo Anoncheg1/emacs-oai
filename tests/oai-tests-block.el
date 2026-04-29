@@ -47,8 +47,9 @@
 ;; -=-= Helper function to set up a temporary Org buffer for testing.
 
 (defun oai-tests-block-insert-block ()
-  (mark-whole-buffer) ; output Mark set
-  (call-interactively #'kill-region)
+  ;; (mark-whole-buffer) ; output Mark set
+  (kill-region (point-min) (point-max))
+  ;; (call-interactively #'kill-region)
   (insert "#+begin_ai\n")
   (let ((p1 (point)))
     (insert "test\n#+end_ai")
@@ -345,34 +346,6 @@ and INFO-ALIST is the parameters from its header."
               (oai-block--apply-to-region-lines #'oai-block-fill-region-as-paragraph (point-min) (point-max) nil)
               (let ((strings (string-split (buffer-substring-no-properties (point-min) (point-max)) "\n")))
                 (< (length (nth 1 strings)) 10))))))'
-;; -=-= Test: parse-part
-(ert-deftest oai-tests-block--parse-part ()
-  (should (equal (with-temp-buffer
-                   (insert "ss")
-                   (oai-block--parse-part 1 (point)))
-                 '(:role user :content "ss")))
-  (should (not (with-temp-buffer
-                 (insert "")
-                 (oai-block--parse-part 1 (point)))))
-  (should (not (with-temp-buffer
-                 (insert "[AI:] ")
-                 (oai-block--parse-part 1 (point)))))
-  (should-error (with-temp-buffer
-                  (insert "[AI:] vv\n[ME:] zz\n")
-                  (oai-block--parse-part 1 (point)))
-                :type 'error)
-  (should (with-temp-buffer
-            (insert "[AI:] vv\n")
-            (let ((p (point))
-                  res)
-              (insert "[ME:] zz\n")
-              (setq res (oai-block--parse-part 1 p))
-              (equal res
-                     '(:role assistant :content "vv"))
-              (setq res (oai-block--parse-part p (point)))
-              (equal res
-                     '(:role user :content "zz"))))))
-
 ;; -=-=  Test Markdown header regex oai-block--markdown-header-re
 (ert-deftest oai-tests-block--markdown-header-re ()
   (equal
@@ -406,33 +379,6 @@ and INFO-ALIST is the parameters from its header."
    (list "##" "a)" "")))
 ;; ;; ;; returns: ("##" "a)" "")
 
-;; -=-= Test: `oai-block--get-chat-messages-positions', `oai-block--collect-chat-messages-from-string'
-(ert-deftest oai-tests-block--chat-messages-tests ()
-  (let ((payload "text before
-as
-[AI]: some1
-[AI]:
-[AI]: some2[ME:]")
-        ;; (correct-sep '((:role 'user :content "text before\nas") (:role 'assistant :content "some1") (:role 'assistant :content "some2"))
-        (correct-sep '((:role user :content "text before\nas") (:role assistant :content "some1") (:role assistant :content "some2[ME:]")))
-        (correct-merged '[(:role user :content "text before\nas") (:role assistant :content "some1\nsome2[ME:]")])
-        res)
-    (with-temp-buffer
-      (insert payload)
-      (setq res (oai-block--parse-part (point-min) 10))
-      (should (equal res '(:role user :content "text befo")))
-      (setq res (let ((lst (oai-block--get-chat-messages-positions (point-min) (point-max) oai-block--chat-prefixes-re))
-                      (results '()))
-                  (while (and lst (cdr lst))
-                    (push (oai-block--parse-part (car lst) (cadr lst)) results) ; parse current block
-                    (setq lst (cdr lst)))
-                  (nreverse (remove nil results))))
-      (should (equal correct-sep res))
-      (setq res (oai-block--collect-chat-messages-from-string payload))
-      (should (equal res correct-sep))
-      (setq res (vconcat (oai-block--merge-by-role res)))
-      (should (equal res correct-merged)))))
-
 ;; -=-= Test: `oai-block--find-region-with-position'
 (ert-deftest oai-tests-block--find-region-with-position ()
   ;;  Basic inside region
@@ -461,146 +407,6 @@ as
   ;;  Multiple regions, gaps between, check middle gap
   (should (equal (oai-block--find-region-with-position '(10 20 40 60) 45) '((40 . 60) . 2))) ; => (40 . 60)
   )
-;; -=-= Test: `oai-block--merge-by-role'
-(ert-deftest oai-tests-block--oai-block--merge-consecutive-messages-by-role1()
-  (should (equal (let ((parts
-         (list
-          (list :role 'system :content nil )
-          (list :role 'user :content "Hi." )
-          (list :role 'user :content "How are you?" )
-          (list :role 'assistant :content nil)
-          (list :role 'assistant :content "I'm fine.")
-          (list :role 'user :content "Hi." )
-          (list :role 'user :content nil ))))
-    (oai-block--merge-by-role parts "::" ))
-                 '((:role user :content "Hi.::How are you?") (:role assistant :content "I'm fine.") (:role user :content "Hi.")))))
-
-(ert-deftest oai-tests-block--oai-block--merge-consecutive-messages-by-role2()
-  (should (equal (let ((parts
-         (list
-          (list :role 'system :content "Hi." )
-          (list :role 'user :content "How are you?" )
-          (list :role 'assistant :content nil)
-          (list :role 'assistant :content "I'm fine.")
-          (list :role 'user :content "Hi." )
-          (list :role 'user :content nil ))))
-  (oai-block--merge-by-role parts "::"))
-                 '((:role system :content "Hi.") (:role user :content "How are you?") (:role assistant :content "I'm fine.") (:role user :content "Hi.")))))
-
-;; -=-= Test: `oai-block--stringify-chat-messages'
-(ert-deftest oai-tests-block--stringify-chat-messages1()
-  (let ((oai-block-roles-prefixes '(("SYS" . system)
-                                   ("ME" . user)
-                                   ("AI" . assistant)
-                                   ("AI_REASON" . assistant_reason)))
-        (parts
-         (list
-          (list :role 'user :content "Hi." )
-          (list :role 'user :content "How are you?" )
-          (list :role 'assistant :content "I'm fine.")
-          (list :role 'user :content "Hi." )))
-        res)
-    (setq res (oai-block--stringify-chat-messages (apply #'vector parts)))
-    (should (string-equal res
-                          "[ME]: Hi.
-
-[ME]: How are you?
-
-[AI]: I'm fine.
-
-[ME]: Hi."))))
-
-
-(ert-deftest oai-tests-block--stringify-chat-messages2 ()
-  (let ((oai-block-roles-prefixes '(("SYS1" . system)
-                           ("ME2" . user)
-                           ("AI3" . assistant)))
-        res)
-    (setq res (oai-block--stringify-chat-messages '[(:role system :content "system")
-                                            (:role user :content "user")
-                                            (:role assistant :content "assistant")]))
-  (should
-   (string-equal res "[SYS1]: system\n\n[ME2]: user\n\n[AI3]: assistant"))
-  (setq res (oai-block--stringify-chat-messages '[(:role user :content "user")
-                                                  (:role assistant :content "assistant")]
-                                                "system1"))
-  (should
-   (string-equal res "[SYS1]: system1\n\n[ME2]: user\n\n[AI3]: assistant"))))
-
-;; -=-= Test: `oai-block--collect-chat-messages
-(ert-deftest oai-tests-block--collect-chat-messages()
-  (let ((parts
-         (list
-          (list :role 'user :content "Hi." )
-          (list :role 'user :content "How are you?" )
-          (list :role 'assistant :content "I'm fine.")
-          (list :role 'user :content "Hi." )))
-        res)
-    (oai-block--collect-chat-messages-from-string (oai-block--stringify-chat-messages (apply #'vector parts)))))
-
-;; -=-= Test: `oai-block--collect-chat-messages-from-string'
-(ert-deftest oai-tests-block--collect-chat-messages-from-string ()
-  ;; deal with unspecified prefix
-  ;; (should
-  ;;  (equal
-  ;;   (let ((test-string "\ntesting\n  [ME]: foo bar baz zorrk\nfoo\n[AI]: hello hello[ME]: "))
-  ;;     ;; (oai-restapi--collect-chat-messages test-string))
-  ;;     (oai-block--collect-chat-messages-from-string test-string))
-
-  ;;   '[(:role user :content "testing\nfoo bar baz zorrk\nfoo")
-  ;;     (:role assistant :content "hello hello")]))
-
-  ;; sys prompt
-  (should
-   (equal
-    (let ((test-string "[SYS]: system\n[ME]: user\n[AI]: assistant"))
-      (oai-block--collect-chat-messages-from-string test-string))
-    '((:role system :content "system")
-      (:role user :content "user")
-      (:role assistant :content "assistant"))))
-
-  ;; sys prompt intercalated
-  (should
-   (equal
-    (let ((test-string "[SYS]: system\n[ME]: user\n[AI]: assistant\n[ME]: user"))
-      (oai-block--collect-chat-messages-from-string test-string "system"))
-    '((:role system :content "system")
-      (:role user :content "user")
-      (:role assistant :content "assistant")
-      (:role user :content "user"))))
-
-  ;; (should
-  ;;  (equal
-  ;;   (let ((test-string "[SYS]: system\n[ME]: user\n[AI]: assistant\n[ME]: user"))
-  ;;     (oai-block--collect-chat-messages-from-string test-string nil "pers-system1" nil " "))
-  ;;   '[(:role system :content "system")
-  ;;     (:role user :content "pers-system1 user")
-  ;;     (:role assistant :content "assistant")
-  ;;     (:role user :content "pers-system1 user")]))
-
-  ;; (should
-  ;;  (equal
-  ;;   (let ((test-string "[SYS]: system\n[ME]: user\n[AI]: assistant\n[ME]: user"))
-  ;;     (oai-block--collect-chat-messages-from-string test-string "def-system1" nil "maxt-system2" " "))
-  ;;   '[(:role system :content "system maxt-system2")
-  ;;     (:role user :content "user")
-  ;;     (:role assistant :content "assistant")
-  ;;     (:role user :content "user")]))
-
-  ;; merge messages with same role
-
-    (let ((test-string "[ME]: hello\n[ME]: world")
-          res)
-      (setq res (oai-block--collect-chat-messages-from-string test-string))
-      (should (equal res '((:role user :content "hello") (:role user :content "world"))))
-      (setq res (vconcat (oai-block--merge-by-role res)))
-      (should (equal res '[(:role user :content "hello\nworld")])))
-
-  (should
-   (equal
-    (let ((test-string "[ME:] hello world")) (oai-block--collect-chat-messages-from-string test-string))
-    '((:role user :content "hello world")))))
-
 ;; -=-= Test: `oai-block--insert-stream-response'
 
 (ert-deftest oai-tests-block--insert-stream-response ()
@@ -829,7 +635,6 @@ On current line or at quote itself."
             p1)
         ;; - Test 1
         (oai-tests-block-insert-block) ; output "Mark set"
-
         (oai-block--insert-single-response
          (oai-block--get-content-end-marker (oai-block-p))
          "asd asd asd asd"

@@ -53,6 +53,8 @@
 
 ;; -=-= includes
 (require 'oai-block)
+(require 'oai-block-msgs)
+(require 'oai-block-tags)
 (require 'oai-restapi)
 (require 'oai-async1)
 (require 'oai-timers)
@@ -126,8 +128,8 @@ Arguments
                                                                   messages
                                                                   sys-prompt
                                                                   max-tokens))
-         (messages (oai-restapi--modify-vector-content messages #'oai-block-tags-replace 'user))
-         (messages (oai-restapi--modify-vector-content messages #'oai-block-tags--clear-properties 'user))
+         (messages (oai-block-msgs--modify-vector-content messages #'oai-block-tags-replace 'user))
+         (messages (oai-block-msgs--modify-vector-content messages #'oai-block-tags--clear-properties 'user))
          (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
     messages))
 

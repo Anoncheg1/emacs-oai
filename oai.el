@@ -97,7 +97,7 @@
 ;; - chat roles or prefixes - [AI]: [ME:]
 ;; - parts or messages - major parts of chat with prefixes of roles
 ;; - two steps of preparing messages:
-;;   1) apply additional system messages from info. `oai-block--prepare-chat-messages'
+;;   1) apply additional system messages from info. `oai-block-msgs--prepare-chat-messages'
 ;;   2) expand links and noweb references. `oai-block-tags-get-content-ai-messages' and others.
 
 ;;;; Known issues:
@@ -179,6 +179,7 @@
 ;;  begining of the line by removing indentation
 ;; - make key to remove all messages and left only the last
 ;; - support "C-c '" (call-interactively 'org-edit-special)
+;; - model, service switching based on messages.
 
 ;;; Code:
 
@@ -546,23 +547,29 @@ ARG may be positive or nil."
 
 ;; -=-= Minor mode: hook - Fontify Markdown blocks and Tags - function for hook
 
-(defun oai-block--set-ai-keywords ()
+(defun oai--insert-after (list pos element)
+  "Insert ELEMENT at after position POS in LIST.
+Used to inject font-locks to `org-font-lock-extra-keywords' variable."
+  (nconc (take (1+ pos) list) (list element) (nthcdr (1+ pos) list)))
+
+
+(defun oai--add-ai-font-lock-to-org-keywords ()
   "Hook, that Insert our fontify functions in Org font lock keywords."
   ;; add fontify-ai-subblocks - markdown blocks and tables.
   ;; Put in order to `org-font-lock-keywords': (oai-block--font-lock-fontify-markdown-and-org) (oai-block-tags--font-lock-fontify-links) (oai-block--font-lock-fontify-markdown-blocks)
   (when oai-fontification-flag
     ;; 3) fontify markdown blocks (and clear small)
-    (setq org-font-lock-extra-keywords (oai-block--insert-after
+    (setq org-font-lock-extra-keywords (oai--insert-after
                                         org-font-lock-extra-keywords
                                         (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
                                         '(oai-block--font-lock-fontify-markdown-blocks)))
     ;; 2) fontify-links (and clear small)
-    (setq org-font-lock-extra-keywords (oai-block--insert-after
+    (setq org-font-lock-extra-keywords (oai--insert-after
                                         org-font-lock-extra-keywords
                                         (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
                                         '(oai-block-tags--font-lock-fontify-links)))
     ;; 1) fontify small elements
-    (setq org-font-lock-extra-keywords (oai-block--insert-after
+    (setq org-font-lock-extra-keywords (oai--insert-after
                                         org-font-lock-extra-keywords
                                         (seq-position org-font-lock-extra-keywords '(org-fontify-meta-lines-and-blocks))
                                         '(oai-block--font-lock-fontify-markdown-and-org)))))
@@ -641,7 +648,7 @@ ORIG-FUN is `oai--org-babel-get-src-block-info-advice' and its ARGS."
           (add-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c nil 'local)
           (advice-add 'keyboard-quit :before #'oai-keyboard-quit)
           (when oai-fontification-flag
-            (add-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords nil 'local)
+            (add-hook 'org-font-lock-set-keywords-hook #'oai--add-ai-font-lock-to-org-keywords nil 'local)
             (org-set-font-lock-defaults)
             (font-lock-refresh-defaults))
           ;; - activate "ai" block in Org mode
@@ -658,7 +665,7 @@ ORIG-FUN is `oai--org-babel-get-src-block-info-advice' and its ARGS."
       (remove-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c 'local)
       (advice-remove 'keyboard-quit #'oai-keyboard-quit)
       ;; font lock refrash
-      (remove-hook 'org-font-lock-set-keywords-hook #'oai-block--set-ai-keywords)
+      (remove-hook 'org-font-lock-set-keywords-hook #'oai--add-ai-font-lock-to-org-keywords)
       (org-set-font-lock-defaults)
       (font-lock-refresh-defaults)
       ;; tangle

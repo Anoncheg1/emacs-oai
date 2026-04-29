@@ -177,6 +177,7 @@ asd2
       )
 
     (with-temp-buffer
+      (org-mode)
       (insert "#+begin_ai\n")
       (let ((p1 (point)))
         (insert "\n#+end_ai")
@@ -194,6 +195,7 @@ asd2
       )
 
     (with-temp-buffer
+      (org-mode)
       (insert "#+begin_ai\n")
       (let ((p1 (point)))
         (insert "\n#+end_ai")

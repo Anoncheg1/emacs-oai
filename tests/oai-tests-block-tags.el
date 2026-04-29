@@ -44,8 +44,10 @@
 ;; -=-= help functions
 (defun oai-tests-block-tags-insert-block (&optional name not-clear)
   (unless not-clear
-    (mark-whole-buffer) ; output Mark set
-    (call-interactively #'kill-region))
+    ;; (mark-whole-buffer) ; output Mark set
+    ;; (call-interactively #'kill-region)
+    (kill-region (point-min) (point-max))
+    )
   (when name
     (insert "#+name: " name "\n"))
   (insert "#+begin_ai\n")
@@ -108,7 +110,7 @@
 
 (ert-deftest oai-tests-block-tags--regexes-path ()
   (should
-   (equal (print (mapcar (lambda (s)
+   (equal (mapcar (lambda (s)
                     (when (string-match oai-block-tags--regexes-path s)
                       (substring s (match-beginning 0) (match-end 0))))
                   '(
@@ -139,7 +141,7 @@
                     ;; new
                     "@~/a"
                     "@~/"
-                    )))
+                    ))
           '("@/file-s_s" "@/file.t_xt" "@./file.txt"
             "@/some/path/file.txt" "@C:\\some\\file.txt" "@L:\\folder\\file.txt"
             "@\\network\\share" "@.\\windowsfile" "@/file/" "@/file.txt/" "@./file.txt/"

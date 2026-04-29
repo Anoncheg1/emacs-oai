@@ -43,6 +43,7 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 | oai.el            | Minor mode and ~C-c C-c~ activation of #+begin_ai                  |
 | oai-restapi.el    | Connection to REST API (OpenAI-compatible)                         |
 | oai-block.el      | Handling ai block                                                  |
+| oai-block-msgs.el | for chat messages                                                  |
 | oai-block-tags.el | Expand tags and links in block                                     |
 | oai-timers.el     | Managing requests, buffers and notifications                       |
 | oai-prompt.el     | (optional) Working with prompt-engineering, :chain parameter       |

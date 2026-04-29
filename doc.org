@@ -21,21 +21,21 @@ Main function to get content of block:
 
 # Old:
 *oai-restapi-request-prepare chain* that call `oai-restapi-prepare-content'
-1) ~oai-block-collect-chat-messages-at-point~
+1) ~oai-block-msgs--collect-chat-messages-at-point~
   + oai-block--collect-chat-messages - vector
   + oai-block-tags-replace - string
-  + oai-block--collect-chat-messages-from-string
+  + oai-block-msgs--collect-chat-messages-from-string
     - oai-block--collect-chat-messages
-2) (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
-3) (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
+2) (messages (oai-block-msgs--modify-vector-content messages 'user #'oai-block-tags-replace))
+3) (messages (oai-block-msgs--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
 
 *oai-restapi-request-prepare chain* that call ~oai-block-tags-get-content-ai-messages~
 
 *oai-prompt.el chain* for `oai-prompt-request-chain' function
 1) oai-restapi--collect-chat-messages-at-point - vector
 3) oai-restapi-request-llm-retries ->
-  - (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags-replace))
-  - (messages (oai-restapi--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
+  - (messages (oai-block-msgs--modify-vector-content messages 'user #'oai-block-tags-replace))
+  - (messages (oai-block-msgs--modify-vector-content messages 'user #'oai-block-tags--clear-properties))
 
 * Hooks - messages preparation for sending or content reading
 cases:
@@ -50,7 +50,7 @@ May be implemented at:
 | operate at messages vector level: | oai-restapi-prepare-content and oai-restapi-request-llm-retries |
 
 Solution:
-- before any - raw text level: as `oai-block-parse-part-hook' in `oai-block--parse-part'
+- before any - raw text level: as `oai-block-parse-part-hook' in `oai-block-msgs--parse-part'
 - after all - vector level: as `oai-restapi-after-prepare-messages-hook' in `oai-restapi-request-llm-retries' and in `oai-restapi-prepare-content'
 * Hook - HTTP headers before sending
 [[file:~/sources/emacs-oai/oai-restapi.el::680::(defun oai-restapi--get-headers (service)]]
@@ -480,8 +480,8 @@ org-fill-paragraph = oai-block-fill-paragraph
 * oai-block-chat.el
 ** problem of v0.3
 oai-block-tags.el depends on:
-- oai-restapi--modify-vector-last-user-content
-- oai-restapi--modify-vector-content
+- oai-block-msgs--modify-vector-last-user-content
+- oai-block-msgs--modify-vector-content
 - oai-restapi-add-max-tokens-recommendation
 - oai-restapi--get-length-recommendation
 
@@ -497,12 +497,12 @@ f-s:
 - oai-block-tags-get-content-ai-messages -
   - return vector
   - get content for ai block
-  - 1) oai-block-collect-chat-messages-at-point 2) apply noweb and tags.
+  - 1) oai-block-msgs--collect-chat-messages-at-point 2) apply noweb and tags.
 - oai-restapi-request-prepare - used only in oai.el 1) prepare messages, 2) set callback 3) call REST, 4) set timer
 - oai-restapi-request-llm-retries - used in oai-prompt-request-chain
 
 Solution:
-1) split oai-block-collect-chat-messages-at-point to get messages and apply noweb and tags (not needed)
+1) split oai-block-msgs--collect-chat-messages-at-point to get messages and apply noweb and tags (not needed)
 2) oai-restapi-request-prepare - split for one in oai.el that prepare messages as vector and second that call REST and set times and set callbacks
 3) oai-restapi-request-llm-retries - move messages preparation code to prompt.el
 4)

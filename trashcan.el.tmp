@@ -721,7 +721,7 @@ With optional prefix argument ARG, jump backward ARG many source blocks."
 ;; ELEMENT is the element of the special block.
 ;; Description for DEFAULT-SYSTEM-PROMPT PERSISTANT-SYS-PROMPTS
 ;; MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block--collect-chat-messages'."
-;;   (oai-block--collect-chat-messages-from-string
+;;   (oai-block-msgs--collect-chat-messages-from-string
 ;;    (oai-block-tags--clear-properties
 ;;     (oai-block-tags-replace
 ;;      (string-trim

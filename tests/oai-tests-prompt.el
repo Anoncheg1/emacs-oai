@@ -46,7 +46,7 @@
           (max-tokens 200))
       (oai-prompt-collect-chat-research-steps-prompt oai-prompt-chain-list
                                              0
-                                             (oai-block--collect-chat-messages-from-string
+                                             (oai-block-msgs--collect-chat-messages-from-string
                                               "[ME:]How to make coffe?\n[AI]: IDK.")
                                              ""
                                              max-tokens))
@@ -59,7 +59,7 @@
    (equal
     (oai-prompt-collect-chat-research-steps-prompt oai-prompt-chain-list
                                                    1
-                                                   (oai-block--collect-chat-messages-from-string "[ME:]How to make coffe?\n[AI]: IDK.")
+                                                   (oai-block-msgs--collect-chat-messages-from-string "[ME:]How to make coffe?\n[AI]: IDK.")
                                                    "Be helpful.")
     (vector (list :role 'system :content (concat "Be helpful. " (nth 0 oai-prompt-chain-list)))
             (list :role 'user :content "How to make coffe?")
@@ -72,7 +72,7 @@
      (equal
       (oai-prompt-collect-chat-research-steps-prompt oai-prompt-chain-list
                                                      2
-                                                     (oai-block--collect-chat-messages-from-string (concat "[ME:]How to make coffe?\n[AI]: IDK.\n[SYS]: " (nth 1 oai-prompt-chain-list) "\n[AI]: IDK.")))
+                                                     (oai-block-msgs--collect-chat-messages-from-string (concat "[ME:]How to make coffe?\n[AI]: IDK.\n[SYS]: " (nth 1 oai-prompt-chain-list) "\n[AI]: IDK.")))
       (vector (list :role 'system :content (nth 0 oai-prompt-chain-list))
               (list :role 'user :content "How to make coffe?")
               (list :role 'assistant :content "IDK.")
@@ -86,7 +86,7 @@
      (equal
       (oai-prompt-collect-chat-research-steps-prompt oai-prompt-chain-list
                                                      0
-                                                     (oai-block--collect-chat-messages-from-string "[ME:]How to make coffe?\n[AI]: IDK."))
+                                                     (oai-block-msgs--collect-chat-messages-from-string "[ME:]How to make coffe?\n[AI]: IDK."))
       (vector (list :role 'system :content (nth 0 oai-prompt-chain-list))
               (list :role 'user :content "How to make coffe?")
               (list :role 'assistant :content "IDK."))))))
