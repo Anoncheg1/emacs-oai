@@ -477,8 +477,8 @@ org-fill-paragraph = oai-block-fill-paragraph
 - auto-mode-alist - (file-extension . major-mode) - used in `oai-block-tags--filepath-to-language'
 - org-src-lang-modes - used by `oai-block-tags--filepath-to-language'. In Org, used by org-src-get-lang-mode in org-src-font-lock-fontify-block.
 - org-babel-tangle-lang-exts - used by Org function `org-babel-tangle-single-block' which called from `org-babel-tangle'.
-* oai-block-chat.el
-** problem of v0.3
+* v0.4
+** oai-block-msgs.el (solved)
 oai-block-tags.el depends on:
 - oai-block-msgs--modify-vector-last-user-content
 - oai-block-msgs--modify-vector-content
@@ -507,6 +507,19 @@ Solution:
 3) oai-restapi-request-llm-retries - move messages preparation code to prompt.el
 4)
 
+*
+** image link
+oai-request-prepare
+- oai-block-tags-get-content-ai-messages
+  - oai-block-tags-replace - on vector
+- oai-restapi-request-prepare (vector)
+
+strategy:
+- in oai-block-tags--compose-block-for-path-full  we replaced link to our link and signal error on binary
+- in or - add new message form?
+  - oai-block-msgs--collect-chat-messages-at-point
+  - oai-restapi-request-prepare
+- in oai-restapi--payload properly format JSON if [[image:/path]] in last message.
 * Tests: Not covered staff
 - font-locks
 - fill paragraph

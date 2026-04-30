@@ -180,6 +180,7 @@
 ;; - make key to remove all messages and left only the last
 ;; - support "C-c '" (call-interactively 'org-edit-special)
 ;; - model, service switching based on messages.
+;; - image links image_url
 
 ;;; Code:
 

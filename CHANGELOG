@@ -1,7 +1,7 @@
 # -*- mode: org -*-
-* v4.4    UNRELEASED
+* v0.4    UNRELEASED
 
-- Added CHANGELOG file
+- Added CHANGELOG and oai-block-msgs.el files
 
 * v0.3 [2026-04-26 Sun]
 

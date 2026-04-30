@@ -288,7 +288,7 @@ To detect LANG use `oai-block-tags--filepath-to-language'.
         (oai--debug "oai-block-tags--compose-m-block N3" content)
       (concat (when header (concat "\n" header)) content))))) ; no error if content is nil
 
-(defun oai-block-tags--compose-block-for-path (path-string content)
+(defun oai-block-tags--compose-block-for-path (path-string content &optional lang)
   "Return mardown block with description.
 PATH-STRING may be path to directory or to a file.
 For provided PATH-STRING and CONTENT string, return string that will be
@@ -296,23 +296,42 @@ For provided PATH-STRING and CONTENT string, return string that will be
   (oai-block-tags--compose-m-block
    ;; content:
    content
-   :lang (oai-block-tags--filepath-to-language path-string)
+   :lang (or lang (oai-block-tags--filepath-to-language path-string))
    :header (concat "Here " (file-name-nondirectory (directory-file-name path-string))
                    (when (file-directory-p path-string)
                        " directory contents:"))))
 
+(defun oai-block-tags--file-binary-p (file)
+  "Return t if FILE contains a null byte in its first 1024 bytes."
+  (when (and (file-regular-p file)
+             (file-readable-p file))
+    (with-temp-buffer
+      (insert-file-contents-literally file nil 0 1024)
+      (goto-char (point-min))
+      (search-forward "\0" nil t))))
 
 (defun oai-block-tags--compose-block-for-path-full (path-string)
   "Return file or directory in prepared mardown block.
+If PATH-STRING is image, replace link to [[image:/path]].
+If PATH-STRING is binary not image, signal error.
 PATH-STRING may be path to file or a directory.
 Return string or nil or raise user-error."
   (oai--debug "oai-block-tags--compose-block-for-path-full %s" path-string)
-  (oai-block-tags--compose-block-for-path path-string
-                                          (if (file-directory-p path-string)
-                                              (oai-block-tags--get-directory-content path-string)
-                                            ;; else
-                                            ;; raise user-error if something
-                                            (org-file-contents path-string)))) ; oai-block-tags--read-file-to-string-safe
+  ;; (let ((lang (oai-block-tags--filepath-to-language path-string)))
+  ;;   (if (member-ignore-case lang '("image" "elisp-byte-code" "auto")
+  (if (string-equal (oai-block-tags--filepath-to-language path-string)
+                    "image")
+      (concat "[[image:" path-string "]]")
+    ;; else
+    (when (and (not (file-directory-p file)
+                    (oai-block-tags--file-binary-p path-string)))
+      (user-error "File link is binary and not supported for text request."))
+    (oai-block-tags--compose-block-for-path path-string
+                                            (if (file-directory-p path-string)
+                                                (oai-block-tags--get-directory-content path-string)
+                                              ;; else
+                                              ;; raise user-error if something
+                                              (org-file-contents path-string))))) ; oai-block-tags--read-file-to-string-safe
 
 ;; -=-= help functions:  block-at-point, contents-area, get-content
 
