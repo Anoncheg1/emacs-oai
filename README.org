@@ -59,7 +59,8 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 - Google
 - Github
 - Together
-- llama.cpp (local)
+- LM Studio, llama.cpp, and vLLM (local)
+- any server that provides an OpenAI-compliant endpoint.
 
 oai-restapi-con-service [[./oai-restapi.el]]
 
@@ -272,6 +273,7 @@ test
 Chain of noweb references is possible, referenced ai blocks evaluated with :tangle context.
 
 “.ai” files as links expanded as new chat messages, other files inserted in markdown block and with masked chat prefixes by adding “_” before chat role.
+
 * How this works?
 We add “ai” as a type of special block to variables ~org-protecting-blocks~ and ~org-structure-template-alist~.
 

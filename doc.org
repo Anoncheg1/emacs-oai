@@ -478,7 +478,7 @@ org-fill-paragraph = oai-block-fill-paragraph
 - org-src-lang-modes - used by `oai-block-tags--filepath-to-language'. In Org, used by org-src-get-lang-mode in org-src-font-lock-fontify-block.
 - org-babel-tangle-lang-exts - used by Org function `org-babel-tangle-single-block' which called from `org-babel-tangle'.
 * v0.4
-** oai-block-msgs.el (solved)
+** oai-block-msgs.el (solved) [2026-04-30 Thu]
 oai-block-tags.el depends on:
 - oai-block-msgs--modify-vector-last-user-content
 - oai-block-msgs--modify-vector-content
@@ -507,12 +507,13 @@ Solution:
 3) oai-restapi-request-llm-retries - move messages preparation code to prompt.el
 4)
 
-*
-** image link
+** image link [2026-04-30 Thu]
 oai-request-prepare
 - oai-block-tags-get-content-ai-messages
   - oai-block-tags-replace - on vector
 - oai-restapi-request-prepare (vector)
+
+two sources: 1) :screen, ~:image file~ 2) in block links
 
 strategy:
 - in oai-block-tags--compose-block-for-path-full  we replaced link to our link and signal error on binary
@@ -520,6 +521,42 @@ strategy:
   - oai-block-msgs--collect-chat-messages-at-point
   - oai-restapi-request-prepare
 - in oai-restapi--payload properly format JSON if [[image:/path]] in last message.
+
+
+
+Idiea: allow :screen, provide list binary files at step of parsing headers somehwere, provide hooks.
 * Tests: Not covered staff
 - font-locks
 - fill paragraph
+- file is binary?
+* Comparision with competititors [2026-04-30 Thu]
+| Feature    | OAI                         | gptel                          | ollama-buddy               |
+|------------+-----------------------------+--------------------------------+----------------------------|
+| Primary UI | Org Blocks (#+begin_ai)     | Any Buffer / Chat Buffer       | Popup Menus / Org Headings |
+| Focus      | Literate AI / Documentation | Speed & Simplicity             | Local Ollama Integration   |
+| Strengths  | Chains, Tags, Noweb support | Provider agnostic, very stable | Plan mode, Tool calling    |
+* Evolution path
+Multimodal
+- :vision window-name :: parameter that automatically attaches a screenshot of a specific window (like a web browser with a CSS error) to the prompt, enabling the AI to "see" the UI bug you are trying to fix in your code.
+- :audio :: record with stop button and attach to message.
+
+RAG - ~:rag~
+- @project <?>:: and hook or integration to enrich context
+- silently retrieves the most relevant 5–10 chunks from your last three years of research and feeds them into the prompt.
+- For: 1) "Infinite" Context 2) Privacy & "The Air Gap" bulk of your library private and offline. 3) Semantic Navigation
+- @context, @notes, @code, @paper[2024], @buffers
+- @save - to automaticly save all interactions somewhere.
+- As you write a prompt about "Quantum Entanglement," OAI performs a background vector search and shows a list
+ of your 3-year-old notes on "Bell's Inequality," allowing you to click-and-insert them into the current
+ prompt instantly.
+- ??? Integrate with org-roam to use existing SQLite metadata as "filters" for the vector search. ???
+
+Suggests:
+- @buffers indexed online, autocomplete or suggest relevant parts to include
+
+
+Active - “Transient” library may be useful
+- :behavior agent :: parameter that allows the block to trigger terminal commands or modify other buffers autonomously, with a "human-in-the-loop" confirmation for each step.
+
+MCP Client (like Fastio or a local Python script).
+- "Give me context for 'Python refactoring'," and the server—which might be indexing your files, your browser history, and your Slack—returns the data.
