@@ -134,7 +134,7 @@ Arguments
          )
     messages))
 
-(defun oai-prompt-request-chain (_req-type)
+(defun oai-prompt-request-chain (_req-type _content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream sys-prompt noweb-control)
   "Use :chain parameter to activate and use :step to execute chain of prompt.
 Aspects:
 1) start and stop reporter at begining and at the end (final callback).
@@ -152,8 +152,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
 `oai-restapi-request-prepare'."
   ;; element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service _stream &optional _info
   ;; (if (not (eql 'x (alist-get :chain (oai-block-get-info element) 'x))) ; check if :my exist
-  (seq-let (element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service _stream _info) (oai-parse-org-header)
-    (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
+  (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
   ;; - My request
   (let ((service (or service 'github))
         (end-marker (oai-block--get-content-end-marker element))
@@ -213,7 +212,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
         (user-error
          (funcall oai-restapi-show-error-function (error-message-string err)
                   header-marker)
-         (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request)))))))
+         (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request))))))
 
 
 ;;; provide

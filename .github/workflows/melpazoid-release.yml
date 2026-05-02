@@ -55,6 +55,7 @@ jobs:
          emacs -Q --batch --no-site-file -l ert.el -l oai-debug.el -l oai-block.el -l ./tests/oai-tests-block.el -f ert-run-tests-batch-and-exit
       - name: Tests block tags
         run: |
+         emacs -Q --batch --no-site-file -l ert.el -l oai-debug.el -l oai-block.el -l oai-block-msgs.el -l oai-block-tags.el -l ./tests/oai-tests-block-tags.el -f ert-run-tests-batch-and-exit
          pushd ..
          git clone --depth=1 https://github.com/Anoncheg1/emacs-org-links.git
          popd

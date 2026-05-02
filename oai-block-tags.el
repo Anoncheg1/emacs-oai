@@ -203,7 +203,7 @@ Uses Org babel source block `org-src-lang-modes' names, return left for
  right.
 First we check `auto-mode-alist' and then just try to interpret as major
  mode line.
-Return  name of language."
+Return string with name of language."
   (oai--debug "oai-block-tags--filepath-to-language %s" path-or-mode-string)
   ;; symbol - get "emacs-lisp-mode" or "nil"
   (let* ((symb (symbolp path-or-mode-string))
@@ -292,7 +292,8 @@ To detect LANG use `oai-block-tags--filepath-to-language'.
   "Return mardown block with description.
 PATH-STRING may be path to directory or to a file.
 For provided PATH-STRING and CONTENT string, return string that will be
- good understood by AI."
+ good understood by AI.
+Optional argument LANG is string for language of content."
   (oai-block-tags--compose-m-block
    ;; content:
    content
@@ -311,12 +312,12 @@ For provided PATH-STRING and CONTENT string, return string that will be
 
 
 (defun oai-block-tags--file-binary-p (file)
-  "Return t if FILE contains a null byte in its first 1024 bytes.
+  "Return t if FILE contain a null byte in its first 1024 bytes.
 Use two methods by extension and by reading file."
   (unless (and (file-regular-p file)
                (file-readable-p file)
                (> (nth 7 (file-attributes file)) 0)) ; not empy
-    (user-error "File %s is not readable or empty." file))
+    (user-error "File %s is not readable or empty.?" file))
   (let ((ext (file-name-extension file)))
     (or (and ext (member-ignore-case  ext oai-block-tags--binary-extensions)) ; simple
         (with-temp-buffer ; advanced
@@ -339,7 +340,7 @@ Return string or nil or raise user-error."
     ;; else
     (when (and (not (file-directory-p path-string))
                (oai-block-tags--file-binary-p path-string))
-      (user-error "File link is binary and not supported (not image) for text request."))
+      (user-error "File link is binary and not supported (not image) for text request.?"))
     (oai-block-tags--compose-block-for-path path-string
                                             (if (file-directory-p path-string)
                                                 (oai-block-tags--get-directory-content path-string)
@@ -1253,9 +1254,10 @@ or vector if content have links to images."
 ;; (oai-block-tags-replace  "11[[file:/mock/org.org::1::* headline]]4444")
 
 (defun oai-block-tags-replace-images (string)
+  "Replace [[image:/path]] in STRING to pairs of descrption-imagey.
+Return string or list."
   (oai--debug "oai-block-tags-replace-images N0 %s" string)
-  string
-  )
+  string)
 
 
 

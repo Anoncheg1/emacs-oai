@@ -213,10 +213,18 @@ and INFO-ALIST is the parameters from its header."
         (func1 nil)
         (funcs
          (list (lambda (plist) (plist-put plist :foo (+ (plist-get plist :foo) 1)))
-               (lambda (plist) (plist-put plist :bar (* (plist-get plist :bar) 2))))))
+               (lambda (plist) (plist-put plist :bar (* (plist-get plist :bar) 2)))))
+        res)
 
-    (should (equal (oai-block--pipeline-macro (foo bar) funcs)
-                   '(11 6)))
+    (setq res (oai-block--pipeline-macro (foo bar) funcs))
+    (should (equal res '(11 6)))
+
+    (setq res (oai-block--pipeline-macro (foo nil)
+                               (list (lambda (plist) (plist-put plist :foo (+ (plist-get plist :foo) 1))))))
+    (should (equal res '(11 nil)))
+    (setq res (oai-block--pipeline-macro (nil bar)
+                                         (list (lambda (plist) (plist-put plist :bar (* (plist-get plist :bar) 2))))))
+    (should (equal res '(nil 6)))
 
     ;; func is nil
     (should (equal (oai-block--pipeline-macro (foo bar) func1)

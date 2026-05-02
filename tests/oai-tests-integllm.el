@@ -176,8 +176,7 @@ and INFO-ALIST is the parameters from its header."
             (oai-timers-duration 3)
             (oai-timers-retries 3)
             ;; (oai-agent-call-function #'my/oai-switch)
-            (stub-retries 0)
-            )
+            (stub-retries 0))
 
         ;; (print (list "oai-timers-duration" oai-timers-duration (current-buffer)))
         (unwind-protect
@@ -204,15 +203,12 @@ and INFO-ALIST is the parameters from its header."
                      (p0 (seq-elt (oai-block-msgs--collect-chat-messages-from-string (oai-block-get-content (oai-block-p)))
                                   0))
                      (p1 (seq-elt (oai-block-msgs--collect-chat-messages-from-string (oai-block-get-content (oai-block-p)))
-                                  1))
-                     )
+                                  1)))
                 (should (equal (plist-get p0 :role) 'user))
                 (should (string-equal (plist-get p0 :content) "Test content"))
                 (should (equal (plist-get p1 :role) 'assistant))
                 )
-               (advice-remove 'oai-restapi-request-llm-retries  #'oai-tests-integration2--oai-restapi-request-llm-retries-stub1)
-
-              )))
+               (advice-remove 'oai-restapi-request-llm-retries  #'oai-tests-integration2--oai-restapi-request-llm-retries-stub1))))
 
       ;; (run-at-time 1 nil (lambda (buf) (with-current-buffer buf
       ;;                                    ;; (print "#+begin_ai :stream nil :service test :model none\nTest content\n\n[AI]: Your question needs clarification.\n\n[ME]:\n#+end_ai")

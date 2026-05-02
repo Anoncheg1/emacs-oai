@@ -23,7 +23,8 @@
 
 ;;; Commentary:
 
-;; emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l oai-block-msgs.el -l ./tests/oai-tests-msgs.el -f ert-run-tests-batch-and-exit
+;; macs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l oai-block-msgs.el
+;;   -l ./tests/oai-tests-msgs.el -f ert-run-tests-batch-and-exit
 
 ;; or
 
@@ -218,8 +219,8 @@ Description for SEPARATOR at
 Optional argument FIRST-CHAT-ROLE may be used to change default \='user
  for the first message that may don't have chat prefix.
 When NOT-MERGE is not-nil, don't merge messages after reading.
-Description for DEFAULT-SYSTEM-PROMPT
-MAX-TOKEN-RECOMMENDATION SEPARATOR at `oai-block-msgs--prepare-chat-messages'.
+Description for DEFAULT-SYSTEM-PROMPT MAX-TOKEN-RECOMMENDATION SEPARATOR
+ at `oai-block-msgs--prepare-chat-messages'.
 Return vector of plist messages with :role and :content."
   (oai--debug "oai-block-msgs--collect-chat-messages-at-point N1 %s" element)
   (let* ((element (or element (when (derived-mode-p 'org-mode)
@@ -366,7 +367,7 @@ APPLICANT may be string or function.  if function, it is called if a
  `oai-block-tags-replace'.
 If ROLES is nil, modify all messages with APPLICANT.
 If SPLIT-FLAG is non-nil, split content of replaceed messages if it have
- prefixes. After splitting messages merged by role if there is a
+ prefixes.  After splitting messages merged by role if there is a
  sequence of them with same role.
 REST optional arguments are arguments that will be passed to call of
  applicant if it a function.
@@ -411,14 +412,14 @@ Return modified VEC."
 
 (defun oai-block-msgs--modify-vector-last-user-content (vec applicant &optional split-flag &rest rest)
   "Replacing last \='user :content with APPLICANT in VEC.
+Used in `oai-restapi-request-prepare' to send history of conversation.
 APPLICANT is either (string or function of old content), like
 `oai-block-tags-replace'.
 If SPLIT-FLAG is non-nil, split content of replaceed messages if it have
- prefixes. After splitting messages merged by role if there is a
+ prefixes.  After splitting messages merged by role if there is a
  sequence of them with same role.
 Uses `oai-block-msgs--find-last-user-index`.
-Return new vector based on VEC.
-Used in `oai-restapi-request-prepare' to send history of conversation."
+Return new vector based on VEC."
   ;; (unless (vectorp vec)
   ;;   (user-error "Not a vector"))
   (oai--debug "oai-block-msgs--modify-vector-last-user-content %s %s" vec applicant)
@@ -447,5 +448,6 @@ Used in `oai-restapi-request-prepare' to send history of conversation."
 
 
 ;;;; provide
+
 (provide 'oai-block-msgs)
-;;; oai-block.el ends here
+;;; oai-block-msgs.el ends here
