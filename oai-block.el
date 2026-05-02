@@ -360,7 +360,7 @@ Return new value."
                  v))
       (_ v))))
 
-(defmacro oai-block--let-params (info definitions &rest body)
+(defmacro oai-block--let-params-macro (info definitions &rest body)
   "Bind DEFINITIONS from INFO/Org and execute BODY.
 This macro constructs a single `let*` block by mapping over the
  DEFINITIONS list."
@@ -546,24 +546,30 @@ Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS
     ;; else
     init-val))
 
-;; (defun aa (x) (concat x "2"))
-;; (oai-block--pipeline
-;;  (list 'aa)
-;;  "ss") ; => "ss2"
-;;
-;; (oai-block--pipeline
-;;  '((lambda (x) (concat x "1"))
-;;    (lambda (x) (concat x "2")))
-;;  "ss") ; => "ss12"
+(defmacro oai-block--pipeline-macro (var-list func-list)
+  "Apply FUNC-LIST sequentially to a plist created from VAR-LIST.
 
-;; (oai-block--pipeline
-;;  '((lambda (x b) (concat x b "1"))
-;;    (lambda (x b) (concat x b "2")))
-;;  "ss" "vv") ; => "ssvv1vv2"
+Useful for pipelining variable transformations, e.g. in hooks.
+Each function should accept and return a plist. The macro constructs the plist
+from VAR-LIST variable names (as keywords) and their current values, then passes
+it through each function in FUNC-LIST.
 
-;; (oai-block--pipeline
-;;  nil
-;;  "ss") ; => "ss"
+Returns a list of resulting values for VAR-LIST, in order.
+If func-list is nil return original VAR-LIST."
+  `(let* ((initial-plist
+           (list ,@(apply #'append
+                          (mapcar (lambda (v)
+                                    (list (intern (concat ":" (symbol-name v))) v))
+                                  var-list))))
+          (result
+           (let ((plist initial-plist))
+             (dolist (f ,func-list plist)
+               (setq plist (funcall f plist)))))
+          (vals
+           (mapcar (lambda (v)
+                     (plist-get result (intern (concat ":" (symbol-name v)))))
+                   ',var-list)))
+     vals))
 
 ;; -=-= fn: find-region by position
 

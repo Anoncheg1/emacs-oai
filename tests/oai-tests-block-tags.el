@@ -441,8 +441,8 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
 ;;   (string-match oai-block-tags--regexes-path string 0)
 ;;     (cons (match-string 1 string) (match-beginning 0)))
 
-(ert-deftest oai-tests-block-tags--oai-block-tags-replace ()
-  (with-temp-files '("file1.txt" "file2.txt")
+(ert-deftest oai-tests-block-tags--oai-block-tags-replace1 ()
+  (with-temp-files '("file1.txt" "file2.txt") ; creates temp-dir
     (let ((res (string-split (oai-block-tags-replace (format "ssvv @%s bbb" temp-dir)) "\n"))
           (regex-pattern "ssvv \nHere test[^ ]+ folder:\n```ls-output\n  /tmp/test[^ ]+:\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file1.txt\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file2.txt\n\n```\n bbb")
           ;; (dired-listing-switches "-AlthG")
@@ -458,6 +458,29 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
       (should (string-match-p "file[12].txt" (nth 5 res)))
       (should (string-match-p "^```$" (nth 7 res)))
       (should (string-match-p "^ bbb$" (nth 8 res))))))
+
+;; test `oai-block-tags--compose-block-for-path-full'
+(ert-deftest oai-tests-block-tags--oai-block-tags-replace2 ()
+  (should-error (oai-block-tags-replace "@/aasdasdasd")
+                :type 'user-error) ; not exist
+  (with-temp-files '("file1.elc" "file2.el")
+   (should-error (oai-block-tags-replace (concat "@" (car temp-files)))
+                 :type 'user-error) ; empty
+   (should-error (oai-block-tags-replace (concat "file:" (car temp-files)))
+                 :type 'user-error) ; empty
+   (should-error (oai-block-tags-replace (concat "[[file:" (car temp-files) "]]"))
+                 :type 'user-error) ; empty
+   (append-to-file "Text to append" nil (car temp-files))
+   ;; (oai-block-tags-replace (concat "[[file:" (car temp-files) "]]"))
+   (should-error (oai-block-tags-replace (concat "@" (car temp-files)))
+                 :type 'user-error)
+   (should-error (oai-block-tags-replace (concat "file:" (car temp-files)))
+                 :type 'user-error)
+   (append-to-file "Text to append" nil (cadr temp-files))
+   (string-equal (oai-block-tags-replace (concat "file:" (cadr temp-files)))
+                 (oai-block-tags-replace (concat "@" (cadr temp-files))))
+   ))
+
 
 
 ;; -=-= Test: oai-block-tags--contents-area

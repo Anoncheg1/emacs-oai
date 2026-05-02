@@ -30,7 +30,7 @@
 ;; 1. Save the code to an .el file (e.g., `oai-params-test.el`).
 ;; 2. Open Emacs and load the file: `M-x load-file RET oai-tests2.el RET`.
 ;; 3. Run all tests: `M-x ert RET t RET`.
-;;    Or run specific tests: `M-x ert RET oai-block--let-params-all-from-info RET`.
+;;    Or run specific tests: `M-x ert RET oai-block--let-params-macro-all-from-info RET`.
 ;; OR
 ;; to run: emacs -Q --batch -l ert.el -l oai-debug.el -l oai-block.el -l ./tests/oai-tests-block.el -f ert-run-tests-batch-and-exit
 ;; OR
@@ -120,7 +120,7 @@ and INFO-ALIST is the parameters from its header."
       (should (eq (org-element-type element) 'special-block))
       (should (equal (org-element-property :type element) "ai")))))
 
-;; -=-= Test for `oai-block--let-params'
+;; -=-= Test for `oai-block--let-params-macro'
 
 (ert-deftest oai-tests-block--let-params-all-from-info-test1 ()
   "Test when all parameters are provided in the block header (info alist)."
@@ -133,7 +133,7 @@ and INFO-ALIST is the parameters from its header."
       ;; Position point inside the block for correct context, though not strictly needed for info directly.
 
 
-      (oai-block--let-params info ((stream)
+      (oai-block--let-params-macro info ((stream)
                                    (stream1 t :type bool)
                                    (stream2 0 :type number)
                                    (stream3 1 :type number) (sys)
@@ -162,12 +162,12 @@ and INFO-ALIST is the parameters from its header."
                              (should (string-equal model3 t))))))
 
 
-;; Test for `oai-block--let-params':
+;; Test for `oai-block--let-params-macro':
 (ert-deftest oai-tests-block--let-params-all-from-info-test2 ()
   (cl-letf (((symbol-function 'org-entry-get-with-inheritance)
              (lambda (_) nil)))
     (let ((info '((:model))))
-      (oai-block--let-params info
+      (oai-block--let-params-macro info
                              ((model nil :type string))
                              (should (equal model nil))))))
 
@@ -181,7 +181,7 @@ and INFO-ALIST is the parameters from its header."
                   ;; (:stream3)
                   (:stream4)
                   )))
-      (oai-block--let-params info
+      (oai-block--let-params-macro info
                              ((model nil :type string)
                               (model1 nil :type string)
                               (model2 nil :type string)
@@ -206,6 +206,24 @@ and INFO-ALIST is the parameters from its header."
 
 ;; (defun oai-block--oai-restapi-request-prepare (req-type content element sys-prompt sys-prompt-for-all-messages model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
 ;;   )
+;; -=-= Test for `oai-block--pipeline-macro'
+(ert-deftest oai-tests-block--pipeline-macro-test ()
+  (let ((foo 10)
+        (bar 3)
+        (func1 nil)
+        (funcs
+         (list (lambda (plist) (plist-put plist :foo (+ (plist-get plist :foo) 1)))
+               (lambda (plist) (plist-put plist :bar (* (plist-get plist :bar) 2))))))
+
+    (should (equal (oai-block--pipeline-macro (foo bar) funcs)
+                   '(11 6)))
+
+    ;; func is nil
+    (should (equal (oai-block--pipeline-macro (foo bar) func1)
+                   '(10 3)))
+    (should (equal (oai-block--pipeline-macro (foo bar) nil)
+                   '(10 3)))))
+
 ;; -=-= oai-agent-call
 ;; (ert-deftest oai-tests-block--oai-agent-call-test ()
 
@@ -283,7 +301,7 @@ and INFO-ALIST is the parameters from its header."
 ;;           (goto-char (org-element-property :begin element))
 ;;           (setq evaluated-result
 ;;                 (oai-test-eval-macro
-;;                  '(oai-block--let-params info
+;;                  '(oai-block--let-params-macro info
 ;;                                             ((stream nil) ; default `nil`
 ;;                                              (sys nil)    ; no default, inherited from property
 ;;                                              (max-tokens nil :type number)
@@ -312,7 +330,7 @@ and INFO-ALIST is the parameters from its header."
 ;;           (goto-char (org-element-property :begin element))
 ;;           (setq evaluated-result
 ;;                 (oai-test-eval-macro
-;;                  '(oai-block--let-params info
+;;                  '(oai-block--let-params-macro info
 ;;                     ((stream t) ; Default true
 ;;                      (sys "Default system prompt")
 ;;                      (max-tokens 200 :type number)

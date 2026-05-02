@@ -301,14 +301,28 @@ For provided PATH-STRING and CONTENT string, return string that will be
                    (when (file-directory-p path-string)
                        " directory contents:"))))
 
+(defconst oai-block-tags--binary-extensions
+  '("pdf" "png" "jpg" "jpeg" "gif" "bmp" "ico" "tiff" "webp"
+    "exe" "dll" "so" "o" "elc" "pyc" "class" "bin" "lib" "a"
+    "zip" "tar" "gz" "7z" "rar" "bz2" "xz" "iso" "dmg" "jar"
+    "mp3" "mp4" "wav" "avi" "mov" "flv" "m4a"
+    "docx" "xlsx" "pptx" "sqlite" "db")
+  "List of extensions considered binary.")
+
+
 (defun oai-block-tags--file-binary-p (file)
-  "Return t if FILE contains a null byte in its first 1024 bytes."
-  (when (and (file-regular-p file)
-             (file-readable-p file))
-    (with-temp-buffer
-      (insert-file-contents-literally file nil 0 1024)
-      (goto-char (point-min))
-      (search-forward "\0" nil t))))
+  "Return t if FILE contains a null byte in its first 1024 bytes.
+Use two methods by extension and by reading file."
+  (unless (and (file-regular-p file)
+               (file-readable-p file)
+               (> (nth 7 (file-attributes file)) 0)) ; not empy
+    (user-error "File %s is not readable or empty." file))
+  (let ((ext (file-name-extension file)))
+    (or (and ext (member-ignore-case  ext oai-block-tags--binary-extensions)) ; simple
+        (with-temp-buffer ; advanced
+          (insert-file-contents-literally file nil 0 1024)
+          (goto-char (point-min))
+          (search-forward "\0" nil t)))))
 
 (defun oai-block-tags--compose-block-for-path-full (path-string)
   "Return file or directory in prepared mardown block.
@@ -323,9 +337,9 @@ Return string or nil or raise user-error."
                     "image")
       (concat "[[image:" path-string "]]")
     ;; else
-    (when (and (not (file-directory-p file)
-                    (oai-block-tags--file-binary-p path-string)))
-      (user-error "File link is binary and not supported for text request."))
+    (when (and (not (file-directory-p path-string))
+               (oai-block-tags--file-binary-p path-string))
+      (user-error "File link is binary and not supported (not image) for text request."))
     (oai-block-tags--compose-block-for-path path-string
                                             (if (file-directory-p path-string)
                                                 (oai-block-tags--get-directory-content path-string)
@@ -435,8 +449,14 @@ Return vector with messages for ai block, or string if REQ-TYPE is
                                                                    ai-block-markers))
                            ;; else
                            messages))
+               ;; 4) replace images - last only
+               (messages (if (not disable-tags)
+                             (oai-block-msgs--modify-vector-last-user-content messages
+                                                                              #'oai-block-tags-replace-images)
+                           ;; else
+                           messages))
                (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_2" messages))
-               ;; 4) clear properties (for sending to LLM)
+               ;; 5) clear properties (for sending to LLM)
                (messages (if not-clear-properties
                              messages
                            ;; else
@@ -1145,7 +1165,8 @@ Called from:
 - `oai-restapi-request-prepare'
 - `oai-restapi-request-llm-retries'.
 Optional AI-BLOCK-MARKERS argument used to prevent loop.
-Return modified string with text properties or the same string."
+Return modified string with text properties or the same string
+or vector if content have links to images."
   (oai--debug "oai-block-tags-replace N0 %s" string)
   ;; - "@Backtrace" substring exist - replace the last one only
   ;; Result will be *Wrapped in markdown*
@@ -1194,7 +1215,7 @@ Return modified string with text properties or the same string."
                       replacement
                       (substring string end))))))
 
-  ;; - Org links [[link]]
+  ;; - Org links [[link]] or file:/link
   ;; We search  for link regex,  when found we check  if there
   ;; are double of  found substring after founded  one, if one
   ;; more exist we skip the first  one that found. if no other
@@ -1230,6 +1251,12 @@ Return modified string with text properties or the same string."
 ;; (oai-block-tags-replace  "[[./]]")
 ;; (oai-block-tags-replace  "11[[sas]]222[[bbbaa]]3333[[sas]]4444")
 ;; (oai-block-tags-replace  "11[[file:/mock/org.org::1::* headline]]4444")
+
+(defun oai-block-tags-replace-images (string)
+  (oai--debug "oai-block-tags-replace-images N0 %s" string)
+  string
+  )
+
 
 
 (defun oai-block-tags--clear-properties (string)

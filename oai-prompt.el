@@ -130,10 +130,11 @@ Arguments
                                                                   max-tokens))
          (messages (oai-block-msgs--modify-vector-content messages #'oai-block-tags-replace 'user))
          (messages (oai-block-msgs--modify-vector-content messages #'oai-block-tags--clear-properties 'user))
-         (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages)))
+         ;; (messages (oai-block--pipeline oai-restapi-after-prepare-messages-hook messages))
+         )
     messages))
 
-(defun oai-prompt-request-chain (_req-type element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service _stream &optional _info)
+(defun oai-prompt-request-chain (_req-type)
   "Use :chain parameter to activate and use :step to execute chain of prompt.
 Aspects:
 1) start and stop reporter at begining and at the end (final callback).
@@ -149,8 +150,10 @@ For REQ-TYPE, ELEMENT, NOWEB-CONTROL, SYS-PROMPT,
 SYS-PROMPT-FOR-ALL-MESSAGES, MODEL, MAX-TOKENS, TOP-P, TEMPERATURE,
 FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
 `oai-restapi-request-prepare'."
-  (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
+  ;; element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service _stream &optional _info
   ;; (if (not (eql 'x (alist-get :chain (oai-block-get-info element) 'x))) ; check if :my exist
+  (seq-let (element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service _stream _info) (oai-parse-org-header)
+    (oai--debug "oai-prompt-request-chain service, model, buf: %s %s %s" service model (current-buffer))
   ;; - My request
   (let ((service (or service 'github))
         (end-marker (oai-block--get-content-end-marker element))
@@ -160,8 +163,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
         (oai-timers-duration-copy oai-timers-duration)
         (oai-timers-retries-copy oai-timers-retries))
 
-    (let (
-          (call (lambda (step) ; called 3 times
+    (let ((call (lambda (step) ; called 3 times
                   (lambda (_data callback)
                     (oai--debug "oai-prompt-request-chain1 step %s" step) ; 0, 1, 2
                     (oai--debug "oai-prompt-request-chain1 buffer %s" (current-buffer))
@@ -211,7 +213,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
         (user-error
          (funcall oai-restapi-show-error-function (error-message-string err)
                   header-marker)
-         (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request))))))
+         (oai-timers--interrupt-current-request (oai-timers--get-keys-for-variable header-marker) #'oai-restapi--stop-tracking-url-request)))))))
 
 
 ;;; provide

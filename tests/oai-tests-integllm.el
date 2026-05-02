@@ -156,7 +156,7 @@ and INFO-ALIST is the parameters from its header."
   )
 
 
-(ert-deftest oai-tests-integration2-test1 ()
+(ert-deftest oai-tests-integllm-test1 ()
   ":chain test with `oai-restapi-request-llm-retries'."
   ;; - 1) Run HTTP-SERVICE
   (condition-case nil
@@ -255,7 +255,7 @@ and INFO-ALIST is the parameters from its header."
 
 
 
-(ert-deftest oai-tests-integration2-test2 ()
+(ert-deftest oai-tests-integllm-test2 ()
   ":chain with `oai-restapi-request-llm-retries'"
   ;; - 1) Run HTTP-SERVICE
   (condition-case nil

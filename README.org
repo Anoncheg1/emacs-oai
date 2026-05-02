@@ -51,16 +51,8 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 | oai-optional.el   | (optional) Hooks functions for postprocessing                      |
 
 * Supported services *
-- OpenAI
-- Azure-OpenAI
-- Perplexity.ai
-- Anthropic
-- DeepSeek
-- Google
-- Github
-- Together
-- LM Studio, llama.cpp, and vLLM (local)
-- any server that provides an OpenAI-compliant endpoint.
+- remote: any server that provides an OpenAI-compliant endpoint (like Together).
+- local: like llama.cpp, and vLLM
 
 oai-restapi-con-service [[./oai-restapi.el]]
 
@@ -79,9 +71,9 @@ oai-restapi-con-service [[./oai-restapi.el]]
 
 * Configuration
 ** Connection
-~oai-restapi-con-token~ - "token-string" or token per service: ~'(:openai "token-string1" :deepseek "token-string2")~ or nil for reading from "~/.authinfo" or "~/.authinfo.gpg"
+~oai-restapi-con-token~ - "token-string" or token per service: ~'(:together "token-string1" :local "token-string2")~ or nil for reading from "~/.authinfo" or "~/.authinfo.gpg"
 
-~oai-restapi-con-service~ - 'openai or 'deepseek or use parameter at block like this: ~#+begin_ai :service openai~
+~oai-restapi-con-service~ - default service symbol if not specified in header of ai block like this: ~#+begin_ai :service local~
 
 #+begin_src elisp :results none :exports code :eval no
 (add-to-list 'load-path "path/to/oai")
@@ -89,8 +81,8 @@ oai-restapi-con-service [[./oai-restapi.el]]
 (add-hook 'org-mode-hook #'oai-mode) ; oai.el
 (setq oai-restapi-con-token "xxx") ; oai-restapi.el
 #+end_src
-** How to connect to not supported service?
 
+** How to connect to not supported service?
 #+begin_src elisp :results none :exports code :eval no
 (plist-put oai-restapi-con-endpoints :local "http://localhost:8000/v1/chat/completions")
 ;; Optionally, set it as default
@@ -100,6 +92,7 @@ oai-restapi-con-service [[./oai-restapi.el]]
 Redefine:
 - ~oai-restapi--get-headers~ - If you need some special HTTP headers.
 - ~oai-restapi--get-single-response-text~ and ~oai-restapi--normalize-response~ - if HTTP responses is not standard for ~"stream":false~ and ~"stream":true~ respectively.
+
 ** Fontification configuration
 By default fintified only major markdown elements: “#headers”, quotes, LaTeX, links&tags.
 
@@ -135,10 +128,10 @@ To set use custom function or disable auto-fill by setting it to ~nil~:
 To get more infomration use Shell commnd:
 : $ info auth-source
 Secret should be stored  in the format:
-: machine openai password <your token>
+: machine local password <your token>
 or
-: machine openai--0 password <your token>
-: machine openai--1 password <your token>
+: machine local--0 password <your token>
+: machine local--1 password <your token>
 
 4) Keep token in *encrypted “auth-source” file*. Full decription will be provided later...
 
@@ -161,6 +154,7 @@ This hook remove empty lines if there is too much of them in response.
 - ME - role: user
 
 See ~oai-block-roles-prefixes~ in [[.oai-block.el]] for more info.
+
 * Supported parameteres for #+begin_ai
 - :model - string, ex: :model "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
 - :service - label/string, ex: :service deepseek--1
@@ -252,6 +246,7 @@ Service name and model string define all connection information.
 - org-src--contents-area = oai-block--region, oai-block--contents-region
 - org-babel--normalize-body = oai-block--region, oai-block--contents-region
 - org-babel-insert-header-arg - TODO!!
+
 * Tangling and noweb notes
 We dont activate noweb in subsequent block at expansion of links and tags.
 

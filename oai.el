@@ -208,8 +208,9 @@
   :type 'boolean
   :group 'oai)
 
-(defcustom oai-req-type-functions (list :chat		#'oai-request-prepare
-                                        :completion	#'oai-request-prepare
+(defcustom oai-req-type-functions (list :default	#'oai-request
+                                        :chat		#'oai-request
+                                        :completion	#'oai-request
                                         :chain		#'oai-prompt-request-chain) ; at oai-prompt.el
   "Custom variants to execute request.
 If you specify :chain at block parameters line, associated function will
@@ -220,24 +221,38 @@ If you specify :chain at block parameters line, associated function will
                 :tag "Property list (symbol => funcion)")
   :group 'oai)
 
+(defcustom oai-after-prepare-messages-hook nil
+  "Run before sending request.
+List of functions that called with plist argument that content arguments
+ of `oai-restapi-request-prepare' function that may be modified.
+Used to modify any parameter of request.
+Executed after all preparations for messages was done.  Every function
+ called with one argument from left to right and pass result to each
+ other.
+Each function should return plist with same order and with same keys as was given."
+  :type 'hook
+  :group 'oai)
+
+
 ;; -=-= C-c C-c main interface
 
 (defun oai-ctrl-c-ctrl-c ()
   "Remove result and parse ai block header parameters."
   (when (oai-block-p)
     (oai-block-remove-result)
-    (oai-call-this-or-that #'oai-request-prepare ; default
-                           oai-req-type-functions	; :key #'function pairs
-                           (oai-parse-org-header))	; req-type + parameters
+    (oai-call-this-or-that (plist-get oai-req-type-functions :default)
+                           oai-req-type-functions)	; :key #'function pairs
+    ;; (oai-parse-org-header))	; req-type + parameters
     t)) ; return, required by Org
 
-
-(defun oai-call-this-or-that (fn-default fn-list args)
-  "If you specify :chain in ai block, we call related function.
+(defun oai-call-this-or-that (fn-default fn-list &optional args)
+  "Parse ai block header for req-type and call appropriate function.
+Call function from FN-LIST by keyword from INFO,
+If you specify :chain in ai block, we call related function.
 FN-DEFAULT is `oai-restapi-request-prepare' FN-LIST is
-`oai-req-type-functions' variable.
-ARGS is `oai-parse-org-header' result."
-  (let ((info (car (last args)))
+`oai-req-type-functions' variable."
+  (let ((info (or (car (last args))
+                  (oai-block-get-info (oai-block-p))))
         called)
     ;; loop over `oai-req-type-functions'
     (while (and fn-list (not called))
@@ -246,7 +261,7 @@ ARGS is `oai-parse-org-header' result."
         (when (and fn ; skip keys with missing value
                    (not (eq 'x (alist-get key info 'x)))) ; check key exist in info
           (setq called (apply fn
-                              (cons (intern (substring (symbol-name key) 1)) ; key to symbol
+                              (cons (intern (substring (symbol-name key) 1)) ; key to symbol for req-type
                                     args))))))  ; (apply fn args)
     (unless called ; executed if key exist but evaluation return nil or key not exist
       (apply fn-default (cons 'chat args))))) ; call default function
@@ -258,16 +273,13 @@ Result of this function passed to `oai-req-type-functions'.
 Return list of arguments args."
   (let* ((element (oai-block-p)) ; oai-block.el
          (info (oai-block-get-info element)) ; ((:max-tokens . 150) (:service . "together") (:model . "xxx")) ; oai-block.el
-         ;; (sys-prompt-for-all-messages (or (not (eql 'x (alist-get :sys-everywhere info 'x)))
-         ;;                                  (org-entry-get-with-inheritance "SYS-EVERYWHERE") ; org
-         ;;                                  oai-restapi-default-inject-sys-prompt-for-all-messages)) ; oai-restapi.el
          (sys-prompt (or (org-entry-get-with-inheritance "SYS") ; org
                          (oai-block--get-sys :info info ; oai-block.el
                                              :default oai-restapi-default-chat-system-prompt)))
          (noweb-control (or (org-babel-noweb-p info :eval)
                             (org-entry-get (point) "oai-noweb" t)))) ; oai-restapi.el variable
     ;; - Process Org params and call agent
-    (oai-block--let-params info
+    (oai-block--let-params-macro info
                            ;; format: (variable optional-default type)
                            ((service oai-restapi-con-service string) ; oai-restapi.el
                             (model (car (oai-restapi--get-values oai-restapi-con-model service)) :type string)
@@ -282,40 +294,73 @@ Return list of arguments args."
                              (user-error "Model not specified nor in ai block nor in oai-restapi-con-model.  To disable model completely set it to \"nil\""))
                            (when (string-equal-ignore-case model "nil")
                              (setq model nil)) ; if specified as "nil" string explicitly, to disable.
+                           ;; return to call `oai-request-prepare' or other
                            (list element noweb-control sys-prompt ; message
                                  model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
                                  info))))
 
+;; oai-prepare-messages
+(defun oai-prepare-messages (req-type element noweb-control sys-prompt max-tokens)
+  "Return string or vector."
+  (if (eql req-type 'completion) ; old
+      (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
+    ;; else - chat - vector
+    (oai-block-tags-get-content-ai-messages
+     element
+     noweb-control
+     oai-restapi-links-only-last ; links-only-last
+     nil ; not-clear-properties
+     nil ; ai-block-markers
+     nil ; disable-tags
+     req-type sys-prompt
+     ;; max-tokens-string
+     (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
+       (oai-restapi--get-length-recommendation max-tokens)))))
 
-(defun oai-request-prepare (req-type element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional _info)
-  "Prepare chat messages for request.
-Arguments
-- REQ-TYPE symbol - is completion or chat mostly.  Set by
-  `oai-req-type-functions'.
-- ELEMENT - ai block.
-- NOWEB-CONTROL - if non-nill, noweb links should be expanded.
-- SYS-PROMPT string - first system instruction as a string.
-- MODEL MAX-TOKENS TOP-P TEMPERATURE FREQUENCY-PENALTY PRESENCE-PENALTY
- SERVICE STREAM, explained in `oai-restapi-request-prepare'."
-  (let* ((max-tokens-string
-          (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
-            (oai-restapi--get-length-recommendation max-tokens)))
-         (content ; string or vector
-          (if (eql req-type 'completion) ; old
-              (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
-            ;; else - chat - vector
-            (oai-block-tags-get-content-ai-messages
-             element
-             noweb-control
-             oai-restapi-links-only-last ; links-only-last
-             nil ; not-clear-properties
-             nil ; ai-block-markers
-             nil ; disable-tags
-             req-type sys-prompt max-tokens-string))) ; return vector
-         (content (oai-block--pipeline oai-restapi-after-prepare-messages-hook content)))
-    ;; REST call - set timer and callback for element
-    (oai-restapi-request-prepare ; at oai-restapi.el
-     req-type content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)))
+
+;; plan call function without arguments 2) parse request type in *let-params-macro info*
+(defun oai-request (req-type)
+  "ctrl-c-ctrl-c main function for :chat and :completion.
+REQ-TYPE symbol - is completion or chat mostly.  Set by
+  `oai-req-type-functions'."
+  (seq-let (element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service stream info) (oai-parse-org-header)
+    (let ((content (oai-prepare-messages req-type element noweb-control sys-prompt max-tokens)))
+      (apply #'oai-restapi-request-prepare ; at oai-restapi.el
+             ;; allow to modify any parameter in hook
+             (oai-block--pipeline-macro (req-type content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
+                                        oai-after-prepare-messages-hook)))))
+
+
+;; (defun oai-request-prepare (req-type element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service stream &optional _info)
+;;   "Prepare chat messages for request.
+;; Arguments
+;; - REQ-TYPE symbol - is completion or chat mostly.  Set by
+;;   `oai-req-type-functions'.
+;; - ELEMENT - ai block.
+;; - NOWEB-CONTROL - if non-nill, noweb links should be expanded.
+;; - SYS-PROMPT string - first system instruction as a string.
+;; - MODEL MAX-TOKENS TOP-P TEMPERATURE FREQUENCY-PENALTY PRESENCE-PENALTY
+;;  SERVICE STREAM, explained in `oai-restapi-request-prepare'."
+;;   (let* ((max-tokens-string
+;;           (when (and max-tokens oai-restapi-add-max-tokens-recommendation)
+;;             (oai-restapi--get-length-recommendation max-tokens)))
+;;          (content ; string or vector
+;;           (if (eql req-type 'completion) ; old
+;;               (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
+;;             ;; else - chat - vector
+;;             (oai-block-tags-get-content-ai-messages
+;;              element
+;;              noweb-control
+;;              oai-restapi-links-only-last ; links-only-last
+;;              nil ; not-clear-properties
+;;              nil ; ai-block-markers
+;;              nil ; disable-tags
+;;              req-type sys-prompt max-tokens-string)))) ; return vector
+;;     ;; REST call - set timer and callback for element
+;;     (apply #'oai-restapi-request-prepare ; at oai-restapi.el
+;;            ;; allow to modify any parameter in hook
+;;            (oai-block--pipeline-macro (req-type content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
+;;                                       oai-after-prepare-messages-hook))))
 
 
 ;; -=-= interactive fn: key M-x: oai-expand-block

@@ -3,6 +3,12 @@
 
 - Added CHANGELOG and oai-block-msgs.el files
 
+- refactoring that separate restapi and block-tags
+
+- fixed completion mode, now still supported
+
+- added hook that allow to modify any parameter of request
+
 * v0.3 [2026-04-26 Sun]
 
 Work on stabilization and fixes, refactoring and renames.

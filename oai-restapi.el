@@ -238,16 +238,6 @@ you can override it with: '[SYS]: <your prompt>'."
   :type 'string
   :group 'oai)
 
-(defcustom oai-restapi-after-prepare-messages-hook nil
-  "Run before sending request.
-List of functions that called with one argument messages vector or
- string for legacy completion mode.
-Executed after all preparations for messages was done.  Every function
- called with one argument from left to right and pass result to each
- other."
-  :type 'hook
-  :group 'oai)
-
 (defcustom oai-restapi-show-error-function 'oai-block-insert-result-message
   "Function to display error in oai-restapi about internal and remote errors.
 Available choices include:
@@ -1108,6 +1098,7 @@ Should be executed in url-buffer only."
 
 (cl-defun oai-restapi--payload (&optional &key service model prompt messages max-tokens temperature top-p frequency-penalty presence-penalty stream)
   "Create the payload for the OpenAI API.
+SERVICE used to get default model.
 PROMPT is string with the query for completions.
 MESSAGES is vector or list with plist containing :role user and :content
  with request for chat.
@@ -1118,10 +1109,10 @@ TOP-P is the top-p value.
 FREQUENCY-PENALTY is the frequency penalty.
 PRESENCE-PENALTY is the presence penalty.
 STREAM is a boolean indicating whether to stream the response.
-Use argument SERVICE to find endpoint, MODEL as parameter to request."
+Return list of cons with messages as vector and with stream bool."
   (let ((extra-system-prompt)
         (max-completion-tokens)
-        (messages (vconcat messages))) ; enshure messages is vector
+        (messages (when messages (vconcat messages)))) ; enshure messages is vector
 
     (when (eq service 'anthropic)
       (when (string-equal (plist-get (aref messages 0) :role) "system")
@@ -1145,8 +1136,6 @@ Use argument SERVICE to find endpoint, MODEL as parameter to request."
            (data (map-filter (lambda (x _) x)
                              `(,input
                                ,@(when model                 `((model . ,model)))
-                               ;; ,@(when stream                `((stream . t)))
-                               ;; ,@(when (not stream)          `((stream . nil)))
                                (stream . ,stream)
                                ,@(when max-tokens            `((max_tokens . ,max-tokens)))
                                ,@(when max-completion-tokens `((max-completion-tokens . ,max-completion-tokens)))

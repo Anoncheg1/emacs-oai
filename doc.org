@@ -522,9 +522,70 @@ strategy:
   - oai-restapi-request-prepare
 - in oai-restapi--payload properly format JSON if [[image:/path]] in last message.
 
+strategy:
+1) add function that add images to the last or N message. - to use in oai-request-prepare for :screen
+2) in oai-block-tags-get-content-ai-messages detect image link and split message accordingly, modify
+ ~oai-block-tags-replace~, enshure that  ~oai-block-msgs--modify-vector-content~ and ~oai-block-msgs--modify-vector-last-user-content~ is consistent
 
+oai-parse-org-header -> oai-request-prepare -> oai-restapi-request
+- -> oai-restapi--payload - accept messages in any form ( with images)
 
 Idiea: allow :screen, provide list binary files at step of parsing headers somehwere, provide hooks.
+** Image link: json
+One pair:
+#+begin_src python :results none :exports code :eval no
+# Path to your image
+image_path = "path_to_your_image.jpg"
+
+# Getting the Base64 string
+base64_image = encode_image(image_path)
+
+response = client.responses.create(
+    model="gpt-4.1",
+    input=[
+        {
+            "role": "user",
+            "content": [
+                { "type": "input_text", "text": "what's in this image?" },
+                {
+                    "type": "input_image",
+                    "image_url": f"data:image/jpeg;base64,{base64_image}",
+                },
+            ],
+        }
+    ],
+)
+#+end_src
+
+
+Multiple:
+#+begin_src json :results output pp
+{
+  "role": "user",
+  "content": [
+    {
+      "type": "text",
+      "text": "Here is the first chart showing sales data."
+    },
+    {
+      "type": "image_url",
+      "image_url": { "url": "https://example.com/sales.jpg" }
+    },
+    {
+      "type": "text",
+      "text": "And here is the second chart showing marketing spend."
+    },
+    {
+      "type": "image_url",
+      "image_url": { "url": "https://example.com/marketing.jpg" }
+    },
+    {
+      "type": "text",
+      "text": "Based on these two, what is the ROI?"
+    }
+  ]
+}
+#+end_src
 * Tests: Not covered staff
 - font-locks
 - fill paragraph

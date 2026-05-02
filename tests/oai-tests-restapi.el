@@ -238,6 +238,15 @@
 ;;         element))))
 
 
+;; -=-= For `oai-restapi--payload'
+(ert-deftest oai-tests-restapi--payload ()
+
+  (should (equal (oai-restapi--payload :messages [])
+                 '((messages . []) (stream))))
+  (should (equal (oai-restapi--payload :prompt "asd")
+                 '((prompt . "asd") (stream))))
+
+  )
 ;; -=-= Handling non-unicode characters at input in url-buffer
 ;; (progn
 ;;   (let (
