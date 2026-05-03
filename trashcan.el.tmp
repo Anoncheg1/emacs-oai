@@ -902,3 +902,156 @@ text after"))
 ;;           (setq oai-timers--current-timer nil)
 ;;           (setq oai-timers--current-timer-remaining-ticks 0)))))
 ;;   (oai-timers--update-global-progress-reporter failed))
+
+(defmacro oai-block--let-params-macro (info definitions &rest body)
+  "Bind DEFINITIONS from INFO/Org and execute BODY.
+This macro constructs a single `let*` block by mapping over the
+ DEFINITIONS list of lists: variable optional-default :type type.
+let block with body."
+  ;; 1. Generate a unique symbol for the 'info' alist.
+  ;; This ensures that if the 'info' argument is a function call,
+  ;; it only executes once at the very start of the let* block.
+  (let ((i (make-symbol "info-ptr")))
+    ;; 2. Start building the backquoted template for the final code.
+    `(let* (;; -- START OF BINDINGS LIST --
+            ;; First binding: assign the raw 'info' alist to our safe symbol.
+            (,i ,info)
+            ;; Next: 'mapcar' iterates through each item in 'definitions'.
+            ;; Each iteration returns a list like: (var-name (oai-block--get-val ...))
+            ;; The ',@' (splicing) operator unquotes and flattens these
+            ;; generated lists into the parent let* list.
+            ,@(mapcar (lambda (d)
+                (let ((s (car d))) ; 's' is the variable symbol (e.g., 'model)
+                  `(,s (oai-block--get-val
+                        ,i ; info
+                        ;; key: Convert symbol 'model to keyword ':model
+                        ,(intern (concat ":" (symbol-name s)))
+                        ;; prop: Convert symbol 'model to string "model"
+                        ,(symbol-name s)
+                        ;; default: Extract the default value (second item in definition)
+                        ,(cadr d)
+                        ;; type: Extract the :type property (e.g., 'number)
+                        ',(car (cdr (member :type d)))))))
+              definitions))
+       ;; -- END OF BINDINGS LIST --
+
+       ;; 3. Finally, place the user's @body code inside the let* block.
+       ;; All variables defined above are now available to these lines.
+       ,@body)))
+
+
+;; (defun oai-parse-org-header ()
+;;   "Parsing ai block header and parameters.
+;; Result of this function passed to `oai-req-type-functions'.
+;; Return list of arguments args."
+;;   (let* ((element (oai-block-p)) ; oai-block.el
+;;          (info (oai-block-get-info element)) ; ((:max-tokens . 150) (:service . "together") (:model . "xxx")) ; oai-block.el
+;;          (sys-prompt (or (org-entry-get-with-inheritance "SYS") ; org
+;;                          (oai-block--get-sys :info info ; oai-block.el
+;;                                              :default oai-restapi-default-chat-system-prompt)))
+;;          (noweb-control (or (org-babel-noweb-p info :eval)
+;;                             (org-entry-get (point) "oai-noweb" t)))) ; oai-restapi.el variable
+;;     ;; - Process Org params and call agent
+;;     (oai-block--let-params-macro info
+;;                            ;; format: (variable optional-default :type type)
+;;                            ((service oai-restapi-con-service :type string) ; oai-restapi.el
+;;                             (model (car (oai-restapi--get-values oai-restapi-con-model service)) :type string)
+;;                             (max-tokens oai-restapi-default-max-tokens :type number)
+;;                             (top-p nil :type number)
+;;                             (temperature nil :type number)
+;;                             (frequency-penalty nil :type number)
+;;                             (presence-penalty nil :type number)
+;;                             (stream t :type bool))
+;;                            ;; body
+;;                            (unless model
+;;                              (user-error "Model not specified nor in ai block nor in oai-restapi-con-model.  To disable model completely set it to \"nil\""))
+;;                            (when (string-equal-ignore-case model "nil")
+;;                              (setq model nil)) ; if specified as "nil" string explicitly, to disable.
+;;                            ;; return to call `oai-request-prepare' or other
+;;                            (list element noweb-control sys-prompt ; message
+;;                                  model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
+;;                                  info))))
+
+(ert-deftest oai-tests-block--let-params-all-from-info-test1 ()
+  "Test when all parameters are provided in the block header (info alist)."
+  (with-temp-buffer
+    (org-mode)
+    (let* ((test-block "#+begin_ai :stream t :stream1 t :sys \"A helpful LLM.\" :stream2 :max-tokens 50 :max-tokens2 :model \"gpt-3.5-turbo\" :model1 :model2 t :model3 :temperature 0.7\n#+end_ai\n")
+           (element (oai-test-setup-buffer test-block))
+           (info (progn (goto-char (org-element-property :begin element)) (oai-block-get-info))))
+      ;; (unwind-protect
+      ;; Position point inside the block for correct context, though not strictly needed for info directly.
+      (oai-block--let-params-macro info ((stream)
+                                         (stream1 t :type bool)
+                                         (stream2 0 :type number)
+                                         (stream3 1 :type number) (sys)
+                                         (max-tokens :type integer)
+                                         (max-tokens2 10 :type integer)
+                                         (model)
+                                         (model1 nil :type string)
+                                         (model2 10 :type number)
+                                         (model4 nil :type number)
+                                         (model3)
+                                         (temperature :type float)
+                                         (unknown "s"))
+                                   ;; (print (list "stream2" (type-of stream2) stream2 ))
+                                   ;; (print (list "stream3" (type-of stream3) stream3 ))
+                                   ;; (print (list "max-tokens" (type-of max-tokens) max-tokens ))
+                                   ;; (print (list "max-tokens2" (type-of max-tokens2) max-tokens2 ))
+                                   ;; (print (list "stream1" stream1))
+                                   (should (eq stream1 t))
+                                   (should (= stream3 1))
+                                   (should (eq stream2 nil))
+                                   (should (eq max-tokens2 t))
+                                   (should (string-equal stream "t"))
+                                   (should (= max-tokens 50))
+                                   (should (string-equal sys "A helpful LLM."))
+                                   (should (string-equal model "gpt-3.5-turbo"))
+                                   (should (= temperature 0.7))
+                                   (should (string-equal unknown "s"))
+                                   (should (string-equal model1 nil))
+                                   (should (= model2 0))
+                                   (should (string-equal model4 nil))
+                                   (should (string-equal model3 t))))))
+
+;; Test for `oai-block--let-params-macro':
+(ert-deftest oai-tests-block--let-params-all-from-info-test2 ()
+  (cl-letf (((symbol-function 'org-entry-get-with-inheritance)
+             (lambda (_) nil)))
+    (let ((info '((:model))))
+      (oai-block--let-params-macro info
+                             ((model nil :type string))
+                             (should (equal model nil))))))
+
+(ert-deftest oai-tests-block--let-params-all-from-info-test3 ()
+  (cl-letf (((symbol-function 'org-entry-get-with-inheritance)
+             (lambda (_) nil)))
+    (let ((info '((:model)
+                  (:model1 . "nil")
+                  (:stream1 . "nil")
+                  (:stream2 . t)
+                  ;; (:stream3)
+                  (:stream4)
+                  )))
+      (oai-block--let-params-macro info
+                             ((model nil :type string)
+                              (model1 nil :type string)
+                              (model2 nil :type string)
+                              (stream nil :type bool)
+                              (stream1 nil :type bool)
+                              (stream2 nil :type bool)
+                              (stream3 t :type bool)
+                              (stream4 nil :type bool)
+                              )
+                             ;; (print (list "stream4" stream4)))))
+                             ;; (print (list "model1" model1)) => ("nil" "nil")
+                             ;; (print (list "model" model))
+                             (should (string-equal model nil))
+                             (should (equal model1 "nil"))
+                             (should (equal model2 nil))
+                             (should (equal stream nil))
+                             (should (string-equal stream1 nil))
+                             (should (equal stream2 t))
+                             (should (equal stream3 t))
+                             (should (equal stream4 t))
+                             ))))

@@ -134,7 +134,7 @@ Arguments
          )
     messages))
 
-(defun oai-prompt-request-chain (_req-type _content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream sys-prompt noweb-control)
+(defun oai-prompt-request-chain (req-type element model max-tokens top-p temperature frequency-penalty presence-penalty service stream sys-prompt noweb-control)
   "Use :chain parameter to activate and use :step to execute chain of prompt.
 Aspects:
 1) start and stop reporter at begining and at the end (final callback).
@@ -167,20 +167,23 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
                     (oai--debug "oai-prompt-request-chain1 step %s" step) ; 0, 1, 2
                     (oai--debug "oai-prompt-request-chain1 buffer %s" (current-buffer))
                     (oai--debug "oai-prompt-request-chain1 max-tokens %s header-marker %s sys-prompt %s" max-tokens header-marker sys-prompt)
-
-                    ;; also save request for timer
-                    (oai-restapi-request-llm-retries service
-                                                     model
-                                                     oai-timers-duration-copy ; use current-buffer
-                                                     callback
-                                                     :retries oai-timers-retries-copy ; use current-buffer
-                                                     :messages (oai-prompt-prepare-chain-prepare step  header-marker noweb-control sys-prompt max-tokens)
-                                                     :max-tokens max-tokens
-                                                     :header-marker header-marker
-                                                     :temperature temperature
-                                                     :top-p top-p
-                                                     :frequency-penalty frequency-penalty
-                                                     :presence-penalty presence-penalty))))
+                    (let* ((content (oai-prompt-prepare-chain-prepare step  header-marker noweb-control sys-prompt max-tokens))
+                           (params (oai-block--pipeline-macro (req-type content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
+                                                              oai-block-msgs-after-prepare-messages-hook)))
+                      (seq-let (req-type content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream) params
+                        ;; also save request for timer
+                        (oai-restapi-request-llm-retries service
+                                                         model
+                                                         oai-timers-duration-copy ; use current-buffer
+                                                         callback
+                                                         :retries oai-timers-retries-copy ; use current-buffer
+                                                         :messages content
+                                                         :max-tokens max-tokens
+                                                         :header-marker header-marker
+                                                         :temperature temperature
+                                                         :top-p top-p
+                                                         :frequency-penalty frequency-penalty
+                                                         :presence-penalty presence-penalty))))))
           (callbackmy (lambda (data callback)
                         "Called in (current-buffer)."
                         (when data ; if not data it is fail

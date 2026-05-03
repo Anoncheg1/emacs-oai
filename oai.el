@@ -4,7 +4,7 @@
 ;; Author: <github.com/Anoncheg1,codeberg.org/Anoncheg>
 ;; Keywords: org, comm, url, link
 ;; URL: https://codeberg.org/Anoncheg/emacs-oai
-;; Version: 0.3
+;; Version: 0.4
 ;; Created: 27 dec 2025
 ;; Package-Requires: ((emacs "29.1"))
 ;; Optional dependency: ((org-links "0.2"))
@@ -189,7 +189,8 @@
 ;; -=-= includes
 (require 'oai-debug)
 (require 'oai-block)
-(require 'oai-block-tags) ; `oai-block-tags-replace' for `oai-expand-block'
+(require 'oai-block-tags)
+(require 'oai-block-msgs) ; for `oai-block-msgs-after-prepare-messages-hook'
 (require 'oai-restapi)
 (require 'oai-prompt) ; for `oai-prompt-request-chain'
 
@@ -221,29 +222,13 @@ If you specify :chain at block parameters line, associated function will
                 :tag "Property list (symbol => funcion)")
   :group 'oai)
 
-(defcustom oai-after-prepare-messages-hook nil
-  "Run before sending request.
-List of functions that called with plist argument that content arguments
- of `oai-restapi-request-prepare' function that may be modified.
-Used to modify any parameter of request.
-Executed after all preparations for messages was done.  Every function
- called with one argument from left to right and pass result to each
- other.
-Each function should return plist with same order and with same keys as
- was given."
-  :type 'hook
-  :group 'oai)
-
-
 ;; -=-= C-c C-c main interface
-
 (defun oai-ctrl-c-ctrl-c ()
   "Remove result and parse ai block header parameters."
   (when (oai-block-p)
     (oai-block-remove-result)
-    (oai-call-this-or-that (plist-get oai-req-type-functions :default)
-                           oai-req-type-functions)	; :key #'function pairs
-    ;; (oai-parse-org-header))	; req-type + parameters
+    (oai-call-this-or-that oai-req-type-functions ; plist: (:key #'function)
+                           (plist-get oai-req-type-functions :default)) ; when not specified
     t)) ; return, required by Org
 
 
@@ -257,7 +242,7 @@ REQ-TYPE symbol is completion or chat mostly.  Set by
       (apply #'oai-restapi-request-prepare ; at oai-restapi.el
              ;; hook - allow you to modify any parameters
              (oai-block--pipeline-macro (req-type content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
-                                        oai-after-prepare-messages-hook)))))
+                                        oai-block-msgs-after-prepare-messages-hook)))))
 
 
 (defun oai-request-chain (req-type)
@@ -265,20 +250,23 @@ REQ-TYPE symbol is completion or chat mostly.  Set by
 Used decrease coupling with oai-prompt.el.
 REQ-TYPE here is :chain, not used."
   (seq-let (element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service stream _info) (oai-parse-org-header)
-    (apply #'oai-prompt-request-chain
+    (funcall #'oai-prompt-request-chain
            ;; hook - allow you to modify any parameters
-           (append (oai-block--pipeline-macro (req-type nil element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
-                                            oai-after-prepare-messages-hook)
-                 (list sys-prompt noweb-control)))))
+           req-type element model max-tokens top-p temperature frequency-penalty presence-penalty service stream sys-prompt noweb-control)))
+           ;; (append
+           ;;  ;; (oai-block--pipeline-macro (req-type nil element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
+           ;;  ;;                                 oai-after-prepare-messages-hook)
+           ;;       (list sys-prompt noweb-control)))))
 
 
 ;; -=-= help functions to call main functions
-(defun oai-call-this-or-that (fn-default fn-list &optional args)
+(defun oai-call-this-or-that (fn-list &optional fn-default args)
   "Get req-type and call appropriate function.
-Call function from FN-LIST by keyword from INFO,
+Call function from FN-LIST by comparing keyword from INFO and in
+ FN-LIST.
 If you specify :chain in ai block, we call related function.
-FN-DEFAULT is `oai-restapi-request-prepare' FN-LIST is
-`oai-req-type-functions' variable."
+FN-LIST is`oai-req-type-functions' variable.
+FN-DEFAULT is default function to call if no keyword was found."
   (let ((info (or (car (last args))
                   (oai-block-get-info (oai-block-p))))
         called)
@@ -292,40 +280,34 @@ FN-DEFAULT is `oai-restapi-request-prepare' FN-LIST is
                               (cons (intern (substring (symbol-name key) 1)) ; key to symbol for req-type
                                     args))))))  ; (apply fn args)
     (unless called ; executed if key exist but evaluation return nil or key not exist
-      (apply fn-default (cons 'chat args))))) ; call default function
+      (when fn-default
+        (apply fn-default (cons 'chat args)))))) ; call default function
 
 
 (defun oai-parse-org-header ()
   "Parsing ai block header and parameters.
-Result of this function passed to `oai-req-type-functions'.
-Return list of arguments args."
+Return list values from ai block header or ORG properties set by looking
+ at all up levels."
   (let* ((element (oai-block-p)) ; oai-block.el
          (info (oai-block-get-info element)) ; ((:max-tokens . 150) (:service . "together") (:model . "xxx")) ; oai-block.el
-         (sys-prompt (or (org-entry-get-with-inheritance "SYS") ; org
-                         (oai-block--get-sys :info info ; oai-block.el
-                                             :default oai-restapi-default-chat-system-prompt)))
-         (noweb-control (or (org-babel-noweb-p info :eval)
-                            (org-entry-get (point) "oai-noweb" t)))) ; oai-restapi.el variable
-    ;; - Process Org params and call agent
-    (oai-block--let-params-macro info
-                           ;; format: (variable optional-default type)
-                           ((service oai-restapi-con-service string) ; oai-restapi.el
-                            (model (car (oai-restapi--get-values oai-restapi-con-model service)) :type string)
-                            (max-tokens oai-restapi-default-max-tokens :type number)
-                            (top-p nil :type number)
-                            (temperature nil :type number)
-                            (frequency-penalty nil :type number)
-                            (presence-penalty nil :type number)
-                            (stream t :type bool))
-                           ;; body
-                           (unless model
-                             (user-error "Model not specified nor in ai block nor in oai-restapi-con-model.  To disable model completely set it to \"nil\""))
-                           (when (string-equal-ignore-case model "nil")
-                             (setq model nil)) ; if specified as "nil" string explicitly, to disable.
-                           ;; return to call `oai-request-prepare' or other
-                           (list element noweb-control sys-prompt ; message
-                                 model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
-                                 info))))
+         (service (oai-block--get-val info 		:service "SERVICE" oai-restapi-con-service 'string))) ; used to set model
+    (let ((noweb-control (or (org-babel-noweb-p info :eval)
+                             (org-entry-get-with-inheritance "oai-noweb")))
+
+          (sys-prompt (oai-block--get-val info		:sys "SYS" oai-restapi-default-chat-system-prompt 'string))
+          (model (oai-block--get-val info		:model "MODEL" (car (oai-restapi--get-values oai-restapi-con-model service)) 'string))
+          (max-tokens (oai-block--get-val info		:max-tokens "MAX-TOKENS" oai-restapi-default-max-tokens 'number))
+          (top-p (oai-block--get-val info		:top-p "TOP-P" nil 'number))
+          (temperature (oai-block--get-val info	:temperature "TEMPERATURE" nil 'number))
+          (frequency-penalty (oai-block--get-val info	:frequency-penalty "FREQUENCY-PENALTY" nil 'number))
+          (presence-penalty (oai-block--get-val info	:presence-penalty "PRESENCE-PENALTY" nil 'number))
+          (stream (oai-block--get-val info		:stream "STREAM" t 'bool)))
+      (unless model
+        (user-error "Model not specified nor in ai block nor in oai-restapi-con-model.  To disable model completely set it to \"nil\""))
+      (when (string-equal-ignore-case model "nil")
+        (setq model nil)) ; if specified as "nil" string explicitly, to disable.
+      (list element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service stream ; model params
+            info))))
 
 ;; oai-prepare-messages
 (defun oai-prepare-messages (req-type element noweb-control sys-prompt max-tokens)

@@ -1253,11 +1253,44 @@ or vector if content have links to images."
 ;; (oai-block-tags-replace  "11[[sas]]222[[bbbaa]]3333[[sas]]4444")
 ;; (oai-block-tags-replace  "11[[file:/mock/org.org::1::* headline]]4444")
 
+(defun oai-block-tags--chunk-around-pattern (pattern str)
+  "Split STR into pairs (outside . inside) using regex PATTERN as delimiter.
+PATTERN should have match group 1.
+Return list of cons. Inside is match group 1 by applying PATTERN to
+ string, outside is text before found patter in STR."
+  (let ((start 0)
+        chunks)
+    (while (string-match pattern str start)
+      (let ((outside (substring str start (match-beginning 0)))
+            (inside (match-string 1 str)))
+        (push (cons outside inside) chunks))
+      (setq start (match-end 0)))
+    ;; Remaining tail after last match, with inside ""
+    (when (< start (length str))
+      (push (cons (substring str start) "") chunks))
+    (nreverse chunks)))
+    ;; (mapcan (lambda (x) (list (car x) (cdr x))) (nreverse chunks))
+
+
+;; (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "[asd]vvvv[aa]bbb")	;; => (("" . "asd") ("vvvv" . "aa") ("bbb" . ""))
+;; (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "vvvv[aa]bbb[asv]")	;; => (("" . "asd") ("vvvv" . "aa") ("bbb" . "asv"))
+;; (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "vvvv[aa]bbb[asv]")	;; => (("vvvv" . "aa") ("bbb" . "asv"))
+;; (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "vvvv")		;; => (("vvvv" . ""))
+;; (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "[aa]")		;; => (("" . "aa"))
+
 (defun oai-block-tags-replace-images (string)
   "Replace [[image:/path]] in STRING to pairs of descrption-imagey.
 Return string or list."
   (oai--debug "oai-block-tags-replace-images N0 %s" string)
-  string)
+  ;; (let ((ret))
+  ;;   (dolist (item (oai-block-tags-chunk-around-pattern "\\[\\[image:\\([^]]+\\)\\]\\]" string))
+
+
+    string
+    )
+
+;; (oai-block-tags-replace-images "bla bla [[image:/asa.jpg]] vvvv [[image:/asa.jpg]] cccc")
+;; (oai-block-tags-replace-images "bla bla [[image:/asa.jpg]] vvvv [[image:/asa.jpg]] cccc")
 
 
 

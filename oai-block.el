@@ -334,16 +334,21 @@ DEFAULT is a string with default system prompt for LLM."
 ;;  function is what actually does the work when the code is executed.
 
 
-(defun oai-block--get-val (info key prop default type)
+(defun oai-block--get-val (info key &optional prop default type)
   "Resolve and cast VALUE from INFO, Org properties, or DEFAULT.
-KEY is keyword as in header specified.
-PROP is keyword without column first character converted to string.
+Arguments
+- KEY is keyword as in header specified.
+- PROP is keyword without column first character converted to string, used
+ to get org property with `org-entry-get-with-inheritance'.
+- TYPE is a symbol: number, bool or string or nil to pass is it was
+ detected in info.
 Return new value."
   (let* ((entry (assoc key info))
          ;; 1. Value sourcing: Priority (Header Alist > Org Prop > Default)
-         (v (cond (entry (or (cdr entry) t))
-                  ((org-entry-get-with-inheritance prop))
-                  (t default))))
+         (v (or (and entry
+                     (or (cdr entry) t))
+                (and prop (org-entry-get-with-inheritance prop))
+                default)))
     ;; 2. Declarative Type Casting
     (pcase type
       ('number (cond ((or (null v) (eq v t) (equal v "nil")) nil) ; empty or "nil"
@@ -360,40 +365,6 @@ Return new value."
                  v))
       (_ v))))
 
-(defmacro oai-block--let-params-macro (info definitions &rest body)
-  "Bind DEFINITIONS from INFO/Org and execute BODY.
-This macro constructs a single `let*` block by mapping over the
- DEFINITIONS list."
-  ;; 1. Generate a unique symbol for the 'info' alist.
-  ;; This ensures that if the 'info' argument is a function call,
-  ;; it only executes once at the very start of the let* block.
-  (let ((i (make-symbol "info-ptr")))
-    ;; 2. Start building the backquoted template for the final code.
-    `(let* (;; -- START OF BINDINGS LIST --
-            ;; First binding: assign the raw 'info' alist to our safe symbol.
-            (,i ,info)
-            ;; Next: 'mapcar' iterates through each item in 'definitions'.
-            ;; Each iteration returns a list like: (var-name (oai-block--get-val ...))
-            ;; The ',@' (splicing) operator unquotes and flattens these
-            ;; generated lists into the parent let* list.
-            ,@(mapcar (lambda (d)
-                (let ((s (car d))) ; 's' is the variable symbol (e.g., 'model)
-                  `(,s (oai-block--get-val
-                        ,i ; info
-                        ;; key: Convert symbol 'model to keyword ':model
-                        ,(intern (concat ":" (symbol-name s)))
-                        ;; prop: Convert symbol 'model to string "model"
-                        ,(symbol-name s)
-                        ;; default: Extract the default value (second item in definition)
-                        ,(cadr d)
-                        ;; type: Extract the :type property (e.g., 'number)
-                        ',(car (cdr (member :type d)))))))
-              definitions))
-       ;; -- END OF BINDINGS LIST --
-
-       ;; 3. Finally, place the user's @body code inside the let* block.
-       ;; All variables defined above are now available to these lines.
-       ,@body)))
 ;; info cases:
 ;; - string: '((:model . "openai/gpt-4.1"))
 ;; - int: '((:max-tokens . 3000))
@@ -550,7 +521,7 @@ Returns the result of the final function in FUNCS, or INIT-VAL if FUNCS
   "Apply FUNC-LIST sequentially to a plist created from VAR-LIST.
 
 Useful for pipelining variable transformations, e.g. in hooks.
-Each function should accept and return a plist. The macro constructs the plist
+Each function should accept and return a plist.  The macro constructs the plist
 from VAR-LIST variable names (as keywords) and their current values, then passes
 it through each function in FUNC-LIST.
 
@@ -653,7 +624,7 @@ LIMIT-START and LIMIT-END are parameters for
 If POS at the footer of block, return nil.
 
 Return (cons beg end), Where beg is bol for markdown block, end is bol
- of next line after markdown block. If not found return nil."
+ of next line after markdown block.  If not found return nil."
   (oai--debug "oai-block--markdown-block-p N0 %s %s" limit-start limit-end)
   ;; - preparation
   (let ((pos (line-beginning-position))

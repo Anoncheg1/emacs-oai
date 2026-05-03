@@ -36,6 +36,21 @@
 (require 'oai-debug)
 (require 'oai-block)
 
+;; -=-= hooks
+(defcustom oai-block-msgs-after-prepare-messages-hook nil
+  "Run before sending request.
+List of functions that called with plist argument that content arguments
+ of `oai-restapi-request-prepare' function that may be modified.
+Used to modify any parameter of request.
+Executed after all preparations for messages was done.  Every function
+ called with one argument from left to right and pass result to each
+ other.
+Each function should return plist with same order and with same keys as
+ was given."
+  :type 'hook
+  :group 'oai)
+
+
 ;; -=-= parsing messages
 ;; oai-block-msgs
 (defun oai-block-msgs--merge-by-role (messages &optional sep)
