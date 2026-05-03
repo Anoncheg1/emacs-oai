@@ -170,7 +170,7 @@ FREQUENCY-PENALTY, PRESENCE-PENALTY, SERVICE, STREAM, INFO see
                     (let* ((content (oai-prompt-prepare-chain-prepare step  header-marker noweb-control sys-prompt max-tokens))
                            (params (oai-block--pipeline-macro (req-type content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
                                                               oai-block-msgs-after-prepare-messages-hook)))
-                      (seq-let (req-type content element model max-tokens top-p temperature frequency-penalty presence-penalty service stream) params
+                      (seq-let (_req-type content _element model max-tokens top-p temperature frequency-penalty presence-penalty service _stream) params
                         ;; also save request for timer
                         (oai-restapi-request-llm-retries service
                                                          model

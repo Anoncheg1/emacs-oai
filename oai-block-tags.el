@@ -1286,8 +1286,7 @@ Return string or list."
   ;;   (dolist (item (oai-block-tags-chunk-around-pattern "\\[\\[image:\\([^]]+\\)\\]\\]" string))
 
 
-    string
-    )
+    string)
 
 ;; (oai-block-tags-replace-images "bla bla [[image:/asa.jpg]] vvvv [[image:/asa.jpg]] cccc")
 ;; (oai-block-tags-replace-images "bla bla [[image:/asa.jpg]] vvvv [[image:/asa.jpg]] cccc")

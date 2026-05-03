@@ -246,18 +246,13 @@ REQ-TYPE symbol is completion or chat mostly.  Set by
 
 
 (defun oai-request-chain (req-type)
-  "Calls `oai-prompt-request-chain' and and apply hook without messages.
+  "Call `oai-prompt-request-chain' and and apply hook without messages.
 Used decrease coupling with oai-prompt.el.
 REQ-TYPE here is :chain, not used."
   (seq-let (element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service stream _info) (oai-parse-org-header)
+    ;; hook called after every step
     (funcall #'oai-prompt-request-chain
-           ;; hook - allow you to modify any parameters
            req-type element model max-tokens top-p temperature frequency-penalty presence-penalty service stream sys-prompt noweb-control)))
-           ;; (append
-           ;;  ;; (oai-block--pipeline-macro (req-type nil element model max-tokens top-p temperature frequency-penalty presence-penalty service stream)
-           ;;  ;;                                 oai-after-prepare-messages-hook)
-           ;;       (list sys-prompt noweb-control)))))
-
 
 ;; -=-= help functions to call main functions
 (defun oai-call-this-or-that (fn-list &optional fn-default args)
@@ -266,7 +261,8 @@ Call function from FN-LIST by comparing keyword from INFO and in
  FN-LIST.
 If you specify :chain in ai block, we call related function.
 FN-LIST is`oai-req-type-functions' variable.
-FN-DEFAULT is default function to call if no keyword was found."
+FN-DEFAULT is default function to call if no keyword was found.
+Optional argument ARGS will be passed to fn call."
   (let ((info (or (car (last args))
                   (oai-block-get-info (oai-block-p))))
         called)
@@ -292,7 +288,7 @@ Return list values from ai block header or ORG properties set by looking
          (info (oai-block-get-info element)) ; ((:max-tokens . 150) (:service . "together") (:model . "xxx")) ; oai-block.el
          (service (oai-block--get-val info 		:service "SERVICE" oai-restapi-con-service 'string))) ; used to set model
     (let ((noweb-control (or (org-babel-noweb-p info :eval)
-                             (org-entry-get-with-inheritance "oai-noweb")))
+                             (org-babel-noweb-p (list (cons :noweb (org-entry-get-with-inheritance "oai-noweb"))) :eval)))
 
           (sys-prompt (oai-block--get-val info		:sys "SYS" oai-restapi-default-chat-system-prompt 'string))
           (model (oai-block--get-val info		:model "MODEL" (car (oai-restapi--get-values oai-restapi-con-model service)) 'string))
@@ -311,7 +307,15 @@ Return list values from ai block header or ORG properties set by looking
 
 ;; oai-prepare-messages
 (defun oai-prepare-messages (req-type element noweb-control sys-prompt max-tokens)
-  "Return string or vector."
+  "Read content of ai block and prepare it to request.
+REQ-TYPE is a symbol as a key without : from `oai-req-type-functions'.
+ELEMENT is ai block ORG element.
+NOWEB-CONTROL is bool a result of processing ai header and Org
+ properties.
+SYS-PROMPT is :sys keyword of ai block that will be placed as the first
+ system message in chat.
+MAX-TOKENS is integer limit for LLM output.
+Return string or vector."
   (if (eql req-type 'completion) ; old
       (oai-block-tags-replace (string-trim (oai-block-get-content element))) ; return string
     ;; else - chat - vector
