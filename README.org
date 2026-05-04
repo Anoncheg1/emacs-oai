@@ -53,7 +53,7 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 
 
 ** dependencies
-```text
+#+begin_src text
        ┌───────────────────────────────────────────────────┐
        │                     oai.el                        │
        └─┬─────────┬───────────┬────────────┬────────────┬─┘
@@ -80,7 +80,7 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
                   ┌────────────────────────────────────┐
                   │            oai-block.el            │
                   └────────────────────────────────────┘
-```
+#+end_src
 * Supported services *
 - remote: any server that provides an OpenAI-compliant endpoint (like Together).
 - local: like llama.cpp, and vLLM
