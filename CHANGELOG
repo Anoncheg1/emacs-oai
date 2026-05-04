@@ -1,13 +1,21 @@
 # -*- mode: org -*-
 * v0.4    UNRELEASED
 
+** Functional changes:
+
+- added ability to send images, see [[file:./doc.org::534::*Image link: json][Image link: json]]
+
+- added hook that allow to modify any parameter of request
+
+** Improvements:
+
 - Added CHANGELOG and oai-block-msgs.el files
 
 - refactoring that separate restapi and block-tags
 
 - fixed completion mode, now still supported
 
-- added hook that allow to modify any parameter of request
+- refactor of parsing ai block header in oai.el
 
 * v0.3 [2026-04-26 Sun]
 
