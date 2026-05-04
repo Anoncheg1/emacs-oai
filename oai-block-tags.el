@@ -330,6 +330,7 @@ Use two methods by extension and by reading file."
 If PATH-STRING is image, replace link to [[image:/path]].
 If PATH-STRING is binary not image, signal error.
 PATH-STRING may be path to file or a directory.
+Bound with `oai-block-tags-replace-images' by hardcoded regex.
 Return string or nil or raise user-error."
   (oai--debug "oai-block-tags--compose-block-for-path-full %s" path-string)
   ;; (let ((lang (oai-block-tags--filepath-to-language path-string)))
@@ -463,9 +464,7 @@ Return vector with messages for ai block, or string if REQ-TYPE is
                              messages
                            ;; else
                            (oai-block-msgs--modify-vector-content messages #'oai-block-tags--clear-properties)))
-               (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_3" messages))
-               )
-          ;; (oai--debug "oai-block-tags-get-content-ai-messages2" messages)
+               (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_3" messages)))
           messages))))) ; return
 
 
@@ -1261,7 +1260,7 @@ or vector if content have links to images."
 (defun oai-block-tags--chunk-around-pattern (pattern str)
   "Split STR into pairs (outside . inside) using regex PATTERN as delimiter.
 PATTERN should have match group 1.
-Return list of cons. Inside is match group 1 by applying PATTERN to
+Return list of cons.  Inside is match group 1 by applying PATTERN to
  string, outside is text before found patter in STR."
   (let ((start 0)
         chunks)
@@ -1285,38 +1284,20 @@ Return list of cons. Inside is match group 1 by applying PATTERN to
 ;; (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "[aa]")		;; => (("" . "aa"))
 ;; (oai-block-tags--chunk-around-pattern "vvvv" "asdasd") ;; => nil
 
-(defun image-file-plist-data-url (filepath)
-  "Return (list :type \"image_url\" :image_url (:url data URL)) for jpg/jpeg/png image FILEPATH, or nil if unsupported."
-  (if (or (not (file-exists-p filepath))
-          (not (file-readable-p filepath)))
-      nil
-    (let* ((ext (downcase (or (file-name-extension filepath) "")))
-           (mimetype (cond ((or (string= ext "jpg") (string= ext "jpeg")) "image/jpeg")
-                           ((string= ext "png") "image/png")
-                           ((string= ext "webp") "image/webp")
-                           ((string= ext "gif") "image/gif")
-                           (t ""))))
-      (if (string= mimetype "")
-          nil
-        (with-temp-buffer
-          (insert-file-contents-literally filepath)
-          (let ((base64 (base64-encode-string (buffer-string))))
-            (list :type "image_url"
-                  :image_url (list :url (format "data:%s;base64,%s" mimetype base64)))))))))
 
 (defun oai-block-tags--image-file-to-imageurl (filepath)
   "Return image_url part of message for supported image FILEPATH, or nil.
-(:type \"image_url\" :image_url (:url data-URL))."
+\(:type \"image_url\" :image_url (:url data-URL))."
   (unless (and (file-exists-p filepath)
                (file-readable-p filepath))
-    (user-error "Building image_url, Image file not exist: %s." filepath))
+    (user-error "Building image_url, Image file not exist: %s.?" filepath))
   (let* ((extension (downcase (or (file-name-extension filepath) "")))
          (mimetype (pcase extension
                      ((or "jpg" "jpeg") "image/jpeg")
                      ("png" "image/png")
                      (_ nil))))
     (unless mimetype
-      (user-error "Building image_url, Unsupported extension for image: %s." extension))
+      (user-error "Building image_url, Unsupported extension for image: %s.?" extension))
     (with-temp-buffer
       (insert-file-contents-literally filepath)
       (list :type "image_url"
@@ -1329,6 +1310,8 @@ Return list of cons. Inside is match group 1 by applying PATTERN to
 (defun oai-block-tags-replace-images (string)
   "Replace [[image:/path]] in STRING to pairs of descrption-image.
 If image repeat we replace it with text \"\nSee image above.\n\".
+Bound with `oai-block-tags--compose-block-for-path-full' by hardcoded
+ regex.
 Return string or list."
   (oai--debug "oai-block-tags-replace-images N0 %s" string)
   (let (ret paths; lists
