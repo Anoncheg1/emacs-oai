@@ -242,9 +242,9 @@
 (ert-deftest oai-tests-restapi--payload ()
 
   (should (equal (oai-restapi--payload :messages [])
-                 '((messages . []) (stream))))
+                 '((messages . []) (stream . :json-false))))
   (should (equal (oai-restapi--payload :prompt "asd")
-                 '((prompt . "asd") (stream))))
+                 '((prompt . "asd") (stream . :json-false))))
 
   )
 ;; -=-= Handling non-unicode characters at input in url-buffer
