@@ -37,6 +37,7 @@
 ;; -=-= imports
 (require 'ert)
 (require 'oai-block)
+(require 'oai-block-tags)
 (require 'oai-block-msgs)
 (require 'oai-debug)
 
@@ -316,6 +317,12 @@ as
             (:role user :content "How to make coffe2? w11")
             (:role system :content "other w11")])))
 
+(ert-deftest oai-tests-restapi--modify-vector-content3 ()
+  (should (equal
+           (oai-block-msgs--modify-vector-content
+            '[(:role system :content "Think.") (:role user :content ((:type "text" :text "What is on image?") (:type "image_url" :image_url (:url "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABQY"))))]
+            #'oai-block-tags--clear-properties)
+           '[(:role system :content "Think.") (:role user :content ((:type "text" :text "What is on image?") (:type "image_url" :image_url (:url "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABQY"))))])))
 
 ;; -=-= For: `oai-block-msgs--modify-vector-last-user-content'
 (ert-deftest oai-tests-msgs--modify-last-user-content ()
@@ -354,6 +361,9 @@ as
 
 
 (provide 'oai-tests-restapi)
+
+
+
 
 
 

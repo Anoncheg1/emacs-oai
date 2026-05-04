@@ -237,6 +237,7 @@ If you specify :chain at block parameters line, associated function will
   "Ctrl-c-ctrl-c main function for :chat and :completion.
 REQ-TYPE symbol is completion or chat mostly.  Set by
   `oai-req-type-functions'."
+  (oai--debug "oai-request %s" req-type)
   (seq-let (element noweb-control sys-prompt model max-tokens top-p temperature frequency-penalty presence-penalty service stream _info) (oai-parse-org-header)
     (let ((content (oai-prepare-messages req-type element noweb-control sys-prompt max-tokens)))
       (apply #'oai-restapi-request-prepare ; at oai-restapi.el

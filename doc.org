@@ -532,7 +532,7 @@ oai-parse-org-header -> oai-request-prepare -> oai-restapi-request
 
 Idiea: allow :screen, provide list binary files at step of parsing headers somehwere, provide hooks.
 ** Image link: json
-One pair:
+type: Input_image:
 #+begin_src python :results none :exports code :eval no
 # Path to your image
 image_path = "path_to_your_image.jpg"
@@ -557,6 +557,20 @@ response = client.responses.create(
 )
 #+end_src
 
+Type: image_url
+#+begin_src bash :eval no :exports code :results none
+"content": [
+                {"type": "text", "text": "$mes"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "data:${mimetype};base64,$base64_image"
+                    }
+                }
+            ]
+    local mimetype="image/jpeg"
+    local mimetype="image/png"
+#+end_src
 
 Multiple:
 #+begin_src json :results output pp
@@ -586,6 +600,26 @@ Multiple:
   ]
 }
 #+end_src
+
+#+begin_src python :exports code :eval no
+
+#+end_src
+
+Normal content consisten of one string
+#+begin_src json :exports code :eval no
+  "messages": [
+    {
+      "role": "system",
+      "content": "."
+    },
+    {
+      "role": "user",
+      "content": "?"
+    }
+  ],
+#+end_src
+
+
 * Tests: Not covered staff
 - font-locks
 - fill paragraph

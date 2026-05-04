@@ -258,7 +258,8 @@ Return vector of plist messages with :role and :content."
                                                        content (plist-get cur :role))))
                 ;; (oai--debug "oai-block-msgs--collect-chat-messages-at-point N5 %s" new-content)
                 ;; (unless (string-equal content new-content)
-                (setf (plist-get cur :content) new-content)))
+                ;; (setf (plist-get cur :content) new-content)
+                (plist-put cur :content new-content)))
             parts)
       ;; - first step of preparation
       ;; (oai--debug "oai-block-msgs--collect-chat-messages-at-point N6" parts)
@@ -412,9 +413,9 @@ Return modified VEC."
                             (funcall applicant content-old))
                         ;; else
                         applicant))
-        (unless (string-equal content-old content)
-          (aset vec i
-                (plist-put mes :content content)) ; plist-put return new message plist
+        (unless (equal content-old content) ; was modified? recursive equal on strings here.
+          ;; (aset vec i
+          (plist-put mes :content content)
           (push i idxs)))
       (setq i (1- i)))
     (oai--debug "oai-block-msgs--modify-vector-content N2" idxs vec)
@@ -424,6 +425,7 @@ Return modified VEC."
           (oai-block-msgs--vector-split-by-chat-prefix vec idxs)))
       ;; else
       vec)))
+
 
 (defun oai-block-msgs--modify-vector-last-user-content (vec applicant &optional split-flag &rest rest)
   "Replacing last \='user :content with APPLICANT in VEC.
@@ -449,7 +451,7 @@ Return new vector based on VEC."
                              (funcall applicant content-old))
                          ;; else
                          applicant)))
-         (unless (string-equal content-old content-new) ; was modified?
+         (unless (equal content-old content-new) ; was modified? recursive equal on strings here.
            (let ((newvec (copy-sequence vec)))
              (aset newvec idx
                    (plist-put elt :content content-new)) ; plist-put return new message plist

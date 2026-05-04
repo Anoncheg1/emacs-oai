@@ -547,7 +547,8 @@ once.
 - SERVICE symbol or string - is the AI cloud service such as openai or
  azure-openai.
 - STREAM string - as bool, indicates whether to stream the response."
-  (oai--debug "oai-restapi-request-prepare %s" model stream)
+  (oai--debug "oai-restapi-request-prepare N0 %s" model stream)
+  (oai--debug "oai-restapi-request-prepare N1" content)
   (let* ((end-marker (oai-block--get-content-end-marker element))
          (callback (if (eql req-type 'completion) ; chat - ; set to oai-restapi--current-url-request-callback
                        ;; completion mode
@@ -1110,9 +1111,19 @@ FREQUENCY-PENALTY is the frequency penalty.
 PRESENCE-PENALTY is the presence penalty.
 STREAM is a boolean indicating whether to stream the response.
 Return list of cons with messages as vector and with stream bool."
-  (let ((extra-system-prompt)
-        (max-completion-tokens)
+  (oai--debug "oai-restapi--payload messages N1:" (pp-to-string messages))
+  (oai--debug "oai-restapi--payload service:" service)
+  (let (extra-system-prompt
+        max-completion-tokens
         (messages (when messages (vconcat messages)))) ; enshure messages is vector
+
+    (when messages
+      (let (msg content)
+       (dotimes (idx (length messages))
+         (setq msg (aref messages idx))
+         (setq content (plist-get msg :content))
+         (when (listp content)
+           (setf (plist-get (aref messages idx) :content) (vconcat content)))))) ; plist-get return generalized variable
 
     (when (eq service 'anthropic)
       (when (string-equal (plist-get (aref messages 0) :role) "system")
@@ -1130,13 +1141,15 @@ Return list of cons with messages as vector and with stream bool."
         (setq max-completion-tokens (or max-tokens 128000))))
 
     (oai--debug "oai-restapi--payload stream: %s" stream)
+    ;; (oai--debug "oai-restapi--payload messages N2:" (pp-to-string messages))
 
     (let* ((input (if messages `(messages . ,messages) `(prompt . ,prompt)))
            ;; TODO yet unsupported properties: n, stop, logit_bias, user
+           ;; (stream . ,stream)
            (data (map-filter (lambda (x _) x)
                              `(,input
                                ,@(when model                 `((model . ,model)))
-                               (stream . ,stream)
+                               ,@(if stream                 `((stream . ,stream)) '((stream . :json-false)))
                                ,@(when max-tokens            `((max_tokens . ,max-tokens)))
                                ,@(when max-completion-tokens `((max-completion-tokens . ,max-completion-tokens)))
                                ,@(when temperature           `((temperature . ,temperature)))
@@ -1146,6 +1159,7 @@ Return list of cons with messages as vector and with stream bool."
 
       (when extra-system-prompt
         (setq data (append data `((system . ,extra-system-prompt)))))
+      (oai--debug "oai-restapi--payload data N2: %s" (pp-to-string data))
       data)))
 
 (defun oai-restapi--clean-unicode-text (str)

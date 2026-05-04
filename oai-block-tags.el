@@ -453,7 +453,8 @@ Return vector with messages for ai block, or string if REQ-TYPE is
                ;; 4) replace images - last only
                (messages (if (not disable-tags)
                              (oai-block-msgs--modify-vector-last-user-content messages
-                                                                              #'oai-block-tags-replace-images)
+                                                                              #'oai-block-tags-replace-images
+                                                                              nil)
                            ;; else
                            messages))
                (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_2" messages))
@@ -461,7 +462,9 @@ Return vector with messages for ai block, or string if REQ-TYPE is
                (messages (if not-clear-properties
                              messages
                            ;; else
-                           (oai-block-msgs--modify-vector-content messages #'oai-block-tags--clear-properties))))
+                           (oai-block-msgs--modify-vector-content messages #'oai-block-tags--clear-properties)))
+               (_ (oai--debug "oai-block-tags-get-content-ai-messages N2_3" messages))
+               )
           ;; (oai--debug "oai-block-tags-get-content-ai-messages2" messages)
           messages))))) ; return
 
@@ -1102,7 +1105,7 @@ Return replacement string or nil."
   (and (eql 1 (% (oai-block-tags--string-count-char-in-direction string position ?` 'left) 2))
        (eql 1 (% (oai-block-tags--string-count-char-in-direction string position ?` 'right) 2))))
 
-;; -=-= Replace links in text
+;; -=-= Replace: links in text
 ;; Supported:
 ;; - @Backtrace
 ;; - @/path/file.txt
@@ -1253,6 +1256,8 @@ or vector if content have links to images."
 ;; (oai-block-tags-replace  "11[[sas]]222[[bbbaa]]3333[[sas]]4444")
 ;; (oai-block-tags-replace  "11[[file:/mock/org.org::1::* headline]]4444")
 
+;; -=-= Replace: image links in text
+
 (defun oai-block-tags--chunk-around-pattern (pattern str)
   "Split STR into pairs (outside . inside) using regex PATTERN as delimiter.
 PATTERN should have match group 1.
@@ -1268,7 +1273,8 @@ Return list of cons. Inside is match group 1 by applying PATTERN to
     ;; Remaining tail after last match, with inside ""
     (when (< start (length str))
       (push (cons (substring str start) "") chunks))
-    (nreverse chunks)))
+    (unless (= start 0) ; not found
+      (nreverse chunks))))
     ;; (mapcan (lambda (x) (list (car x) (cdr x))) (nreverse chunks))
 
 
@@ -1277,31 +1283,101 @@ Return list of cons. Inside is match group 1 by applying PATTERN to
 ;; (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "vvvv[aa]bbb[asv]")	;; => (("vvvv" . "aa") ("bbb" . "asv"))
 ;; (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "vvvv")		;; => (("vvvv" . ""))
 ;; (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "[aa]")		;; => (("" . "aa"))
+;; (oai-block-tags--chunk-around-pattern "vvvv" "asdasd") ;; => nil
+
+(defun image-file-plist-data-url (filepath)
+  "Return (list :type \"image_url\" :image_url (:url data URL)) for jpg/jpeg/png image FILEPATH, or nil if unsupported."
+  (if (or (not (file-exists-p filepath))
+          (not (file-readable-p filepath)))
+      nil
+    (let* ((ext (downcase (or (file-name-extension filepath) "")))
+           (mimetype (cond ((or (string= ext "jpg") (string= ext "jpeg")) "image/jpeg")
+                           ((string= ext "png") "image/png")
+                           ((string= ext "webp") "image/webp")
+                           ((string= ext "gif") "image/gif")
+                           (t ""))))
+      (if (string= mimetype "")
+          nil
+        (with-temp-buffer
+          (insert-file-contents-literally filepath)
+          (let ((base64 (base64-encode-string (buffer-string))))
+            (list :type "image_url"
+                  :image_url (list :url (format "data:%s;base64,%s" mimetype base64)))))))))
+
+(defun oai-block-tags--image-file-to-imageurl (filepath)
+  "Return image_url part of message for supported image FILEPATH, or nil.
+(:type \"image_url\" :image_url (:url data-URL))."
+  (unless (and (file-exists-p filepath)
+               (file-readable-p filepath))
+    (user-error "Building image_url, Image file not exist: %s." filepath))
+  (let* ((extension (downcase (or (file-name-extension filepath) "")))
+         (mimetype (pcase extension
+                     ((or "jpg" "jpeg") "image/jpeg")
+                     ("png" "image/png")
+                     (_ nil))))
+    (unless mimetype
+      (user-error "Building image_url, Unsupported extension for image: %s." extension))
+    (with-temp-buffer
+      (insert-file-contents-literally filepath)
+      (list :type "image_url"
+            :image_url (list :url
+                             (format "data:%s;base64,%s"
+                                     mimetype
+                                     (base64-encode-string (buffer-string) t)))))))
+
 
 (defun oai-block-tags-replace-images (string)
-  "Replace [[image:/path]] in STRING to pairs of descrption-imagey.
+  "Replace [[image:/path]] in STRING to pairs of descrption-image.
+If image repeat we replace it with text \"\nSee image above.\n\".
 Return string or list."
   (oai--debug "oai-block-tags-replace-images N0 %s" string)
-  ;; (let ((ret))
-  ;;   (dolist (item (oai-block-tags-chunk-around-pattern "\\[\\[image:\\([^]]+\\)\\]\\]" string))
+  (let (ret paths; lists
+        desc
+        path
+        (items (oai-block-tags--chunk-around-pattern "\\[\\[image:\\([^]]+\\)\\]\\]" string)))
+    (if (not items)
+        string
+      ;; else
+      (dolist (item items)
+        (setq desc (string-trim (car item)))
+        (setq path (cdr item))
+        ;; push desc and image to flat list
+        (unless (string-empty-p desc)
+          ;; add :text to preview :text?
+          (if (equal (plist-get (car ret) :type) "text")
+              (plist-put (car ret) :text (concat (plist-get (car ret) :text) "\nSee image above.\n" desc))
+                     ;; (setf (cadr (car ret)) "changed") ; mutate :text
+            ;; else
+          (push (list :type "text" :text desc) ret)))
+        (unless (or (string-empty-p path)
+                    (member path paths))
+          (push path paths)
+          (push (oai-block-tags--image-file-to-imageurl path) ret)))
+      (vconcat (reverse ret) ))))
 
-
-    string)
-
-;; (oai-block-tags-replace-images "bla bla [[image:/asa.jpg]] vvvv [[image:/asa.jpg]] cccc")
-;; (oai-block-tags-replace-images "bla bla [[image:/asa.jpg]] vvvv [[image:/asa.jpg]] cccc")
-
-
-
-(defun oai-block-tags--clear-properties (string)
-  "Remove text properties from STRING.
+;; -=-= clear-properties
+(defun oai-block-tags--clear-properties (string-or-list)
+  "Remove text properties from STRING-OR-LIST.
 Used as argument fo function `oai-block-msgs--modify-vector-content'.
 Used for `oai-expand-block' that show fontificated of markdown blocks,
 made by `oai-block-tags--replace-last-regex-smart'.
-Return modified STRING."
-  (set-text-properties 0 (length string) nil string)
-  (string-trim string))
-
+STRING-OR-LIST may be string or list or vector of plists with :text.
+Return modified string of STRING-OR-LIST or :text."
+  ;; (oai--debug "oai-block-tags--clear-properties N0 %s" string)
+  (if (eq (type-of string-or-list) 'string)
+      (string-trim (substring-no-properties string-or-list))
+    ;; else - list/vector of plist
+    (let (item s)
+      (dotimes (idx (length string-or-list))
+        (setq item (if (vectorp string-or-list)
+                       (aref string-or-list idx)
+                     ;; else - list
+                     (nth idx string-or-list)))
+        (setq s (plist-get item :text))
+         (when s
+           (plist-put item :text
+                      (string-trim (substring-no-properties s)))))
+      string-or-list))) ; return modified
 
 ;; -=-= Fontify @Backtrace & @path & [[links]]
 

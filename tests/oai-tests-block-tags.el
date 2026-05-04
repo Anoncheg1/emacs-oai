@@ -1119,6 +1119,41 @@ test
 ;; (oai-block-tags-replace (oai-block-get-content))
 
 
+;; -=-= Test: oai-block-tags--image-file-to-imageurl
+(ert-deftest oai-tests-block-tags--image-file-to-imageurl ()
+  (let ((f (make-temp-file "test" nil ".gif")))
+  (prog1
+      (should-error (oai-block-tags--image-file-to-imageurl f) :type 'user-error)
+    (delete-file f)))
+
+  (let* ((f (make-temp-file "test" nil ".JPG")))
+    (with-temp-file f (insert "dummy"))
+    (prog1
+        (should (equal (oai-block-tags--image-file-to-imageurl f)
+                       '(:type "image_url" :image_url (:url "data:image/jpeg;base64,ZHVtbXk="))))
+      (delete-file f)))
+
+  (should-error (oai-block-tags--image-file-to-imageurl "/tmp/this_file_does_not_exist.jpg")
+                :type 'user-error))
+;; -=-= Test: oai-block-tags-replace-images
+(ert-deftest oai-tests-block-tags--replace-images ()
+  (should (equal
+         (let* ((f (make-temp-file "test" nil ".JPG")))
+           (with-temp-file f (insert "dummy"))
+           (prog1
+               (oai-block-tags-replace-images (concat "bla bla [[image:" f "]] vvvv [[image:" f "]] cccc"))
+             (delete-file f)))
+         '[(:type "text" :text "bla bla") (:type "image_url" :image_url (:url "data:image/jpeg;base64,ZHVtbXk=")) (:type "text" :text "vvvv\nSee image above.\ncccc")]))
+;; (oai-block-tags-replace-images "bla bla [[image:/asa.jpg]] vvvv [[image:/asa.jpg]] cccc")
+(should (equal (oai-block-tags-replace-images "string") "string"))
+
+)
+
+(let* ((f (make-temp-file "test" nil ".JPG")))
+           (with-temp-file f (insert "dummy"))
+           (prog1
+               (oai-block-tags-replace-images (concat "[[image:" f "]]"))
+             (delete-file f)))
 ;; -=-= provide
 (provide 'oai-tests-block-tags)
 

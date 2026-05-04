@@ -19,6 +19,7 @@ O is Org-mode, ai is AI. Don't confuse with “OpenAPI Initiative” (OAI) organ
 - *Noweb and tangling* support as if it is src block of Org mode
 - *Parallel requests* in the same or different buffer without blocking
 - *Highlighting* of markdown big blocks, tags and links, headers, bold text, Org tables, LaTeX
+- *Multimodal reqests* support sending images
 - *Transparency* for inspecting raw data of request, powerful debugger
 - *Customization and autofilling*, hooks
 - *Prompt engineering* tools, there is ~:chain~ of calls out-of-the-box
@@ -179,7 +180,26 @@ Built-in url.el have ability to output request and resonse headers, for that you
 
 * Extension guide
 ** Hooks for post-processing of LLM resonse
-There are a hook ~oai-block-after-chat-insertion-hook~ that accpet two arguments (par1 par2)
+*** oai-block-msgs-after-prepare-messages-hook for multimodal switching
+Here we check that :content of the last user message is not just a string but a list, this happen when image link exist in body of ia block.
+#+begin_src elisp :lexical t :results none :exports code :eval no
+(defun my/oai-hook-multimodal-image-swith (plist)
+  (let* ((messages (plist-get plist :content ))
+         (idx (oai-block-msgs--find-last-user-index messages))
+         (last-user-mes (when messages (aref messages idx)))
+         (content (when last-user-mes (plist-get last-user-mes :content ))))
+         (when (and content
+                   (or (vectorp content)
+                       (listp content)))
+
+          (plist-put plist :service "local")
+          (plist-put plist :model nil)))
+  plist)
+
+(add-hook 'oai-block-msgs-after-prepare-messages-hook #'my/oai-hook-multimodal-image-swith)
+#+end_src
+*** oai-block-after-chat-insertion-hook
+Hook accpet two arguments (par1 par2)
 - type :: simbol \='role, \='text or'end.
 - role-text :: text or role name.
 - pos :: position before text insertion.
