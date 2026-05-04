@@ -2,7 +2,7 @@
 # emacs -Q --batch -l ert.el -l oai-async1.el \
 #   -l ./tests/oai-tests-async1.el -f ert-run-tests-batch-and-exit || exit 1
 # Timers
-emacs -Q --batch --no-site-file -l ert.el -l oai-timers.el \
+emacs -Q --batch --no-site-file -l ert.el -l oai-debug.el -l oai-timers.el \
    -l ./tests/oai-tests-timers.el -f ert-run-tests-batch-and-exit || exit 1
 # block
 emacs -Q --batch --no-site-file -l ert.el -l oai-debug.el -l oai-block.el \
