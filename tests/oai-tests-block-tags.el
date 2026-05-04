@@ -1147,7 +1147,7 @@ test
     (should (equal res '(("vvvv" . "aa") ("bbb" . "asv"))))
     (setq res
           (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "vvvv"))
-    (should (equal res '(("vvvv" . ""))))
+    (should (equal res nil))
     (setq res
           (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "[aa]"))
     (should (equal res '(("" . "aa"))))

@@ -1260,8 +1260,9 @@ or vector if content have links to images."
 (defun oai-block-tags--chunk-around-pattern (pattern str)
   "Split STR into pairs (outside . inside) using regex PATTERN as delimiter.
 PATTERN should have match group 1.
-Return list of cons.  Inside is match group 1 by applying PATTERN to
- string, outside is text before found patter in STR."
+Inside is match group 1 by applying PATTERN to
+ string, outside is text before found patter in STR.
+Return nil if patter was not found or list of cons."
   (let ((start 0)
         chunks)
     (while (string-match pattern str start)
@@ -1274,7 +1275,6 @@ Return list of cons.  Inside is match group 1 by applying PATTERN to
       (push (cons (substring str start) "") chunks))
     (unless (= start 0) ; not found
       (nreverse chunks))))
-    ;; (mapcan (lambda (x) (list (car x) (cdr x))) (nreverse chunks))
 
 
 ;; (oai-block-tags--chunk-around-pattern "\\[\\([^]]+\\)\\]" "[asd]vvvv[aa]bbb")	;; => (("" . "asd") ("vvvv" . "aa") ("bbb" . ""))
@@ -1312,7 +1312,7 @@ Return list of cons.  Inside is match group 1 by applying PATTERN to
 If image repeat we replace it with text \"\nSee image above.\n\".
 Bound with `oai-block-tags--compose-block-for-path-full' by hardcoded
  regex.
-Return string or list."
+Return string or vector."
   (oai--debug "oai-block-tags-replace-images N0 %s" string)
   (let (ret paths; lists
         desc
