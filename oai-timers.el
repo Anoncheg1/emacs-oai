@@ -30,6 +30,8 @@
 ;; `oai-restapi--interrupt-url-request'
 
 ;;; Code:
+(require 'oai-debug)
+
 ;; -=-= variables
 (defcustom oai-timers-echo-gap 0.2
   "Echo update interval for notification about waiting."
