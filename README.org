@@ -54,32 +54,12 @@ Optional: ~org-links~, available at MELA and at https://github.com/Anoncheg1/ema
 
 ** dependencies
 #+begin_src text
-       ┌───────────────────────────────────────────────────┐
-       │                     oai.el                        │
-       └─┬─────────┬───────────┬────────────┬────────────┬─┘
-         │         │           │            │            │
-         │         │           │      ┌─────▼────────────▼────┐
-         │         │           │      │      oai-prompt.el    │
-         │         │           │      └─┬──────────┬────────┬─┘
-         │         │           │        │          │        │
-         │         │     ┌─────▼────────▼─┐        │        │
-         │         │     │  oai-restapi.el│        │        │
-         │         │     └─────┬────────┬─┘        │        │
-         │   ┌─────▼───────────▼┐       │          │        │
-         │   │ oai-block-tags.el│       │          │        │
-         │   └─────┬────────────┘       │          │        │
-   ┌─────▼─────────▼──┐                 │          │        │
-   │ oai-block-msgs.el│                 │          │        │
-   └─────┬────────────┘                 │          │        │
-         │                ┌─────────────▼──────────▼────────▼┐
-         │                │  oai-async1.el  /  oai-timers.el │
-         │                └─────────────┬──────────┬─────────┘
-         │                              │          │
-         └────────────────┐             │          │
-                          ▼             ▼          ▼
-                  ┌────────────────────────────────────┐
-                  │            oai-block.el            │
-                  └────────────────────────────────────┘
+oai.el
+ ├─ oai-block.el
+ ├─ oai-block-tags.el (→ oai-block.el, oai-block-msgs.el)
+ ├─ oai-block-msgs.el (→ oai-block.el)
+ ├─ oai-restapi.el (→ oai-block.el, oai-block-tags.el, oai-async1.el, oai-timers.el)
+ └─ oai-prompt.el (→ oai-block.el, oai-block-msgs.el, oai-block-tags.el, oai-restapi.el, oai-async1.el, oai-timers.el)
 #+end_src
 * Supported services *
 - remote: any server that provides an OpenAI-compliant endpoint (like Together).
