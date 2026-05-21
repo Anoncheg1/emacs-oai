@@ -443,21 +443,22 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
 
 (ert-deftest oai-tests-block-tags--oai-block-tags-replace1 ()
   (with-temp-files '("file1.txt" "file2.txt") ; creates temp-dir
-    (let ((res (string-split (oai-block-tags-replace (format "ssvv @%s bbb" temp-dir)) "\n"))
+    (let ((res)
           (regex-pattern "ssvv \nHere test[^ ]+ folder:\n```ls-output\n  /tmp/test[^ ]+:\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file1.txt\n  -rw-rw-r-- 1 [^ ]+ 0 [A-Za-z]+ [0-9]+ [0-9:]+ file2.txt\n\n```\n bbb")
           ;; (dired-listing-switches "-AlthG")
           )
+      (setq res (string-split (oai-block-tags-replace (format "ssvv @%s bbb" temp-dir)) "\n"))
       ;; (pp res)))
       ;; LINES of regex-pattern:
       (should (string-match-p "^ssvv" (nth 0 res)))
       (should (string-match-p "^Here test[^ ]+ directory contents:" (nth 1 res)))
       (should (string-match-p "^```shell" (nth 2 res)))
-      (should (string-match-p "^  /\\w*/\\w*[^ ]+:" (nth 3 res)))
+      ;; (should (string-match-p "^  /\\w*/\\w*[^ ]+:" (nth 4 res)))))
       ;; "  -rw-rw-r-- 1 g 0 Nov  5 21:13 file1.txt"
+      (should (string-match-p "file[12].txt" (nth 3 res)))
       (should (string-match-p "file[12].txt" (nth 4 res)))
-      (should (string-match-p "file[12].txt" (nth 5 res)))
-      (should (string-match-p "^```$" (nth 7 res)))
-      (should (string-match-p "^ bbb$" (nth 8 res))))))
+      (should (string-match-p "^```$" (nth 6 res)))
+      (should (string-match-p "^ bbb$" (nth 7 res))))))
 
 ;; test `oai-block-tags--compose-block-for-path-full'
 (ert-deftest oai-tests-block-tags--oai-block-tags-replace2 ()
@@ -547,7 +548,9 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
   (should
    (string-equal (oai-block-tags--filepath-to-language "aisds") "auto"))
   (should
-   (string-equal (oai-block-tags--filepath-to-language nil) "auto")))
+   (string-equal (oai-block-tags--filepath-to-language nil) "auto"))
+  (should
+   (string-equal (oai-block-tags--filepath-to-language ".in") "auto")))
 
 ;; -=-= Test: oai-block-tags--replace-first-match
 (ert-deftest oai-tests-block-tags--replace-first-match ()
@@ -783,7 +786,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
 ;;       (goto-char 11)
 ;;       (oai-block-tags--get-content-org-block-at-point)))))
 
-;; -=-= Test: oai-block-tags--compose-block-for-path
+;; -=-= Test: oai-block-tags--compose-block-for-path-content
 (ert-deftest oai-tests-block-tags--compose-block-for-path ()
   (should
    (string-equal
@@ -796,7 +799,7 @@ run BODY with access to TEMP-DIR and TEMP-FILES, then clean up."
     (file-name-nondirectory (directory-file-name "/aa")) "aa"))
 
   (should
-   (string-equal (oai-block-tags--compose-block-for-path "a.el" "ss")
+   (string-equal (oai-block-tags--compose-block-for-path-full "a.el" nil nil "ss")
                  "
 Here a.el
 ```elisp

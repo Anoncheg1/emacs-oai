@@ -186,7 +186,9 @@ Nil if buffer does not exist."
            (kill-buffer-query-functions nil))
       (unwind-protect
           (with-current-buffer buf
-            (buffer-substring-no-properties (point-min) (point-max)))
+            (goto-char (point-min))
+            (forward-line)
+            (buffer-substring-no-properties (point) (point-max)))
         (kill-buffer buf)))))
 
 
@@ -210,7 +212,7 @@ Return string with name of language."
          (mode-symbol-string (if symb
                                  (symbol-name path-or-mode-string)
                                ;; else - string - path or mode
-                               (symbol-name (assoc-default path-or-mode-string auto-mode-alist 'string-match))))
+                               (symbol-name (car (flatten-list (assoc-default path-or-mode-string auto-mode-alist 'string-match))))))
          (mode-symbol-string (if (and (not symb) (string-equal mode-symbol-string "nil"))
                                  path-or-mode-string ; string with mode name
                                ;; else
@@ -268,7 +270,8 @@ Optional arguments
 - HEADER added after first chat prefix or just at the begining if
  CONTENT dont starts with chat prefix.
 To detect LANG use `oai-block-tags--filepath-to-language'.
-- INNER, if non-nil, ai block wrapped in markdown."
+- INNER, if non-nil, ai block wrapped in markdown.
+Return string."
   (oai--debug "oai-block-tags--compose-m-block N1 inner=%s lang=%s header=%s" inner lang header)
   (oai--debug "oai-block-tags--compose-m-block N2" content)
   (if (or (not content)
@@ -288,19 +291,22 @@ To detect LANG use `oai-block-tags--filepath-to-language'.
         (oai--debug "oai-block-tags--compose-m-block N3" content)
       (concat (when header (concat "\n" header)) content))))) ; no error if content is nil
 
-(defun oai-block-tags--compose-block-for-path (path-string content &optional lang)
-  "Return mardown block with description.
-PATH-STRING may be path to directory or to a file.
-For provided PATH-STRING and CONTENT string, return string that will be
- good understood by AI.
-Optional argument LANG is string for language of content."
-  (oai-block-tags--compose-m-block
-   ;; content:
-   content
-   :lang (or lang (oai-block-tags--filepath-to-language path-string))
-   :header (concat "Here " (file-name-nondirectory (directory-file-name path-string))
-                   (when (file-directory-p path-string)
-                       " directory contents:"))))
+;; Not used
+;; (defun oai-block-tags--compose-block-for-path-content (path-string content &optional lang)
+;;   "Return mardown block with description.
+;; PATH-STRING may be path to directory or to a file.
+;; For provided PATH-STRING and CONTENT string, return string that will be
+;;  good understood by AI.
+;; If optional argument LANG is string it is used as a language of content,
+;;  otherwise it is detected by extension of PATH-STRING.
+;; Return string."
+;;   (oai-block-tags--compose-m-block
+;;    ;; content:
+;;    content
+;;    :lang (or lang (oai-block-tags--filepath-to-language path-string))
+;;    :header (concat "Here "  path-string
+;;                    (when (file-directory-p path-string)
+;;                        " directory contents:"))))
 
 (defconst oai-block-tags--binary-extensions
   '("pdf" "png" "jpg" "jpeg" "gif" "bmp" "ico" "tiff" "webp"
@@ -312,8 +318,8 @@ Optional argument LANG is string for language of content."
 
 
 (defun oai-block-tags--file-binary-p (file)
-  "Return t if FILE contain a null byte in its first 1024 bytes.
-Use two methods by extension and by reading file."
+  "Return position of first null byte character in first 4096 bytes.
+First check if extension of binary, then by reading FILE itself."
   (unless (and (file-regular-p file)
                (file-readable-p file)
                (> (nth 7 (file-attributes file)) 0)) ; not empy
@@ -321,9 +327,11 @@ Use two methods by extension and by reading file."
   (let ((ext (file-name-extension file)))
     (or (and ext (member-ignore-case  ext oai-block-tags--binary-extensions)) ; simple
         (with-temp-buffer ; advanced
-          (insert-file-contents-literally file nil 0 1024)
+          (insert-file-contents-literally file nil 0 4096)
           (goto-char (point-min))
-          (search-forward "\0" nil t)))))
+          ;; (re-search-forward "[\0-\b\-\]" nil t) ; more active
+          (search-forward "\0" nil t))))) ; lighter
+
 
 (defvar oai-block-tags--multimodal-pairs '(("jpg"  . (image . jpeg)) ("jpeg" . (image . jpeg))
                                            ("png"  . (image . png))  ("webp" . (image . webp))
@@ -370,11 +378,16 @@ CLASS is \='image or \='audio.  TYPE is the specific format symbol."
                              '("M4A " "mp42" "isom")))
                 '(audio . m4a)))))))))
 
-(defun oai-block-tags--compose-block-for-path-full (path-string)
+(defun oai-block-tags--compose-block-for-path-full (path-string &optional lang path-to-display content)
   "Return file or directory in prepared mardown block.
 If PATH-STRING is image or audio, replace link to @image-jpeg:/path.
-If PATH-STRING is binary not image nor audio, signal error.
-PATH-STRING may be path to file or a directory.
+If optional argument LANG is string it is used as a language of content,
+ otherwise it is detected by extension of PATH-STRING.
+If optional argument PATH-TO-DISPLAY is present, it will be used for
+ header string before full content of file, otherwise PATH-STRING will
+ be used for both reading and header string.
+If optional argument CONTENT is not nil, it is used instead of
+ PATH-STRING content.
 Bound with `oai-block-tags-replace-images' by hardcoded regex.
 Called in two placed: for links
  `oai-block-tags--get-replacement-for-org-link' and for tags
@@ -383,19 +396,38 @@ Return string or nil or raise user-error."
   (oai--debug "oai-block-tags--compose-block-for-path-full %s" path-string)
   (cond
    ;; audo or image?
-   ((when-let (res (oai-block-tags--detect-multimodal-pair path-string))
-     (format "@%s-%s:%s" (car res) (cdr res) path-string))) ; image or audio
+   ((unless content
+      (when-let (res (oai-block-tags--detect-multimodal-pair path-string))
+        (format "@%s-%s:%s" (car res) (cdr res) path-string)))) ; image or audio
    ;; is binary?
    ((and (not (file-directory-p path-string))
+         (not content)
          (oai-block-tags--file-binary-p path-string))
     (user-error "File link is binary and not supported (not image and audio) for text request"))
    (t
-    (oai-block-tags--compose-block-for-path path-string
-                                            (if (file-directory-p path-string)
-                                                (oai-block-tags--get-directory-content path-string)
-                                              ;; else
-                                              ;; raise user-error if something
-                                              (org-file-contents path-string)))))) ; oai-block-tags--read-file-to-string-safe
+    (oai-block-tags--compose-m-block
+     ;; content:
+     (or content
+         (if (file-directory-p path-string)
+             (oai-block-tags--get-directory-content path-string)
+           ;; else
+           ;; raise user-error if something
+           (org-file-contents path-string)))
+
+     :lang (or lang (oai-block-tags--filepath-to-language path-string))
+     :header (concat "Here " (or path-to-display
+                                 (file-name-nondirectory (directory-file-name path-string)))
+                     (when (file-directory-p path-string)
+                       " directory contents:"))))))
+    ;; (oai-block-tags--compose-block-for-path-content (or path-to-display
+    ;;                                                     (file-name-nondirectory (directory-file-name path-string))) ; name of file or last directory
+    ;;                                                     ;; (file-name-nondirectory path-string)) ; put only name of file
+    ;;                                                 ;; content:
+    ;;                                                 (if (file-directory-p path-string)
+    ;;                                                     (oai-block-tags--get-directory-content path-string)
+    ;;                                                   ;; else
+    ;;                                                   ;; raise user-error if something
+    ;;                                                   (org-file-contents path-string))))))
 
 ;; -=-= help functions:  block-at-point, contents-area, get-content
 
