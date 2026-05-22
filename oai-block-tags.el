@@ -258,11 +258,12 @@ Return new string."
 
 
 (cl-defun oai-block-tags--compose-m-block (content &optional &key lang header inner)
-  "Return markdown block for LLM with CONTENT.
-Markdown block marked as auto language If optional argument LANG with
- string is not provided.
-Optional arguments
-- LANG is language of content, may be \"ai\".
+  "Surround CONTENT string in markdown block with HEADER string.
+Surrounded markdown block have LANG or \"auto\".
+Markdown blocks in CONTENT are escaped.
+
+Optional arguments:
+- LANG is a language of content, it is used in header.
 - HEADER is a line above markdown to describe it for LLM, should not have
  new line characters at edges.
 - INNER if non-nil AI language content should be wrapped in
@@ -270,19 +271,21 @@ Optional arguments
 - HEADER added after first chat prefix or just at the begining if
  CONTENT dont starts with chat prefix.
 To detect LANG use `oai-block-tags--filepath-to-language'.
-- INNER, if non-nil, ai block wrapped in markdown.
+- INNER, is used for special case to insert ai block without wrapping.
 Return string."
   (oai--debug "oai-block-tags--compose-m-block N1 inner=%s lang=%s header=%s" inner lang header)
   (oai--debug "oai-block-tags--compose-m-block N2" content)
+  ;; trivial case
   (if (or (not content)
           (string-empty-p content))
       nil
-    ;; else
+    ;; else - special, not wrap in markdown block.
     (if (and lang (string-equal-ignore-case "ai" lang) (not inner))
         content
-      ;; else - any bock
+      ;; else
       (let ((content (when content
                        (concat "\n```" (or lang "auto") "\n"
+                               ;; replace
                                (string-replace "```" "\\`\\`\\`"
                                                (replace-regexp-in-string oai-block--chat-prefixes-re
                                                                          "_\\&"
@@ -415,10 +418,14 @@ Return string or nil or raise user-error."
            (org-file-contents path-string)))
 
      :lang (or lang (oai-block-tags--filepath-to-language path-string))
-     :header (concat "Here " (or path-to-display
-                                 (file-name-nondirectory (directory-file-name path-string)))
-                     (when (file-directory-p path-string)
-                       " directory contents:"))))))
+     :header (concat (if (file-directory-p path-string)
+                       "Directory \""
+                       ;; else
+                       "File \"")
+                     (or path-to-display
+                         (file-name-nondirectory (directory-file-name path-string)))
+                     "\":"
+                     )))))
     ;; (oai-block-tags--compose-block-for-path-content (or path-to-display
     ;;                                                     (file-name-nondirectory (directory-file-name path-string))) ; name of file or last directory
     ;;                                                     ;; (file-name-nondirectory path-string)) ; put only name of file

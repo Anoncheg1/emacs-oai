@@ -6,6 +6,10 @@
 - Displaying count of active request moved to “progress reporter” notification.
 
 
+** Improvements:
+
+- Better composing markdown block for filepath, better checking if file is binary
+
 * v0.3.1 [2026-05-12 Tue]
 
 ** Functional changes:
