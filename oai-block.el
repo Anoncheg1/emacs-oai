@@ -39,6 +39,7 @@
 ;; - replace all cl-lib with built-in Elisp code
 ;; - simplify some functions
 ;; - get rid of lambdas.
+;; - ### without text break highlighting for [ME]:
 
 ;;; Code:
 ;; -=-= includes

@@ -316,12 +316,12 @@ Return string."
     "exe" "dll" "so" "o" "elc" "pyc" "class" "bin" "lib" "a"
     "zip" "tar" "gz" "7z" "rar" "bz2" "xz" "iso" "dmg" "jar"
     "mp3" "mp4" "wav" "avi" "mov" "flv" "m4a"
-    "docx" "xlsx" "pptx" "sqlite" "db")
+    "docx" "xlsx" "pptx" "sqlite" "db" "torrent")
   "List of extensions considered binary.")
 
 
 (defun oai-block-tags--file-binary-p (file)
-  "Return position of first null byte character in first 4096 bytes.
+  "Return position of first null byte character in first 8192 bytes.
 First check if extension of binary, then by reading FILE itself."
   (unless (and (file-regular-p file)
                (file-readable-p file)
@@ -330,10 +330,11 @@ First check if extension of binary, then by reading FILE itself."
   (let ((ext (file-name-extension file)))
     (or (and ext (member-ignore-case  ext oai-block-tags--binary-extensions)) ; simple
         (with-temp-buffer ; advanced
-          (insert-file-contents-literally file nil 0 4096)
+          (insert-file-contents-literally file nil 0 8192)
           (goto-char (point-min))
-          ;; (re-search-forward "[\0-\b\-\]" nil t) ; more active
-          (search-forward "\0" nil t))))) ; lighter
+          (re-search-forward "[\0-\b\]" nil t) ; more active
+          ;; (search-forward "\0" nil t)
+          )))) ; lighter
 
 
 (defvar oai-block-tags--multimodal-pairs '(("jpg"  . (image . jpeg)) ("jpeg" . (image . jpeg))

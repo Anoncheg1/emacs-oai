@@ -641,35 +641,37 @@ ORIG-FUN is `oai--org-babel-get-src-block-info-advice' and its ARGS."
   :lighter oai-mode-line-string ; " oai" string
   :keymap oai-mode-map
   :group 'oai
-  (when (derived-mode-p 'org-mode)
-    (if oai-mode
-        (progn
-          (add-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c nil 'local)
-          (advice-add 'keyboard-quit :before #'oai-keyboard-quit)
-          (when oai-fontification-flag
-            (add-hook 'org-font-lock-set-keywords-hook #'oai--add-ai-font-lock-to-org-keywords nil 'local)
-            (org-set-font-lock-defaults)
-            (font-lock-refresh-defaults))
-          ;; - activate "ai" block in Org mode
-          (when (and (boundp 'org-protecting-blocks) (listp org-protecting-blocks))
-            (add-to-list 'org-protecting-blocks "ai"))
-          (when (boundp 'org-structure-template-alist)
-            (add-to-list 'org-structure-template-alist '("A" . "ai")))
-          ;; - Tangle: advice
-          (advice-add 'org-babel-get-src-block-info :around #'oai--org-babel-get-src-block-info-advice)
-          (advice-add 'org-babel-where-is-src-block-head :around #'oai--org-babel-where-is-src-block-head-advice)
-          (add-to-list 'org-babel-tangle-lang-exts '("ai" . "ai")) ; language . ext
-          )
-      ;; else - off
-      (remove-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c 'local)
-      (advice-remove 'keyboard-quit #'oai-keyboard-quit)
-      ;; font lock refrash
-      (remove-hook 'org-font-lock-set-keywords-hook #'oai--add-ai-font-lock-to-org-keywords)
-      (org-set-font-lock-defaults)
-      (font-lock-refresh-defaults)
-      ;; tangle
-      (advice-remove 'org-babel-get-src-block-info #'oai--org-babel-get-src-block-info-advice)
-      (advice-remove 'org-babel-where-is-src-block-head #'oai--org-babel-where-is-src-block-head-advice))))
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Cant enable oai-mode in current buffer, not Org mode"))
+
+  (if oai-mode
+      (progn
+        (add-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c nil 'local)
+        (advice-add 'keyboard-quit :before #'oai-keyboard-quit)
+        (when oai-fontification-flag
+          (add-hook 'org-font-lock-set-keywords-hook #'oai--add-ai-font-lock-to-org-keywords nil 'local)
+          (org-set-font-lock-defaults)
+          (font-lock-refresh-defaults))
+        ;; - activate "ai" block in Org mode
+        (when (and (boundp 'org-protecting-blocks) (listp org-protecting-blocks))
+          (add-to-list 'org-protecting-blocks "ai"))
+        (when (boundp 'org-structure-template-alist)
+          (add-to-list 'org-structure-template-alist '("A" . "ai")))
+        ;; - Tangle: advice
+        (advice-add 'org-babel-get-src-block-info :around #'oai--org-babel-get-src-block-info-advice)
+        (advice-add 'org-babel-where-is-src-block-head :around #'oai--org-babel-where-is-src-block-head-advice)
+        (add-to-list 'org-babel-tangle-lang-exts '("ai" . "ai")) ; language . ext
+        )
+    ;; else - off
+    (remove-hook 'org-ctrl-c-ctrl-c-hook #'oai-ctrl-c-ctrl-c 'local)
+    (advice-remove 'keyboard-quit #'oai-keyboard-quit)
+    ;; font lock refrash
+    (remove-hook 'org-font-lock-set-keywords-hook #'oai--add-ai-font-lock-to-org-keywords)
+    (org-set-font-lock-defaults)
+    (font-lock-refresh-defaults)
+    ;; tangle
+    (advice-remove 'org-babel-get-src-block-info #'oai--org-babel-get-src-block-info-advice)
+    (advice-remove 'org-babel-where-is-src-block-head #'oai--org-babel-where-is-src-block-head-advice)))
 
 (defun oai--get-buffers-for-element (&optional element)
   "Simplify getting url buffers associated with ai block ELEMENT.
