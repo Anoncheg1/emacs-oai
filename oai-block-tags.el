@@ -425,8 +425,7 @@ Return string or nil or raise user-error."
                        "File \"")
                      (or path-to-display
                          (file-name-nondirectory (directory-file-name path-string)))
-                     "\":"
-                     )))))
+                     "\":")))))
     ;; (oai-block-tags--compose-block-for-path-content (or path-to-display
     ;;                                                     (file-name-nondirectory (directory-file-name path-string))) ; name of file or last directory
     ;;                                                     ;; (file-name-nondirectory path-string)) ; put only name of file
