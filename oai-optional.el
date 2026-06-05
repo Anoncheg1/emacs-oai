@@ -107,6 +107,21 @@ Should be added the last to be executed first."
           (insert " ") ; this effectively quote standard headers
           (end-of-line))))))
 
+;; -=-= Markdown: folding _____TODO_______
+;; TODO: - "#" may be inside markdown block!!!
+
+;; (defun oai-optional---back-to-heading-or-point-min ()
+;;   "`org-back-to-heading-or-point-min'."
+;;   (if (org-before-first-heading-p)
+;;       (goto-char (point-min))
+;;     (org-back-to-heading invisible-ok))
+;;   )
+
+;; (defun oai-optional--markdown-end-of-subtree ()
+;;   "`org-end-of-subtree'"
+;;   (org-back-to-heading-or-point-min invisible-ok)
+
+;;   )
 ;;;; provide
 (provide 'oai-optional)
 ;;; oai-optional.el ends here

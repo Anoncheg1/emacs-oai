@@ -320,7 +320,8 @@ value."
   ;; - Create reporter:
   ;; - reporter: if not exist, create, else update count in message
   (let ((r-message (concat oai-timers--global-progress-reporter-waiting-string
-                           "[" (number-to-string (length (oai-timers--get-all-keys))) "]")))
+                           (when (> (length (oai-timers--get-all-keys)) 1) ; output only >1 to not overload context
+                            (concat "[" (number-to-string (length (oai-timers--get-all-keys))) "]")))))
     (if (not oai-timers--global-progress-reporter)
         (setq oai-timers--global-progress-reporter
               (make-progress-reporter r-message))

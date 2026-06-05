@@ -166,6 +166,7 @@
 ;;  begining of the line by removing indentation
 ;; - make key to remove all messages and left only the last
 ;; - support "C-c '" (call-interactively 'org-edit-special)
+;; - fold and unfold Markdown headers.
 
 ;;; Code:
 
@@ -485,16 +486,18 @@ If optional argument ARG is non-nil, mark whole content of ai block."
 
 (defun oai-fill-paragraph ()
   "Call `org-fill-paragraph' to selected item in ai block.
+Universal interactive version of `oai-block-fill-paragraph'.
 Works if cursor in ai block.
 If optional argument ARG is non-nil, mark current message of chat."
   (interactive)
   ;; (oai--debug "oai-fill-paragraph")
   (if-let ((element (oai-block-p)))
-      (or (call-interactively #'oai-block-fill-paragraph)
-          (when (oai-block-fill-region (point)
-                                       (save-excursion (forward-paragraph)
-                                                       (point)))
-                 (message "Line")))
+      ;; (or
+       (call-interactively #'oai-block-fill-paragraph)
+          ;; (when (oai-block-fill-region (point)
+          ;;                              (save-excursion (forward-paragraph)
+          ;;                                              (point)))
+          ;;        (message "Line"))) ; ? TODO: fix this
     ;; else
     (oai--call-next-remap-protected #'org-fill-paragraph)))
 

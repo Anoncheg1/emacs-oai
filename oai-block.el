@@ -1917,14 +1917,14 @@ Optional arguments:
 case, if Transient Mark mode is enabled and the mark is active,
 fill each of the elements in the active region, instead of just
 filling the current element.
-Return t if point at ai block, nil otherwise."
+Return t paragraph was filled-changed."
   (interactive (progn
                  (barf-if-buffer-read-only)
                  (list (when current-prefix-arg 'full)
                        (and (region-active-p)
                             (not (= (region-beginning) (region-end)))))))
   ;; inspired by `org-fill-element'
-  (oai--debug "oai-block-fill-paragraph1 %s %s %s %s" justify region (point) (current-buffer) (region-active-p))
+  (oai--debug "oai-block-fill-paragraph N1 %s %s %s %s" justify region (point) (current-buffer) (region-active-p))
 
   (with-syntax-table org-mode-transpose-word-syntax-table
     ;; Determine the boundaries of the content
@@ -1934,15 +1934,15 @@ Return t if point at ai block, nil otherwise."
                 (end (cdr reg)))
 
       (unless (= beg end)
-        (oai--debug "oai-block-fill-paragraph11 %s %s %s %s" region (region-active-p))
+        (oai--debug "oai-block-fill-paragraph N11 %s %s %s %s" region (region-active-p))
         (when-let* ((reg
                      (cond
                       ;; region
                       (region
-                       (oai--debug "oai-block-fill-paragraph12 %s %s %s %s" region (region-active-p))
+                       (oai--debug "oai-block-fill-paragraph N12 %s %s %s %s" region (region-active-p))
                        (let ((rbeg (region-beginning))
                              (rend (region-end)))
-                         (oai--debug "oai-block-fill-paragraph13 %s %s %s %s" rbeg rend beg end)
+                         (oai--debug "oai-block-fill-paragraph N13 %s %s %s %s" rbeg rend beg end)
                          (cons rbeg rend)))
                       ;; at header
                       ((save-excursion
@@ -1960,8 +1960,8 @@ Return t if point at ai block, nil otherwise."
                        (car (oai-block--find-region-with-position (oai-block--chat-role-regions) (point))))))
                     (beg (car reg))
                     (end (cdr reg)))
-          (oai--debug "oai-block-fill-paragraph2 %s" beg end)
-          (oai-block-fill-region beg end)) ; return t
+          (oai--debug "oai-block-fill-paragraph N2 %s" beg end)
+          (oai-block-fill-region beg end)) ; return t if changed
         ))))
 
 

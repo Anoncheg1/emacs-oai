@@ -466,6 +466,24 @@ oai-block-tags--get-content-at-point-not-org called from:
 - oai-block-tags--get-content-at-point - used in:
   - oai-block-tags--get-org-links-content - num1
   - oai-block-tags--get-replacement-for-org-link -
+* Mardkown: folding headers
+show: (org-fold-show-subtree)
+hide: (org-fold-subtree t)
+- org-back-to-heading
+- org-fold-region
+
+show in ORG: org-cycle(nil)   org-cycle-internal-local()   org-fold-show-entry() org-fold-region(9418 9448 nil outline)
+- ?show in ORG: org-fold-show-children() -> org-fold-heading(nil)
+
+hide in ORG: org-cycle(nil) -> org-cycle-internal-local() -> org-fold-region(17690 17852 t outline)
+
+Loop show: org-cycle-global(nil) -> org-cycle((4)) -> org-cycle-internal-global() -> org-cycle-overview() -> org-fold-region(448 545 t outline)
+
+
+
+
+
+
 * fill - oai-block-fill-function
 - oai-block-fill-insert
   - fill-region-as-paragraph - stream
@@ -665,6 +683,7 @@ New request run: ~oai-timers--progress-reporter-run~
 - set modeline, count
 
 “Now, we dont show” comment used for disabling ouput of current request in mideline
+s
 * Tests: Not covered staff
 - font-locks
 - fill paragraph

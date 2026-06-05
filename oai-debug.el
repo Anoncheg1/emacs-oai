@@ -57,6 +57,7 @@ Set to something like *debug-oai*.  to enable debugging."
   :group 'oai-debug)
 
 
+;; NOT USED
 (defun oai-debug--get-caller ()
   "Return string with name of function of caller function.
 Heavy to execute."
