@@ -6,10 +6,12 @@
 * OAI - chat interface to LLMs and AI agents in Org blocks.
 
 **⚠️ Deprecation Notice:**
-#+BEGIN_IMPORTANT
+#+BEGIN_QUOTE
+[!IMPORTANT]
 =oai= has been officially renamed to *=cui=* [[https://github.com/Anoncheg1/emacs-cui][Anoncheg1/emacs-cui]]!
 All future development, bug fixes, and feature requests will happen in the new repository.
-#+END_IMPORTANT
+#+END_QUOTE
+
 
 Why the change? FSF recommend to call LLMs as LLMs https://gnu.org/philosophy/words-to-avoid.html#ArtificialIntelligance.
 
